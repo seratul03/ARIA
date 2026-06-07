@@ -301,8 +301,8 @@ class AgentCore:
                 reason=f"Sandbox failed: {sandbox_result.rejection_reason}",
                 old_success_rate=report.success_rate,
             )
-            # Rollback to last known good version
-            self._rollback(report.tool_name)
+            # The code was only evaluated in the Sandbox temp dir, 
+            # so the host file is untouched. No rollback needed.
             return False
 
         # ── Step 5: Deploy ─────────────────────────────────────────────────────
