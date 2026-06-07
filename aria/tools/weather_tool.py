@@ -13,9 +13,8 @@ This tool is intentionally improvable by ARIA's Improvement Engine.
 from __future__ import annotations
 
 import httpx
-
+import logging
 from aria.tools.base import BaseTool, TestCase, ToolResult
-
 
 # WMO Weather Interpretation Codes → human-readable descriptions
 _WMO_CODES: dict[int, str] = {
@@ -30,7 +29,6 @@ _WMO_CODES: dict[int, str] = {
     95: "Thunderstorm", 96: "Thunderstorm with slight hail",
     99: "Thunderstorm with heavy hail",
 }
-
 
 class WeatherTool(BaseTool):
     """
@@ -94,8 +92,10 @@ class WeatherTool(BaseTool):
             )
 
         except httpx.TimeoutException:
-            return ToolResult(success=False, output=None, error="Weather API request timed out.")
+            logging.warning("Weather API request timed out.")
+            return self._retry_request()
         except Exception as exc:
+            logging.error(f"An error occurred: {exc}")
             return ToolResult(success=False, output=None, error=str(exc))
 
     def _geocode(self, city: str) -> dict | None:
@@ -103,6 +103,7 @@ class WeatherTool(BaseTool):
             resp = client.get(
                 self._GEOCODE_URL,
                 params={"name": city, "count": 1, "language": "en", "format": "json"},
+                timeout=8.0,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -121,7 +122,7 @@ class WeatherTool(BaseTool):
             "timezone": "auto",
         }
         with httpx.Client(timeout=8.0) as client:
-            resp = client.get(self._WEATHER_URL, params=params)
+            resp = client.get(self._WEATHER_URL, params=params, timeout=8.0)
             resp.raise_for_status()
             data = resp.json()
 
@@ -134,6 +135,17 @@ class WeatherTool(BaseTool):
             "wind_speed": current.get("wind_speed_10m", "N/A"),
             "condition": _WMO_CODES.get(wmo_code, f"Unknown ({wmo_code})"),
         }
+
+    def _retry_request(self) -> ToolResult:
+        import random
+        import time
+
+        # Simple exponential backoff
+        delay = random.uniform(1, 5)
+        time.sleep(delay)
+
+        # Try again
+        return self.run({})
 
     def test_cases(self) -> list[TestCase]:
         return [
