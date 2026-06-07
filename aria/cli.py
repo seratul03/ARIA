@@ -28,17 +28,12 @@ import sys
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    """Launch the TUI dashboard with background scheduler."""
+    """Launch the interactive terminal menu."""
     from aria.main import bootstrap
     bootstrap()
 
-    from aria.core.scheduler import scheduler
-    from aria.tui.dashboard import ARIADashboard
-
-    scheduler.start()
-
-    app = ARIADashboard()
-    app.run()
+    from aria.ui.interactive_menu import run_menu
+    run_menu()
 
 
 def cmd_improve(args: argparse.Namespace) -> None:

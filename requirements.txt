@@ -25,3 +25,4 @@ docker>=7.1.0
 # Database (built-in sqlite3, no extra dep needed)
 # Async support
 anyio>=4.4.0
+questionary>=2.0.0

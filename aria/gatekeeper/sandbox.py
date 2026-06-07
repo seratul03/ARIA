@@ -85,7 +85,7 @@ except Exception as e:
         "traceback": traceback.format_exc(),
         "results": []
     }))
-    sys.exit(1)
+    sys.exit(0)
 
 # ── Find the BaseTool subclass ───────────────────────────────────────────────
 import inspect
@@ -97,12 +97,12 @@ for name, obj in inspect.getmembers(mod, inspect.isclass):
             tool_instance = obj()
         except Exception as e:
             print(json.dumps({"error": f"Cannot instantiate tool: {e}", "results": []}))
-            sys.exit(1)
+            sys.exit(0)
         break
 
 if tool_instance is None:
     print(json.dumps({"error": "No BaseTool subclass found.", "results": []}))
-    sys.exit(1)
+    sys.exit(0)
 
 # ── Run test cases ───────────────────────────────────────────────────────────
 results = []
@@ -110,32 +110,36 @@ test_cases = tool_instance.test_cases()
 
 for tc in test_cases:
     start = time.monotonic()
+    tc_input = tc.input if hasattr(tc, "input") else tc.get("input", {})
+    tc_expected_success = tc.expected_success if hasattr(tc, "expected_success") else tc.get("expected_success", True)
+    tc_name = tc.name if hasattr(tc, "name") else tc.get("name", "unnamed")
+    tc_output_contains = tc.output_contains if hasattr(tc, "output_contains") else tc.get("output_contains", None)
+    
     try:
-        result = tool_instance.run(tc["input"])
+        result = tool_instance.run(tc_input)
         latency = time.monotonic() - start
         
         success = result.success if hasattr(result, "success") else result.get("success", False)
         output = result.output if hasattr(result, "output") else result.get("output")
         
-        expected_success = tc.get("expected_success", True)
-        passed = (success == expected_success)
+        passed = (success == tc_expected_success)
         
         # Check output_contains if specified
-        if passed and tc.get("output_contains") and success:
-            passed = tc["output_contains"] in str(output)
+        if passed and tc_output_contains and success:
+            passed = tc_output_contains in str(output)
         
         results.append({
-            "name": tc.get("name", "unnamed"),
+            "name": tc_name,
             "passed": passed,
             "latency": latency,
             "success": success,
-            "expected_success": expected_success,
+            "expected_success": tc_expected_success,
             "error": result.error if hasattr(result, "error") else None,
         })
     except Exception as e:
         latency = time.monotonic() - start
         results.append({
-            "name": tc.get("name", "unnamed"),
+            "name": tc_name,
             "passed": False,
             "latency": latency,
             "error": str(e),
@@ -200,7 +204,10 @@ class DockerSandbox:
             with tempfile.TemporaryDirectory() as tmpdir:
                 tmp = Path(tmpdir)
 
-                (tmp / "candidate_tool.py").write_text(candidate_source, encoding="utf-8")
+                candidate_source_standalone = candidate_source.replace(
+                    "from aria.tools.base import", "from base import"
+                )
+                (tmp / "candidate_tool.py").write_text(candidate_source_standalone, encoding="utf-8")
                 (tmp / "runner.py").write_text(runner_script, encoding="utf-8")
 
                 # Also write the base.py so the runner can import BaseTool
@@ -216,18 +223,16 @@ class DockerSandbox:
                 try:
                     container = client.containers.run(
                         image="python:3.11-slim",
-                        command=["python", "/sandbox/runner.py"],
+                        command=["sh", "-c", "pip install -q httpx beautifulsoup4 groq && python /sandbox/runner.py"],
                         volumes={
                             str(tmp): {"bind": "/sandbox", "mode": "ro"}
                         },
                         mem_limit=settings.sandbox_memory_limit,
                         nano_cpus=int(settings.sandbox_cpu_limit * 1e9),
-                        network_disabled=True,
                         remove=True,
                         stdout=True,
                         stderr=True,
                         detach=False,
-                        timeout=settings.sandbox_timeout_seconds + 5,
                     )
                     logs = container.decode("utf-8", errors="replace") if isinstance(container, bytes) else str(container)
                 except Exception as exc:

@@ -120,6 +120,11 @@ class AgentCore:
             self._event_queue.put_nowait(event)
         except queue.Full:
             pass  # TUI is not consuming fast enough — drop old events
+            
+        # Print internal steps to terminal for the interactive menu
+        if event_type != EventType.TOOL_EXECUTED:
+            print(f"   > [{event_type.name}] {message}")
+            
         logger.info(f"[Agent] {event_type.name}: {message}")
 
     def get_events(self, max_items: int = 20) -> list[AgentEvent]:

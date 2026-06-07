@@ -77,7 +77,6 @@ class ToolRegistry:
         """
         from aria.tools.calculator_tool import CalculatorTool
         from aria.tools.code_executor_tool import CodeExecutorTool
-        from aria.tools.file_reader_tool import FileReaderTool
         from aria.tools.search_tool import SearchTool
         from aria.tools.summarizer_tool import SummarizerTool
         from aria.tools.weather_tool import WeatherTool
@@ -86,7 +85,6 @@ class ToolRegistry:
             SearchTool,
             SummarizerTool,
             CalculatorTool,
-            FileReaderTool,
             CodeExecutorTool,
             WeatherTool,
         ]:
