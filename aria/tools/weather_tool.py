@@ -16,6 +16,7 @@ import logging
 from aria.tools.base import BaseTool, TestCase, ToolResult
 import asyncio
 import time
+import random
 
 # WMO Weather Interpretation Codes → human-readable descriptions
 _WMO_CODES: dict[int, str] = {
@@ -138,9 +139,6 @@ class WeatherTool(BaseTool):
         }
 
     def _retry_request(self) -> ToolResult:
-        import random
-        import time
-
         # Simple exponential backoff
         delay = random.uniform(1, 5)
         time.sleep(delay)
