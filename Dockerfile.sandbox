@@ -1,0 +1,23 @@
+# Dockerfile.sandbox
+# Minimal isolated Python environment for running ARIA candidate tools.
+# No network access. No host filesystem mount. Strict resource limits.
+
+FROM python:3.11-slim
+
+# Create a non-root user for extra isolation
+RUN useradd -m -u 1000 sandbox
+
+# Install only what candidate tools might legitimately need
+# (math, standard library only — no requests, no socket)
+RUN pip install --no-cache-dir \
+    httpx==0.27.0 \
+    beautifulsoup4==4.12.3
+
+# Working directory
+WORKDIR /sandbox
+
+# Drop to non-root user
+USER sandbox
+
+# Default: expect the tool module + runner script to be injected at runtime
+CMD ["python", "runner.py"]

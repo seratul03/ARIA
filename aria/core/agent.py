@@ -1,0 +1,421 @@
+"""
+aria/core/agent.py
+───────────────────
+The Agent Core — ARIA's central controller.
+
+Responsibilities:
+  1. Receive and dispatch tool calls (via the metrics collector)
+  2. Run improvement cycles end-to-end:
+       Introspect → Generate → Validate → Deploy/Reject
+  3. Enforce the per-hour improvement cycle limit
+  4. Publish status events to the TUI via a thread-safe event queue
+
+The Agent Core does NOT:
+  - Modify its own source code
+  - Modify the Gatekeeper
+  - Modify the database schema
+  - Access the filesystem beyond aria/tools/
+"""
+
+from __future__ import annotations
+
+import logging
+import queue
+import time
+from collections import deque
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from pathlib import Path
+from threading import Lock
+from typing import Any
+
+from aria.config import settings
+from aria.metrics.collector import execute as metrics_execute
+from aria.tools.registry import registry
+
+logger = logging.getLogger(__name__)
+
+
+# ── Event system (for TUI) ────────────────────────────────────────────────────
+
+class EventType(Enum):
+    CYCLE_STARTED = auto()
+    CYCLE_SKIPPED = auto()
+    WEAKNESS_FOUND = auto()
+    GENERATING = auto()
+    STATIC_VALIDATION = auto()
+    SANDBOX_VALIDATION = auto()
+    DEPLOYED = auto()
+    REJECTED = auto()
+    ROLLED_BACK = auto()
+    CYCLE_COMPLETE = auto()
+    ERROR = auto()
+    TOOL_EXECUTED = auto()
+
+
+@dataclass
+class AgentEvent:
+    type: EventType
+    message: str
+    data: dict = field(default_factory=dict)
+    timestamp: float = field(default_factory=time.time)
+
+
+# ── Cycle rate limiter ────────────────────────────────────────────────────────
+
+class _CycleRateLimiter:
+    """
+    Tracks improvement cycle timestamps and enforces the per-hour cap.
+    Separate from the Groq API rate limiter.
+    """
+
+    def __init__(self, max_per_hour: int) -> None:
+        self._max = max_per_hour
+        self._timestamps: deque[float] = deque()
+        self._lock = Lock()
+
+    def can_run(self) -> bool:
+        with self._lock:
+            now = time.time()
+            cutoff = now - 3600.0
+            while self._timestamps and self._timestamps[0] < cutoff:
+                self._timestamps.popleft()
+            return len(self._timestamps) < self._max
+
+    def record(self) -> None:
+        with self._lock:
+            self._timestamps.append(time.time())
+
+    @property
+    def cycles_this_hour(self) -> int:
+        with self._lock:
+            cutoff = time.time() - 3600.0
+            return sum(1 for t in self._timestamps if t >= cutoff)
+
+    @property
+    def max_per_hour(self) -> int:
+        return self._max
+
+
+# ── Agent Core ────────────────────────────────────────────────────────────────
+
+class AgentCore:
+    """
+    The central controller for ARIA. Orchestrates all subsystems.
+    """
+
+    def __init__(self) -> None:
+        self._event_queue: queue.Queue[AgentEvent] = queue.Queue(maxsize=500)
+        self._cycle_limiter = _CycleRateLimiter(
+            settings.max_improvement_cycles_per_hour
+        )
+        self._total_cycles = 0
+        self._running = False
+
+    # ── Event publishing ───────────────────────────────────────────────────────
+
+    def _emit(self, event_type: EventType, message: str, data: dict | None = None) -> None:
+        event = AgentEvent(type=event_type, message=message, data=data or {})
+        try:
+            self._event_queue.put_nowait(event)
+        except queue.Full:
+            pass  # TUI is not consuming fast enough — drop old events
+        logger.info(f"[Agent] {event_type.name}: {message}")
+
+    def get_events(self, max_items: int = 20) -> list[AgentEvent]:
+        """Drain up to `max_items` events from the queue (called by TUI)."""
+        events = []
+        for _ in range(max_items):
+            try:
+                events.append(self._event_queue.get_nowait())
+            except queue.Empty:
+                break
+        return events
+
+    # ── Tool execution ─────────────────────────────────────────────────────────
+
+    def run_tool(self, tool_name: str, input_data: dict) -> Any:
+        """
+        Execute a registered tool with metrics collection.
+
+        Args:
+            tool_name:  e.g. "search_tool"
+            input_data: Input dict passed to tool.run()
+
+        Returns:
+            ToolResult from the tool, or None if tool not found.
+        """
+        tool = registry.get(tool_name)
+        if tool is None:
+            logger.warning(f"[Agent] Tool not found: {tool_name}")
+            return None
+
+        result = metrics_execute(
+            tool_name=tool_name,
+            run_fn=lambda: tool.run(input_data),
+            input_data=input_data,
+        )
+
+        self._emit(
+            EventType.TOOL_EXECUTED,
+            f"Tool '{tool_name}' executed — "
+            f"{'✓' if result.success else '✗'} "
+            f"({result.latency_seconds:.2f}s)",
+            {"tool": tool_name, "success": result.success},
+        )
+        return result
+
+    # ── Improvement cycle ──────────────────────────────────────────────────────
+
+    def run_improvement_cycle(self, target_tool: str | None = None) -> bool:
+        """
+        Run one full improvement cycle.
+
+        If `target_tool` is given, improve that specific tool (manual trigger).
+        Otherwise, let the Introspection Engine pick the worst-performing tool.
+
+        Returns True if a tool was successfully deployed, False otherwise.
+        """
+        # ── Rate limit check ───────────────────────────────────────────────────
+        if not self._cycle_limiter.can_run():
+            self._emit(
+                EventType.CYCLE_SKIPPED,
+                f"Cycle limit reached ({self._cycle_limiter.max_per_hour}/hour). "
+                f"Cycles this hour: {self._cycle_limiter.cycles_this_hour}.",
+            )
+            return False
+
+        self._cycle_limiter.record()
+        self._total_cycles += 1
+        cycle_num = self._total_cycles
+
+        self._emit(
+            EventType.CYCLE_STARTED,
+            f"Improvement cycle #{cycle_num} started.",
+            {"cycle": cycle_num},
+        )
+
+        # ── Step 1: Introspect ─────────────────────────────────────────────────
+        from aria.introspection.engine import IntrospectionEngine
+
+        engine = IntrospectionEngine()
+
+        if target_tool:
+            report = engine.analyze_tool(target_tool)
+            if report is None:
+                self._emit(
+                    EventType.ERROR,
+                    f"Tool '{target_tool}' has no execution history. Run it first.",
+                )
+                return False
+        else:
+            reports = engine.analyze_all()
+            if not reports:
+                self._emit(
+                    EventType.CYCLE_SKIPPED,
+                    "All tools are healthy. No improvement needed.",
+                )
+                return False
+            report = reports[0]  # Worst-performing tool
+
+        self._emit(
+            EventType.WEAKNESS_FOUND,
+            report.summary(),
+            {
+                "tool": report.tool_name,
+                "success_rate": report.success_rate,
+                "p90_latency": report.p90_latency,
+            },
+        )
+
+        # ── Step 2: Generate improvement ───────────────────────────────────────
+        self._emit(EventType.GENERATING, f"Calling Groq LLM to improve '{report.tool_name}'...")
+
+        from aria.improvement.engine import ImprovementEngine
+
+        imp_engine = ImprovementEngine()
+        improvement = imp_engine.generate_improvement(report)
+
+        if not improvement.success:
+            self._emit(
+                EventType.ERROR,
+                f"LLM generation failed: {improvement.error}",
+                {"tool": report.tool_name},
+            )
+            return False
+
+        # ── Step 3: Static validation ──────────────────────────────────────────
+        from aria.gatekeeper.validator import StaticValidator
+
+        validator = StaticValidator()
+        validation = validator.validate(improvement.generated_code, report.tool_name)
+
+        self._emit(
+            EventType.STATIC_VALIDATION,
+            f"Static analysis: {validation.summary()}",
+            {"passed": validation.passed, "issues": validation.issues},
+        )
+
+        if not validation.passed:
+            self._record_rejection(
+                tool_name=report.tool_name,
+                reason=f"Static validation failed: {'; '.join(validation.issues[:2])}",
+                old_success_rate=report.success_rate,
+            )
+            return False
+
+        # ── Step 4: Docker sandbox validation ─────────────────────────────────
+        from aria.gatekeeper.sandbox import DockerSandbox
+        from aria.metrics.db import get_tool_stats
+
+        self._emit(EventType.SANDBOX_VALIDATION, f"Running Docker sandbox tests...")
+
+        current_stats = get_tool_stats(report.tool_name)
+        current_avg_latency = current_stats.avg_latency if current_stats else None
+
+        sandbox = DockerSandbox()
+        sandbox_result = sandbox.run(
+            tool_name=report.tool_name,
+            candidate_source=improvement.generated_code,
+            current_avg_latency=current_avg_latency,
+        )
+
+        self._emit(
+            EventType.SANDBOX_VALIDATION,
+            f"Sandbox: {sandbox_result.summary()}",
+            {
+                "approved": sandbox_result.approved,
+                "tests_passed": sandbox_result.tests_passed,
+                "tests_total": sandbox_result.tests_total,
+            },
+        )
+
+        if not sandbox_result.approved:
+            self._record_rejection(
+                tool_name=report.tool_name,
+                reason=f"Sandbox failed: {sandbox_result.rejection_reason}",
+                old_success_rate=report.success_rate,
+            )
+            # Rollback to last known good version
+            self._rollback(report.tool_name)
+            return False
+
+        # ── Step 5: Deploy ─────────────────────────────────────────────────────
+        deployed = self._deploy(
+            tool_name=report.tool_name,
+            new_source=improvement.generated_code,
+            report=report,
+            sandbox_result=sandbox_result,
+        )
+
+        self._emit(
+            EventType.CYCLE_COMPLETE,
+            f"Cycle #{cycle_num} complete. Deployed: {deployed}.",
+            {"cycle": cycle_num, "deployed": deployed},
+        )
+        return deployed
+
+    def _deploy(self, tool_name: str, new_source: str, report, sandbox_result) -> bool:
+        """Write new source to the tool file and commit to Git."""
+        from aria.metrics.db import insert_improvement
+        from aria.versioning.git_manager import git_manager
+
+        tool_path = Path(__file__).parent.parent / "tools" / f"{tool_name}.py"
+
+        try:
+            # Write improved code
+            tool_path.write_text(new_source, encoding="utf-8")
+
+            # Hot-reload the tool in the registry
+            registry.reload_tool(tool_name)
+
+            # Git commit
+            commit_msg = (
+                f"Improve {tool_name} — "
+                f"success_rate: {report.success_rate:.0%} → expected ↑, "
+                f"sandbox: {sandbox_result.tests_passed}/{sandbox_result.tests_total} tests"
+            )
+            commit_hash = git_manager.commit_tool(tool_name, commit_msg)
+
+            # Record in DB
+            insert_improvement(
+                tool_name=tool_name,
+                timestamp=time.time(),
+                status="deployed",
+                reason=commit_msg,
+                git_commit_hash=commit_hash,
+                old_success_rate=report.success_rate,
+                old_latency_p90=report.p90_latency,
+            )
+
+            self._emit(
+                EventType.DEPLOYED,
+                f"✓ Deployed improved '{tool_name}' (commit: {commit_hash or 'N/A'})",
+                {"tool": tool_name, "commit": commit_hash},
+            )
+            return True
+
+        except Exception as exc:
+            logger.error(f"[Agent] Deploy failed: {exc}")
+            self._rollback(tool_name)
+            return False
+
+    def _rollback(self, tool_name: str) -> None:
+        """Roll back a tool to its last known good version."""
+        from aria.versioning.git_manager import git_manager
+
+        success = git_manager.rollback_tool(tool_name)
+        if success:
+            registry.reload_tool(tool_name)
+            self._emit(
+                EventType.ROLLED_BACK,
+                f"↩ '{tool_name}' rolled back to previous version.",
+                {"tool": tool_name},
+            )
+        else:
+            self._emit(
+                EventType.ERROR,
+                f"Rollback failed for '{tool_name}'. Manual inspection required.",
+                {"tool": tool_name},
+            )
+
+    def _record_rejection(
+        self,
+        tool_name: str,
+        reason: str,
+        old_success_rate: float | None = None,
+    ) -> None:
+        """Record a rejection in the improvement history."""
+        from aria.metrics.db import insert_improvement
+
+        insert_improvement(
+            tool_name=tool_name,
+            timestamp=time.time(),
+            status="rejected",
+            reason=reason,
+            old_success_rate=old_success_rate,
+        )
+        self._emit(
+            EventType.REJECTED,
+            f"✗ Improvement rejected for '{tool_name}': {reason}",
+            {"tool": tool_name, "reason": reason},
+        )
+
+    # ── Status ─────────────────────────────────────────────────────────────────
+
+    @property
+    def cycles_this_hour(self) -> int:
+        return self._cycle_limiter.cycles_this_hour
+
+    @property
+    def max_cycles_per_hour(self) -> int:
+        return self._cycle_limiter.max_per_hour
+
+    @property
+    def total_cycles(self) -> int:
+        return self._total_cycles
+
+
+# ── Shared singleton ──────────────────────────────────────────────────────────
+
+agent = AgentCore()

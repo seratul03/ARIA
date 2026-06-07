@@ -1,0 +1,27 @@
+# ARIA — Python Dependencies
+
+# LLM & API
+groq>=0.9.0
+
+# Configuration
+python-dotenv>=1.0.0
+
+# Terminal TUI
+rich>=13.7.0
+textual>=0.61.0
+
+# Git version control
+gitpython>=3.1.43
+
+# HTTP client
+httpx>=0.27.0
+
+# HTML parsing (search tool fallback)
+beautifulsoup4>=4.12.3
+
+# Docker SDK
+docker>=7.1.0
+
+# Database (built-in sqlite3, no extra dep needed)
+# Async support
+anyio>=4.4.0
