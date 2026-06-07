@@ -39,8 +39,8 @@ class WeaknessReport:
     failure_count: int
     reasons: list[str]                          # Human-readable reasons for flagging
     recent_failures: list[dict]                 # Last N failure records for LLM context
-    recent_improvement_failures: list[dict] = field(default_factory=list) # Past rejection reasons
     source_code: str                            # Current tool source code
+    recent_improvement_failures: list[dict] = field(default_factory=list) # Past rejection reasons
     timestamp: float = field(default_factory=time.time)
 
     @property
