@@ -1,6 +1,5 @@
+# aria/tools/weather_tool.py
 """
-aria/tools/weather_tool.py
-───────────────────────────
 Fetches current weather data using the Open-Meteo API (free, no auth required).
 
 Flow:
@@ -15,6 +14,8 @@ from __future__ import annotations
 import httpx
 import logging
 from aria.tools.base import BaseTool, TestCase, ToolResult
+import asyncio
+import time
 
 # WMO Weather Interpretation Codes → human-readable descriptions
 _WMO_CODES: dict[int, str] = {
@@ -146,6 +147,21 @@ class WeatherTool(BaseTool):
 
         # Try again
         return self.run({})
+
+    def _async_retry_request(self, max_retries: int = 3) -> asyncio.Task:
+        async def _async_retry():
+            for _ in range(max_retries):
+                try:
+                    return await self.run({})
+                except Exception as exc:
+                    logging.error(f"An error occurred: {exc}")
+                    await asyncio.sleep(random.uniform(1, 5))
+            return ToolResult(success=False, output=None, error="Max retries exceeded")
+
+        return asyncio.create_task(_async_retry())
+
+    async def run_async(self, input: dict) -> ToolResult:
+        return await self._async_retry_request()
 
     def test_cases(self) -> list[TestCase]:
         return [
