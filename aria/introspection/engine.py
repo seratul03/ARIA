@@ -23,6 +23,7 @@ from aria.metrics.db import (
     get_all_tool_stats,
     get_recent_failures,
     get_tool_stats,
+    get_improvement_history,
 )
 
 
@@ -38,6 +39,7 @@ class WeaknessReport:
     failure_count: int
     reasons: list[str]                          # Human-readable reasons for flagging
     recent_failures: list[dict]                 # Last N failure records for LLM context
+    recent_improvement_failures: list[dict] = field(default_factory=list) # Past rejection reasons
     source_code: str                            # Current tool source code
     timestamp: float = field(default_factory=time.time)
 
@@ -115,6 +117,9 @@ class IntrospectionEngine:
 
             failures = get_recent_failures(stats.tool_name, limit=5)
             source = _load_source(stats.tool_name)
+            
+            history = get_improvement_history(stats.tool_name, limit=5)
+            rejected_history = [h for h in history if h["status"] == "rejected"]
 
             report = WeaknessReport(
                 tool_name=stats.tool_name,
@@ -124,6 +129,7 @@ class IntrospectionEngine:
                 failure_count=stats.failure_count,
                 reasons=reasons,
                 recent_failures=failures,
+                recent_improvement_failures=rejected_history,
                 source_code=source,
             )
             reports.append(report)
@@ -149,6 +155,9 @@ class IntrospectionEngine:
 
         failures = get_recent_failures(tool_name, limit=5)
         source = _load_source(tool_name)
+        
+        history = get_improvement_history(tool_name, limit=5)
+        rejected_history = [h for h in history if h["status"] == "rejected"]
 
         return WeaknessReport(
             tool_name=tool_name,
@@ -158,6 +167,7 @@ class IntrospectionEngine:
             failure_count=stats.failure_count,
             reasons=reasons,
             recent_failures=failures,
+            recent_improvement_failures=rejected_history,
             source_code=source,
         )
 

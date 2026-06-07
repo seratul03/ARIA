@@ -64,6 +64,13 @@ def build_improvement_prompt(report: WeaknessReport) -> str:
         failures_text = "  (no failure records available)"
 
     reasons_text = "\n".join(f"  - {r}" for r in report.reasons)
+    
+    rejected_history_text = ""
+    if report.recent_improvement_failures:
+        rejected_history_text = "\nPAST IMPROVEMENT ATTEMPTS THAT FAILED:\n" + "\n".join(
+            f"  - Rejected Reason: {f.get('reason', 'N/A')}"
+            for f in report.recent_improvement_failures
+        ) + "\nWARNING: Do NOT repeat these mistakes!\n"
 
     prompt = f"""IMPROVEMENT REQUEST
 ═══════════════════
@@ -79,7 +86,7 @@ DETECTED WEAKNESSES:
 
 RECENT FAILURE SAMPLES:
 {failures_text}
-
+{rejected_history_text}
 CURRENT SOURCE CODE (improve this):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {report.source_code}
