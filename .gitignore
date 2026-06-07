@@ -49,3 +49,7 @@ htmlcov/
 # Workspace data (user files, not ARIA source)
 workspace/
 data/
+
+# ARIA output results 
+Results/*
+!Results/.gitkeep
