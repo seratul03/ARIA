@@ -29,10 +29,10 @@
 │  └──────────────────────────────────────────────────────────┘   │
 │         │                                                        │
 │         ▼                                                        │
-│  ┌──────────────┐    ┌──────────────┐    ┌───────────────────┐ │
-│  │  Git Manager │    │  TUI Dashboard│    │   CLI Interface   │ │
-│  │  (rollback)  │    │  (Textual)   │    │   (argparse)      │ │
-│  └──────────────┘    └──────────────┘    └───────────────────┘ │
+│  ┌──────────────┐    ┌───────────────┐   ┌───────────────────┐ │
+│  │  Git Manager │    │Interactive Menu│  │   CLI Interface   │ │
+│  │  (rollback)  │    │ (Questionary) │   │   (argparse)      │ │
+│  └──────────────┘    └───────────────┘   └───────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,7 +71,7 @@ python -m aria run
 
 | Command | Description |
 |---|---|
-| `python -m aria run` | Launch the live TUI dashboard |
+| `python -m aria run` | Launch the Interactive Command Center (Menu) |
 | `python -m aria status` | Print current tool metrics table |
 | `python -m aria improve --tool search_tool` | Manually trigger improvement for a tool |
 | `python -m aria rollback --tool search_tool` | Revert a tool to its last Git version |
@@ -80,15 +80,12 @@ python -m aria run
 
 ---
 
-## TUI Dashboard Key Bindings
+## Interactive Output Grading
 
-| Key | Action |
-|---|---|
-| `R` | Trigger improvement cycle manually |
-| `I` | Select a specific tool to improve |
-| `H` | View improvement history in log |
-| `L` | Scroll log to bottom |
-| `Q` | Quit ARIA gracefully |
+Every time you run a tool via the Interactive Menu, ARIA uses an LLM to grade its own output. 
+- Start at 10/10.
+- Deduct points for minor formatting, lack of detail, or missing edge cases.
+- If the score drops below **9/10**, the Autonomous Improvement Loop is triggered instantly.
 
 ---
 
@@ -116,10 +113,11 @@ ARIA CANNOT modify:   aria/core/, aria/gatekeeper/, aria/metrics/, .env
 
 1. **Rate Limiting** — Max 5 improvement cycles/hour (configurable)
 2. **Groq Rate Limiter** — Sliding window prevents 429 errors
-3. **Static AST Analysis** — Blocks forbidden imports (`os`, `sys`, `subprocess`, etc.) and calls (`eval`, `exec`)
-4. **Docker Sandbox** — All candidate code runs with no network, 256MB RAM, 30s timeout
-5. **Performance Gate** — New code must not be >50% slower than current
-6. **Git Rollback** — Every change is committed; failures auto-rollback
+3. **Static AST Analysis** — Blocks forbidden imports (`os`, `sys`, `subprocess`) to prevent OS-level backdoors.
+4. **Docker Sandbox** — Isolated container that enforces a strict 100% test-pass rate.
+5. **Hallucination Protection** — Sandbox explicitly catches and rejects hallucinated arguments or hallucinated test cases.
+6. **Performance Gate** — New code must not be >50% slower than current
+7. **Git Rollback** — Every change is committed; failures auto-rollback
 
 ---
 
@@ -185,7 +183,7 @@ ARIA/
 │   ├── improvement/    LLM prompt builder + improvement engine
 │   ├── gatekeeper/     Static validator + Docker sandbox
 │   ├── versioning/     Git manager
-│   └── tui/            Textual terminal dashboard
+│   └── ui/             Interactive monochromatic CLI menu
 ├── .env.example        Configuration template
 ├── Dockerfile.sandbox  Docker image for tool validation
 ├── requirements.txt    Python dependencies

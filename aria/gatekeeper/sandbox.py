@@ -106,7 +106,15 @@ if tool_instance is None:
 
 # ── Run test cases ───────────────────────────────────────────────────────────
 results = []
-test_cases = tool_instance.test_cases()
+try:
+    test_cases = tool_instance.test_cases()
+except Exception as e:
+    print(json.dumps({
+        "error": f"Failed to load test cases (LLM likely hallucinated an argument): {e}",
+        "traceback": traceback.format_exc(),
+        "results": []
+    }))
+    sys.exit(0)
 
 for tc in test_cases:
     start = time.monotonic()
