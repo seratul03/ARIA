@@ -30,6 +30,12 @@ _OPERATORS: dict[type, Any] = {
     ast.Pow:      operator.pow,
     ast.USub:     operator.neg,
     ast.UAdd:     operator.pos,
+    ast.BitAnd:   operator.and_,
+    ast.BitOr:    operator.or_,
+    ast.BitXor:   operator.xor,
+    ast.Invert:   operator.invert,
+    ast.LShift:   operator.lshift,
+    ast.RShift:   operator.rshift,
 }
 
 # Whitelisted math functions
@@ -156,6 +162,12 @@ class CalculatorTool(BaseTool):
                 input={"expression": "sin(pi / 2)"},
                 expected_success=True,
                 description="sin(π/2) = 1.0",
+            ),
+            TestCase(
+                name="bitwise_xor",
+                input={"expression": "5 ^ 3"},
+                expected_success=True,
+                description="5 ^ 3 = 6.0",
             ),
             TestCase(
                 name="sqrt",
