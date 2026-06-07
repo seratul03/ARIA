@@ -11,6 +11,8 @@ This tool is intentionally improvable by ARIA's Improvement Engine.
 from __future__ import annotations
 
 import time
+import logging
+from typing import Dict, List
 
 import httpx
 from bs4 import BeautifulSoup
@@ -35,7 +37,11 @@ class SearchTool(BaseTool):
     _DDGR_API = "https://api.duckduckgo.com/"
     _DDGR_HTML = "https://html.duckduckgo.com/html/"
 
-    def run(self, input: dict) -> ToolResult:
+    def __init__(self):
+        self.logger = logging.getLogger(self.name)
+        self.logger.setLevel(logging.INFO)
+
+    def run(self, input: Dict) -> ToolResult:
         query = input.get("query", "").strip()
         max_results = int(input.get("max_results", 3))
 
@@ -58,12 +64,14 @@ class SearchTool(BaseTool):
                 output=None,
                 error=f"No results found for query: '{query}'",
             )
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as exc:
+            self.logger.warning(f"Search request timed out: {exc}")
             return ToolResult(success=False, output=None, error="Search request timed out.")
         except Exception as exc:
+            self.logger.error(f"Unexpected error: {exc}")
             return ToolResult(success=False, output=None, error=str(exc))
 
-    def _json_search(self, query: str, max_results: int) -> list[dict]:
+    def _json_search(self, query: str, max_results: int) -> List[Dict]:
         """Try the DuckDuckGo Instant Answer API (JSON)."""
         params = {
             "q": query,
@@ -71,10 +79,23 @@ class SearchTool(BaseTool):
             "no_html": "1",
             "skip_disambig": "1",
         }
-        with httpx.Client(timeout=8.0) as client:
-            resp = client.get(self._DDGR_API, params=params)
-            resp.raise_for_status()
-            data = resp.json()
+        retries = 3
+        for attempt in range(retries):
+            try:
+                with httpx.Client(timeout=8.0) as client:
+                    resp = client.get(self._DDGR_API, params=params)
+                    resp.raise_for_status()
+                    data = resp.json()
+                break
+            except httpx.TimeoutException:
+                if attempt < retries - 1:
+                    self.logger.warning(f"Timeout on attempt {attempt + 1} of {retries}. Retrying...")
+                else:
+                    self.logger.error("All retries failed.")
+                    raise
+        else:
+            self.logger.error("Failed to retrieve JSON response.")
+            return []
 
         results = []
 
@@ -99,7 +120,7 @@ class SearchTool(BaseTool):
 
         return results[:max_results]
 
-    def _html_search(self, query: str, max_results: int) -> list[dict]:
+    def _html_search(self, query: str, max_results: int) -> List[Dict]:
         """Fallback: scrape DuckDuckGo HTML results."""
         headers = {
             "User-Agent": (
@@ -107,9 +128,22 @@ class SearchTool(BaseTool):
                 "AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
             )
         }
-        with httpx.Client(timeout=10.0, headers=headers, follow_redirects=True) as client:
-            resp = client.post(self._DDGR_HTML, data={"q": query})
-            resp.raise_for_status()
+        retries = 3
+        for attempt in range(retries):
+            try:
+                with httpx.Client(timeout=10.0, headers=headers, follow_redirects=True) as client:
+                    resp = client.post(self._DDGR_HTML, data={"q": query})
+                    resp.raise_for_status()
+                break
+            except httpx.TimeoutException:
+                if attempt < retries - 1:
+                    self.logger.warning(f"Timeout on attempt {attempt + 1} of {retries}. Retrying...")
+                else:
+                    self.logger.error("All retries failed.")
+                    raise
+        else:
+            self.logger.error("Failed to retrieve HTML response.")
+            return []
 
         soup = BeautifulSoup(resp.text, "html.parser")
         results = []
@@ -129,7 +163,7 @@ class SearchTool(BaseTool):
 
         return results
 
-    def test_cases(self) -> list[TestCase]:
+    def test_cases(self) -> List[TestCase]:
         return [
             TestCase(
                 name="basic_query",
