@@ -57,10 +57,21 @@ class Settings:
     groq_api_key: str
     groq_model: str
 
+    # ── Security ──────────────────────────────────────────────
+    test_signing_key: str
+
     # ── Introspection thresholds ───────────────────────────────
     success_rate_threshold: float       # e.g. 0.70
     latency_threshold_seconds: float    # e.g. 5.0
     min_executions_for_analysis: int    # e.g. 10
+    confidence_score_threshold: float   # e.g. 9.0
+    
+    # ── Fitness Score Weights ──────────────────────────────────
+    fitness_threshold: float            # e.g. 0.5
+    weight_pass_rate: float             # e.g. 1.0
+    weight_latency: float               # e.g. 0.1
+    weight_memory: float                # e.g. 0.01
+    weight_tokens: float                # e.g. 0.001
 
     # ── Safety limits ──────────────────────────────────────────
     max_improvement_cycles_per_hour: int  # e.g. 5
@@ -92,10 +103,18 @@ def _load_settings() -> Settings:
     return Settings(
         groq_api_key=_require("GROQ_API_KEY"),
         groq_model=_get("GROQ_MODEL", "llama3-8b-8192"),
+        test_signing_key=_get("TEST_SIGNING_KEY", "YOUR_16_CHAR_KEY"),
 
         success_rate_threshold=_get_float("SUCCESS_RATE_THRESHOLD", 0.70),
         latency_threshold_seconds=_get_float("LATENCY_THRESHOLD_SECONDS", 5.0),
         min_executions_for_analysis=_get_int("MIN_EXECUTIONS_FOR_ANALYSIS", 10),
+        confidence_score_threshold=_get_float("CONFIDENCE_SCORE_THRESHOLD", 9.0),
+
+        fitness_threshold=_get_float("FITNESS_THRESHOLD", 0.5),
+        weight_pass_rate=_get_float("WEIGHT_PASS_RATE", 1.0),
+        weight_latency=_get_float("WEIGHT_LATENCY", 0.1),
+        weight_memory=_get_float("WEIGHT_MEMORY", 0.01),
+        weight_tokens=_get_float("WEIGHT_TOKENS", 0.001),
 
         max_improvement_cycles_per_hour=_get_int("MAX_IMPROVEMENT_CYCLES_PER_HOUR", 5),
 

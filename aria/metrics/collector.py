@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+import tracemalloc
 from contextlib import contextmanager
 from typing import Any, Callable, Generator
 
@@ -66,6 +67,7 @@ def record(tool_name: str, input_data: Any) -> Generator[None, None, None]:
 
     ctx = _Ctx()
     start = time.monotonic()
+    tracemalloc.start()
     input_hash = _hash_input(input_data)
 
     try:
@@ -76,7 +78,13 @@ def record(tool_name: str, input_data: Any) -> Generator[None, None, None]:
         success = False
     finally:
         latency = time.monotonic() - start
+        _, peak_mem = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        memory_mb = peak_mem / (1024 * 1024)
+        
         quality = _score_output(ctx.result, success)
+        tokens_used = getattr(ctx.result, "tokens_used", 0) if ctx.result else 0
+        
         insert_execution(
             tool_name=tool_name,
             timestamp=time.time(),
@@ -85,6 +93,8 @@ def record(tool_name: str, input_data: Any) -> Generator[None, None, None]:
             input_hash=input_hash,
             output_quality_score=quality,
             error_message=ctx.error,
+            memory_mb=memory_mb,
+            tokens_used=tokens_used,
         )
 
 
@@ -104,6 +114,7 @@ def execute(tool_name: str, run_fn: Callable[[], Any], input_data: Any = None) -
         Re-raises any exception from run_fn after logging it.
     """
     start = time.monotonic()
+    tracemalloc.start()
     input_hash = _hash_input(input_data)
     error_message: str | None = None
     result: Any = None
@@ -117,7 +128,13 @@ def execute(tool_name: str, run_fn: Callable[[], Any], input_data: Any = None) -
         raise
     finally:
         latency = time.monotonic() - start
+        _, peak_mem = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        memory_mb = peak_mem / (1024 * 1024)
+        
         quality = _score_output(result, success)
+        tokens_used = getattr(result, "tokens_used", 0) if result else 0
+        
         insert_execution(
             tool_name=tool_name,
             timestamp=time.time(),
@@ -126,6 +143,8 @@ def execute(tool_name: str, run_fn: Callable[[], Any], input_data: Any = None) -
             input_hash=input_hash,
             output_quality_score=quality,
             error_message=error_message,
+            memory_mb=memory_mb,
+            tokens_used=tokens_used,
         )
 
     return result

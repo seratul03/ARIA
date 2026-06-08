@@ -25,6 +25,8 @@ class ToolResult:
     output: Any                    # The tool's actual output
     error: str | None = None       # Error message if success=False
     latency_seconds: float = 0.0  # Populated by the metrics collector
+    memory_mb: float = 0.0        # Populated by the metrics collector
+    tokens_used: int = 0          # Populated by the tool if applicable
 
 
 @dataclass
@@ -49,7 +51,6 @@ class BaseTool(ABC):
     Every tool must:
       1. Define a unique `name` string attribute.
       2. Implement `run(input: dict) -> ToolResult`.
-      3. Provide at least 3 test cases via `test_cases()`.
 
     Tools MUST NOT:
       - Import os, sys, subprocess, socket, shutil, or pathlib at the module level
@@ -73,19 +74,9 @@ class BaseTool(ABC):
         """
         ...
 
-    @abstractmethod
-    def test_cases(self) -> list[TestCase]:
-        """
-        Return a list of TestCase objects used for automated validation.
-        At least 3 test cases are required — more is better.
-        Test cases must be self-contained and not require network access.
-        """
-        ...
-
     def describe(self) -> dict:
         """Return a human-readable description of this tool."""
         return {
             "name": self.name,
             "class": type(self).__name__,
-            "test_count": len(self.test_cases()),
         }

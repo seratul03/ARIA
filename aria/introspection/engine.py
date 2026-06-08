@@ -37,6 +37,7 @@ class WeaknessReport:
     p90_latency: float
     total_executions: int
     failure_count: int
+    fitness_score: float                        # Overall fitness score
     reasons: list[str]                          # Human-readable reasons for flagging
     recent_failures: list[dict]                 # Last N failure records for LLM context
     source_code: str                            # Current tool source code
@@ -57,6 +58,7 @@ class WeaknessReport:
     def summary(self) -> str:
         return (
             f"[{self.severity.upper()}] {self.tool_name}: "
+            f"fitness={self.fitness_score:.2f}, "
             f"success={self.success_rate:.0%}, "
             f"p90_latency={self.p90_latency:.2f}s, "
             f"failures={self.failure_count}/{self.total_executions}"
@@ -72,29 +74,42 @@ def _load_source(tool_name: str) -> str:
     return "# Source code not available."
 
 
-def _is_weak(stats: ToolStats) -> tuple[bool, list[str]]:
+def _is_weak(stats: ToolStats) -> tuple[bool, list[str], float]:
     """
-    Determine if a tool's stats cross the weakness thresholds.
-    Returns (is_weak, list_of_reasons).
+    Determine if a tool's stats cross the weakness thresholds using a multi-objective fitness score.
+    Returns (is_weak, list_of_reasons, fitness_score).
     """
     reasons = []
 
     if stats.total_executions < settings.min_executions_for_analysis:
-        return False, []
+        return False, [], 0.0
 
-    if stats.success_rate < settings.success_rate_threshold:
-        reasons.append(
-            f"Success rate {stats.success_rate:.0%} is below threshold "
-            f"{settings.success_rate_threshold:.0%}"
-        )
+    fitness = (
+        settings.weight_pass_rate * stats.success_rate
+        - settings.weight_latency * stats.avg_latency
+        - settings.weight_memory * stats.avg_memory_mb
+        - settings.weight_tokens * stats.avg_tokens_used
+    )
 
-    if stats.p90_latency > settings.latency_threshold_seconds:
-        reasons.append(
-            f"p90 latency {stats.p90_latency:.2f}s exceeds threshold "
-            f"{settings.latency_threshold_seconds:.1f}s"
-        )
+    if fitness < settings.fitness_threshold:
+        reasons.append(f"Fitness score {fitness:.2f} is below threshold {settings.fitness_threshold:.2f}")
+        
+        if stats.success_rate < settings.success_rate_threshold:
+            reasons.append(
+                f"Success rate {stats.success_rate:.0%} is below threshold "
+                f"{settings.success_rate_threshold:.0%}"
+            )
+        if stats.p90_latency > settings.latency_threshold_seconds:
+            reasons.append(
+                f"p90 latency {stats.p90_latency:.2f}s exceeds threshold "
+                f"{settings.latency_threshold_seconds:.1f}s"
+            )
+        if stats.avg_memory_mb > 50.0:
+            reasons.append(f"Memory allocation ({stats.avg_memory_mb:.2f}MB) is excessive.")
+        if stats.avg_tokens_used > 1000:
+            reasons.append(f"LLM token usage ({stats.avg_tokens_used:.0f}) is too expensive.")
 
-    return len(reasons) > 0, reasons
+    return len(reasons) > 0, reasons, fitness
 
 
 class IntrospectionEngine:
@@ -111,7 +126,7 @@ class IntrospectionEngine:
         reports: list[WeaknessReport] = []
 
         for stats in all_stats:
-            weak, reasons = _is_weak(stats)
+            weak, reasons, fitness = _is_weak(stats)
             if not weak:
                 continue
 
@@ -127,6 +142,7 @@ class IntrospectionEngine:
                 p90_latency=stats.p90_latency,
                 total_executions=stats.total_executions,
                 failure_count=stats.failure_count,
+                fitness_score=fitness,
                 reasons=reasons,
                 recent_failures=failures,
                 recent_improvement_failures=rejected_history,
@@ -149,7 +165,7 @@ class IntrospectionEngine:
         if stats is None:
             return None
 
-        _, reasons = _is_weak(stats)
+        _, reasons, fitness = _is_weak(stats)
         if not reasons:
             reasons = ["Manual improvement requested by user."]
 
@@ -165,6 +181,7 @@ class IntrospectionEngine:
             p90_latency=stats.p90_latency,
             total_executions=stats.total_executions,
             failure_count=stats.failure_count,
+            fitness_score=fitness,
             reasons=reasons,
             recent_failures=failures,
             recent_improvement_failures=rejected_history,
@@ -180,10 +197,13 @@ class IntrospectionEngine:
         summary = {}
 
         for stats in all_stats:
-            weak, reasons = _is_weak(stats)
+            weak, reasons, fitness = _is_weak(stats)
             summary[stats.tool_name] = {
                 "success_rate": stats.success_rate,
                 "p90_latency": stats.p90_latency,
+                "avg_memory_mb": stats.avg_memory_mb,
+                "avg_tokens_used": stats.avg_tokens_used,
+                "fitness_score": fitness,
                 "total_executions": stats.total_executions,
                 "failure_count": stats.failure_count,
                 "is_weak": weak,

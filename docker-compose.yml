@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  aria:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aria_runtime
+    volumes:
+      # --- PHASE 0.1: IMMUTABLE GATEKEEPER ---
+      # Mount the gatekeeper directory as strictly read-only
+      - ./aria/gatekeeper:/app/aria/gatekeeper:ro
+      
+      # --- DOCKER OUT-OF-DOCKER ---
+      # Required for ARIA to spawn the sandbox sibling containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # --- PERSISTENCE ---
+      - ./aria.db:/app/aria.db
+      - ./aria.log:/app/aria.log
+      - ./data:/app/data
+      - ./workspace:/app/workspace
+      
+      # --- CONFIG & VERSIONING ---
+      - ./.env:/app/.env
+      - ./.git:/app/.git
+    environment:
+      - PYTHONUNBUFFERED=1
+    
+    # Required for the interactive CLI (questionary/rich)
+    stdin_open: true
+    tty: true
+
+  audit_logger:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: audit_logger
+    command: python /app/audit_server.py
+    volumes:
+      - ./audit.log:/logs/audit.log
+    ports:
+      - "5005:5005/udp"

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "calculator_tool_001",
+    "tool": "calculator_tool",
+    "input": {
+      "expression": "2 + 3 * 4"
+    },
+    "expected_success": true,
+    "signature": "86dd49579dcdd88b4927cfa2a6d8a923c7158ff5c721e956cc9475947a249c1a"
+  },
+  {
+    "id": "calculator_tool_002",
+    "tool": "calculator_tool",
+    "input": {
+      "expression": "sin(pi / 2)"
+    },
+    "expected_success": true,
+    "signature": "82c2a0a3bbb08b38e6e5b0f7e4ea3cdce4f14c91eafc66f262fe9fc651b656ee"
+  },
+  {
+    "id": "calculator_tool_003",
+    "tool": "calculator_tool",
+    "input": {
+      "expression": "5 ^ 3"
+    },
+    "expected_success": true,
+    "signature": "61248089e67bfccb04739cef6965211f870044433356b066ec7ad068d0394209"
+  },
+  {
+    "id": "calculator_tool_004",
+    "tool": "calculator_tool",
+    "input": {
+      "expression": "sqrt(144)"
+    },
+    "expected_success": true,
+    "signature": "d700f5adc9a9642a91a1a3430f9c7c0277f683ac719d3824f24c91c18d112305"
+  },
+  {
+    "id": "calculator_tool_005",
+    "tool": "calculator_tool",
+    "input": {
+      "expression": ""
+    },
+    "expected_success": false,
+    "signature": "450781aa9de3ad60f1f9f1b1aeb79c78c35d2eff856a24cfbde913067329d834"
+  },
+  {
+    "id": "calculator_tool_006",
+    "tool": "calculator_tool",
+    "input": {
+      "expression": "1 / 0"
+    },
+    "expected_success": false,
+    "signature": "03c6898c8796fe4f22f86a686f9d706bd0020654351af888f0053bb46e8fde38"
+  },
+  {
+    "id": "calculator_tool_007",
+    "tool": "calculator_tool",
+    "input": {
+      "expression": "log(exp(1))"
+    },
+    "expected_success": true,
+    "signature": "68a9ad227b7f5d0a6c8898f552766fc12c1c10ad0b8cf71c220703d30fe63169"
+  },
+  {
+    "id": "calculator_tool_008",
+    "tool": "calculator_tool",
+    "input": {
+      "expression": "__import__('os').system('whoami')"
+    },
+    "expected_success": false,
+    "signature": "157be13ef6718c55fa43d5fdbfd61eb22001d46fd70f479faa6cec3e8895d609"
+  }
+]

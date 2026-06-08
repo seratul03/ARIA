@@ -71,8 +71,8 @@ Injected at runtime — do not edit.
 import json
 import sys
 import time
-import importlib.util
 import traceback
+import tracemalloc
 
 # ── Load the candidate tool module ──────────────────────────────────────────
 spec = importlib.util.spec_from_file_location("candidate_tool", "/sandbox/candidate_tool.py")
@@ -107,10 +107,10 @@ if tool_instance is None:
 # ── Run test cases ───────────────────────────────────────────────────────────
 results = []
 try:
-    test_cases = tool_instance.test_cases()
+    test_cases = json.loads('''__INJECTED_TEST_CASES_JSON__''')
 except Exception as e:
     print(json.dumps({
-        "error": f"Failed to load test cases (LLM likely hallucinated an argument): {e}",
+        "error": f"Failed to load injected test cases: {e}",
         "traceback": traceback.format_exc(),
         "results": []
     }))
@@ -118,6 +118,7 @@ except Exception as e:
 
 for tc in test_cases:
     start = time.monotonic()
+    tracemalloc.start()
     tc_input = tc.input if hasattr(tc, "input") else tc.get("input", {})
     tc_expected_success = tc.expected_success if hasattr(tc, "expected_success") else tc.get("expected_success", True)
     tc_name = tc.name if hasattr(tc, "name") else tc.get("name", "unnamed")
@@ -126,9 +127,13 @@ for tc in test_cases:
     try:
         result = tool_instance.run(tc_input)
         latency = time.monotonic() - start
+        _, peak_mem = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        memory_mb = peak_mem / (1024 * 1024)
         
         success = result.success if hasattr(result, "success") else result.get("success", False)
         output = result.output if hasattr(result, "output") else result.get("output")
+        tokens_used = result.tokens_used if hasattr(result, "tokens_used") else result.get("tokens_used", 0) if isinstance(result, dict) else 0
         
         passed = (success == tc_expected_success)
         
@@ -143,14 +148,22 @@ for tc in test_cases:
             "success": success,
             "expected_success": tc_expected_success,
             "error": result.error if hasattr(result, "error") else None,
+            "memory_mb": memory_mb,
+            "tokens_used": tokens_used,
         })
     except Exception as e:
         latency = time.monotonic() - start
+        try:
+            tracemalloc.stop()
+        except:
+            pass
         results.append({
             "name": tc_name,
             "passed": False,
             "latency": latency,
             "error": str(e),
+            "memory_mb": 0.0,
+            "tokens_used": 0,
         })
 
 output_data = {"results": results, "error": None}
@@ -169,7 +182,7 @@ class DockerSandbox:
         self,
         tool_name: str,
         candidate_source: str,
-        current_avg_latency: float | None = None,
+        current_stats: Any | None = None,
     ) -> SandboxResult:
         """
         Execute the candidate tool's tests in Docker.
@@ -177,21 +190,32 @@ class DockerSandbox:
         Args:
             tool_name:           The tool's name string (for logging)
             candidate_source:    The generated Python source code
-            current_avg_latency: Current tool's average latency for comparison
+            current_stats:       Current tool's average stats for comparison
 
         Returns:
             A SandboxResult with approval decision.
         """
         start = time.monotonic()
 
-        # Prepare the runner script — convert TestCase dataclasses to plain dicts
-        # so the runner can use them without importing ARIA internals
-        runner_script = self._prepare_runner(candidate_source)
+        # 1. Load and verify signed test cases from the host filesystem
+        try:
+            from aria.gatekeeper.test_verifier import verify_and_load_tests
+            test_cases = verify_and_load_tests(tool_name)
+        except Exception as exc:
+            return SandboxResult(
+                tool_name=tool_name,
+                approved=False,
+                rejection_reason=f"Gatekeeper signature verification failed: {exc}",
+                elapsed_seconds=time.monotonic() - start,
+            )
+
+        # 2. Prepare the runner script — inject the verified test cases as JSON
+        runner_script = self._prepare_runner(candidate_source, test_cases)
         if runner_script is None:
             return SandboxResult(
                 tool_name=tool_name,
                 approved=False,
-                rejection_reason="Failed to extract test cases from candidate code.",
+                rejection_reason="Failed to prepare sandbox runner.",
                 elapsed_seconds=time.monotonic() - start,
             )
 
@@ -255,7 +279,7 @@ class DockerSandbox:
             return self._parse_results(
                 tool_name=tool_name,
                 logs=logs,
-                current_avg_latency=current_avg_latency,
+                current_stats=current_stats,
                 elapsed=time.monotonic() - start,
             )
 
@@ -267,22 +291,19 @@ class DockerSandbox:
                 elapsed_seconds=time.monotonic() - start,
             )
 
-    def _prepare_runner(self, candidate_source: str) -> str | None:
+    def _prepare_runner(self, candidate_source: str, test_cases: list[dict]) -> str | None:
         """
         Build the runner script that will be injected into the container.
-        The runner needs test case data as plain dicts (no ARIA imports in sandbox).
-        We extract test cases by running the candidate code here first (static read),
-        then embed them as JSON in the runner.
+        The runner receives the cryptographically verified test cases as a JSON string.
         """
-        # For simplicity and security, use the universal runner template
-        # which discovers test cases dynamically inside the sandbox
-        return _RUNNER_TEMPLATE
+        tests_json = json.dumps(test_cases)
+        return _RUNNER_TEMPLATE.replace("'''__INJECTED_TEST_CASES_JSON__'''", repr(tests_json))
 
     def _parse_results(
         self,
         tool_name: str,
         logs: str,
-        current_avg_latency: float | None,
+        current_stats: Any | None,
         elapsed: float,
     ) -> SandboxResult:
         """Parse Docker output and make an approval decision."""
@@ -345,8 +366,28 @@ class DockerSandbox:
                 elapsed_seconds=elapsed,
             )
 
-        # Performance regression check: new code must not be >50% slower
-        if current_avg_latency and avg_latency > current_avg_latency * 1.5:
+        avg_memory_mb = sum(r.get("memory_mb", 0.0) for r in results) / len(results) if results else 0.0
+        avg_tokens_used = sum(r.get("tokens_used", 0) for r in results) / len(results) if results else 0.0
+        
+        # New fitness
+        new_fitness = (
+            settings.weight_pass_rate * (passed / total)
+            - settings.weight_latency * avg_latency
+            - settings.weight_memory * avg_memory_mb
+            - settings.weight_tokens * avg_tokens_used
+        )
+
+        current_fitness = None
+        if current_stats:
+            current_fitness = (
+                settings.weight_pass_rate * current_stats.success_rate
+                - settings.weight_latency * current_stats.avg_latency
+                - settings.weight_memory * current_stats.avg_memory_mb
+                - settings.weight_tokens * current_stats.avg_tokens_used
+            )
+
+        # Performance regression check: new fitness must not drop significantly
+        if current_fitness is not None and new_fitness < current_fitness - 0.2:
             return SandboxResult(
                 tool_name=tool_name,
                 approved=False,
@@ -355,8 +396,8 @@ class DockerSandbox:
                 tests_failed=failed,
                 avg_latency_seconds=avg_latency,
                 rejection_reason=(
-                    f"Performance regression: new avg latency {avg_latency:.3f}s is "
-                    f">50% worse than current {current_avg_latency:.3f}s."
+                    f"Fitness regression: new fitness {new_fitness:.2f} is significantly "
+                    f"worse than current {current_fitness:.2f}."
                 ),
                 elapsed_seconds=elapsed,
             )

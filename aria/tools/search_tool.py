@@ -162,31 +162,3 @@ class SearchTool(BaseTool):
                 break
 
         return results
-
-    def test_cases(self) -> List[TestCase]:
-        return [
-            TestCase(
-                name="basic_query",
-                input={"query": "Python programming language"},
-                expected_success=True,
-                description="Standard query should return results.",
-            ),
-            TestCase(
-                name="empty_query",
-                input={"query": ""},
-                expected_success=False,
-                description="Empty query must fail gracefully.",
-            ),
-            TestCase(
-                name="specific_topic",
-                input={"query": "Albert Einstein", "max_results": 2},
-                expected_success=True,
-                description="Famous person query should return results.",
-            ),
-            TestCase(
-                name="single_word",
-                input={"query": "Quantum"},
-                expected_success=True,
-                description="Single word query should still work.",
-            ),
-        ]

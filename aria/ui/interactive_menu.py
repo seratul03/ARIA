@@ -85,9 +85,8 @@ def save_output(tool_name: str, output_text: str, score: str):
         content += f"{ist_str}\n"
         content += f"{gmt_str}\n"
         content += f"Confidence score: {score}\n"
-        content += " A partition with a long line :\n"
         content += "----------------------------------------------------------------------\n"
-        content += "Then the output:\n"
+        content += "Output:\n"
         content += output_text + "\n\n"
         
         with open(file_path, "a", encoding="utf-8") as f:
@@ -135,8 +134,9 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
         
         try:
             score_val = float(score_str)
-            if score_val < 9:
-                print(f"\n[!] Confidence score is {score_val} (less than 9). Triggering autonomous improvement loop for {tool_name}...\n")
+            threshold = settings.confidence_score_threshold
+            if score_val < threshold:
+                print(f"\n[!] Confidence score is {score_val} (less than {threshold}). Triggering autonomous improvement loop for {tool_name}...\n")
                 agent.run_improvement_cycle(target_tool=tool_name)
         except ValueError:
             pass

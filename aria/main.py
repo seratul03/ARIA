@@ -37,6 +37,7 @@ def bootstrap() -> None:
     Initialize all ARIA subsystems. Idempotent — safe to call multiple times.
     """
     _ensure_env()
+    _verify_gatekeeper_integrity()
     _init_database()
     _init_tools()
     _init_git()
@@ -88,3 +89,61 @@ def _ensure_workspace() -> None:
     data = Path("data")
     data.mkdir(exist_ok=True)
     logger.info("[Bootstrap] Workspace directories ready.")
+
+
+def _verify_gatekeeper_integrity() -> None:
+    """Verify that gatekeeper files match their expected hashes and are immutable."""
+    import hashlib
+    import json
+    import os
+
+    gatekeeper_dir = Path(__file__).parent / "gatekeeper"
+    manifest_path = gatekeeper_dir / "manifest.json"
+
+    if not manifest_path.exists():
+        print("\n[ARIA] Gatekeeper Error: manifest.json is missing.\n", file=sys.stderr)
+        sys.exit(1)
+
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        try:
+            manifest = json.load(f)
+        except json.JSONDecodeError:
+            print("\n[ARIA] Gatekeeper Error: manifest.json is invalid.\n", file=sys.stderr)
+            sys.exit(1)
+
+    for filename in ["validator.py", "sandbox.py", "test_verifier.py", "cli.py"]:
+        filepath = gatekeeper_dir / filename
+        if not filepath.exists():
+            print(f"\n[ARIA] Gatekeeper Error: {filename} is missing.\n", file=sys.stderr)
+            sys.exit(1)
+
+        # Compute SHA256
+        sha256 = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            while True:
+                chunk = f.read(65536)
+                if not chunk:
+                    break
+                sha256.update(chunk)
+        
+        computed_hash = sha256.hexdigest()
+        expected_hash = manifest.get(filename)
+
+        if computed_hash != expected_hash:
+            print(f"\n[ARIA] Gatekeeper Integrity Error: {filename} hash mismatch!\nExpected: {expected_hash}\nGot:      {computed_hash}\n", file=sys.stderr)
+            sys.exit(1)
+
+        # Check immutability (enforced in Docker, warned on Windows local)
+        if os.access(filepath, os.W_OK):
+            if sys.platform != "win32":
+                print(f"\n[ARIA] Gatekeeper Security Error: {filename} is writable!\nGatekeeper must be mounted as read-only.\n", file=sys.stderr)
+                sys.exit(1)
+            else:
+                logger.warning(f"[Gatekeeper] {filename} is writable. Ensure read-only on production.")
+
+    if sys.platform != "win32" and os.access(gatekeeper_dir, os.W_OK):
+        print("\n[ARIA] Gatekeeper Security Error: Gatekeeper directory is writable!\n", file=sys.stderr)
+        sys.exit(1)
+
+    logger.info("[Bootstrap] Gatekeeper integrity verified.")
+

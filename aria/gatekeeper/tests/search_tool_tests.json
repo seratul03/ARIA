@@ -1,0 +1,39 @@
+[
+  {
+    "id": "search_tool_001",
+    "tool": "search_tool",
+    "input": {
+      "query": "Python programming language"
+    },
+    "expected_success": true,
+    "signature": "e8c0eada43cd9ca3f1c3d1c05bdb9f6ca60d7111e8200fa7ec8587c82f5fe6ea"
+  },
+  {
+    "id": "search_tool_002",
+    "tool": "search_tool",
+    "input": {
+      "query": ""
+    },
+    "expected_success": false,
+    "signature": "4d6d07781ec2ccc7127248a4cda0ababcdb9cab196d3caeb7dcf8eb43b883d89"
+  },
+  {
+    "id": "search_tool_003",
+    "tool": "search_tool",
+    "input": {
+      "query": "Albert Einstein",
+      "max_results": 2
+    },
+    "expected_success": true,
+    "signature": "302c04453779e7310bd2f79086ee37da213c4927e86be993137ea16080b4df72"
+  },
+  {
+    "id": "search_tool_004",
+    "tool": "search_tool",
+    "input": {
+      "query": "Quantum"
+    },
+    "expected_success": true,
+    "signature": "38025a3595ee7a7cb15010088f11275255d6f581836a575703d670d1d13d5e52"
+  }
+]

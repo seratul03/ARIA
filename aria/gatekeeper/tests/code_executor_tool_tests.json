@@ -1,0 +1,11 @@
+[
+  {
+    "id": "code_executor_tool_001",
+    "tool": "code_executor_tool",
+    "input": {
+      "topic": "print hello world"
+    },
+    "expected_success": true,
+    "signature": "00fc01cf0fbffdb1f8cd125f7adc6aea2e111de93e87e649dfe73534dba2b744"
+  }
+]

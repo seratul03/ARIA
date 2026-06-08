@@ -160,31 +160,3 @@ class WeatherTool(BaseTool):
 
     async def run_async(self, input: dict) -> ToolResult:
         return await self._async_retry_request()
-
-    def test_cases(self) -> list[TestCase]:
-        return [
-            TestCase(
-                name="empty_city",
-                input={"city": ""},
-                expected_success=False,
-                description="Empty city name must fail.",
-            ),
-            TestCase(
-                name="nonexistent_city",
-                input={"city": "xyzabc123notacity"},
-                expected_success=False,
-                description="Unknown city must fail gracefully.",
-            ),
-            TestCase(
-                name="known_city",
-                input={"city": "London"},
-                expected_success=True,
-                description="London should return weather data.",
-            ),
-            TestCase(
-                name="fahrenheit_units",
-                input={"city": "New York", "units": "fahrenheit"},
-                expected_success=True,
-                description="Fahrenheit units should work.",
-            ),
-        ]

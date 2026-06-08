@@ -30,6 +30,7 @@ from threading import Lock
 from typing import Any
 
 from aria.config import settings
+from aria.core.audit import log_audit_event
 from aria.metrics.collector import execute as metrics_execute
 from aria.tools.registry import registry
 
@@ -247,62 +248,61 @@ class AgentCore:
                 f"LLM generation failed: {improvement.error}",
                 {"tool": report.tool_name},
             )
+            log_audit_event("IMPROVEMENT_ATTEMPT", {"tool": report.tool_name, "success": False, "error": improvement.error})
             return False
+            
+        log_audit_event("IMPROVEMENT_ATTEMPT", {"tool": report.tool_name, "success": True, "tokens_used": improvement.tokens_used})
 
-        # ── Step 3: Static validation ──────────────────────────────────────────
-        from aria.gatekeeper.validator import StaticValidator
+        # ── Step 3: Run Gatekeeper Subprocess ──────────────────────────────────
+        import subprocess
+        import tempfile
+        import json
 
-        validator = StaticValidator()
-        validation = validator.validate(improvement.generated_code, report.tool_name)
+        self._emit(EventType.STATIC_VALIDATION, f"Running isolated Gatekeeper subprocess...")
 
-        self._emit(
-            EventType.STATIC_VALIDATION,
-            f"Static analysis: {validation.summary()}",
-            {"passed": validation.passed, "issues": validation.issues},
-        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as temp_file:
+            temp_file.write(improvement.generated_code)
+            temp_file_path = temp_file.name
 
-        if not validation.passed:
-            self._record_rejection(
-                tool_name=report.tool_name,
-                reason=f"Static validation failed: {'; '.join(validation.issues[:2])}",
-                old_success_rate=report.success_rate,
+        try:
+            result = subprocess.run(
+                ["python", "-m", "aria.gatekeeper.cli", "--tool", report.tool_name, "--source", temp_file_path],
+                capture_output=True,
+                text=True,
+                check=False
             )
-            return False
-
-        # ── Step 4: Docker sandbox validation ─────────────────────────────────
-        from aria.gatekeeper.sandbox import DockerSandbox
-        from aria.metrics.db import get_tool_stats
-
-        self._emit(EventType.SANDBOX_VALIDATION, f"Running Docker sandbox tests...")
-
-        current_stats = get_tool_stats(report.tool_name)
-        current_avg_latency = current_stats.avg_latency if current_stats else None
-
-        sandbox = DockerSandbox()
-        sandbox_result = sandbox.run(
-            tool_name=report.tool_name,
-            candidate_source=improvement.generated_code,
-            current_avg_latency=current_avg_latency,
-        )
+            
+            # The Gatekeeper prints JSON to stdout as its last line
+            gatekeeper_output = None
+            for line in reversed(result.stdout.strip().splitlines()):
+                if line.startswith("{"):
+                    gatekeeper_output = line
+                    break
+                    
+            if not gatekeeper_output:
+                sandbox_result = {"approved": False, "rejection_reason": "Gatekeeper failed to return JSON."}
+            else:
+                sandbox_result = json.loads(gatekeeper_output)
+                
+        except Exception as exc:
+            sandbox_result = {"approved": False, "rejection_reason": f"Gatekeeper subprocess crashed: {exc}"}
+        finally:
+            Path(temp_file_path).unlink(missing_ok=True)
 
         self._emit(
             EventType.SANDBOX_VALIDATION,
-            f"Sandbox: {sandbox_result.summary()}",
-            {
-                "approved": sandbox_result.approved,
-                "tests_passed": sandbox_result.tests_passed,
-                "tests_total": sandbox_result.tests_total,
-            },
+            f"Gatekeeper Result: Approved={sandbox_result.get('approved', False)}",
+            sandbox_result
         )
+        
+        log_audit_event("VALIDATION_RESULT", {"tool": report.tool_name, "sandbox_result": sandbox_result})
 
-        if not sandbox_result.approved:
+        if not sandbox_result.get("approved", False):
             self._record_rejection(
                 tool_name=report.tool_name,
-                reason=f"Sandbox failed: {sandbox_result.rejection_reason}",
+                reason=f"Gatekeeper failed: {sandbox_result.get('rejection_reason', 'Unknown')}",
                 old_success_rate=report.success_rate,
             )
-            # The code was only evaluated in the Sandbox temp dir, 
-            # so the host file is untouched. No rollback needed.
             return False
 
         # ── Step 5: Deploy ─────────────────────────────────────────────────────
@@ -338,7 +338,7 @@ class AgentCore:
             commit_msg = (
                 f"Improve {tool_name} — "
                 f"success_rate: {report.success_rate:.0%} → expected ↑, "
-                f"sandbox: {sandbox_result.tests_passed}/{sandbox_result.tests_total} tests"
+                f"sandbox: {sandbox_result.get('tests_passed', 0)}/{sandbox_result.get('tests_total', 0)} tests"
             )
             commit_hash = git_manager.commit_tool(tool_name, commit_msg)
 
@@ -358,6 +358,7 @@ class AgentCore:
                 f"✓ Deployed improved '{tool_name}' (commit: {commit_hash or 'N/A'})",
                 {"tool": tool_name, "commit": commit_hash},
             )
+            log_audit_event("DEPLOYMENT", {"tool": tool_name, "commit": commit_hash})
             return True
 
         except Exception as exc:
@@ -377,12 +378,14 @@ class AgentCore:
                 f"↩ '{tool_name}' rolled back to previous version.",
                 {"tool": tool_name},
             )
+            log_audit_event("ROLLBACK", {"tool": tool_name, "status": "success"})
         else:
             self._emit(
                 EventType.ERROR,
                 f"Rollback failed for '{tool_name}'. Manual inspection required.",
                 {"tool": tool_name},
             )
+            log_audit_event("ROLLBACK", {"tool": tool_name, "status": "failed"})
 
     def _record_rejection(
         self,
@@ -405,6 +408,7 @@ class AgentCore:
             f"✗ Improvement rejected for '{tool_name}': {reason}",
             {"tool": tool_name, "reason": reason},
         )
+        log_audit_event("REJECTION", {"tool": tool_name, "reason": reason})
 
     # ── Status ─────────────────────────────────────────────────────────────────
 

@@ -52,13 +52,3 @@ class CodeExecutorTool(BaseTool):
             
         except Exception as exc:
             return ToolResult(success=False, output=None, error=f"LLM Code Generation Error: {exc}")
-
-    def test_cases(self) -> list[TestCase]:
-        return [
-            TestCase(
-                name="basic_coding_task",
-                input={"topic": "print hello world"},
-                expected_success=True,
-                description="Should generate and improve code."
-            )
-        ]

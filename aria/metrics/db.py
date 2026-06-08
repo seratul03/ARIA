@@ -32,7 +32,9 @@ CREATE TABLE IF NOT EXISTS tool_executions (
     latency_seconds     REAL    NOT NULL,
     input_hash          TEXT,
     output_quality_score REAL   DEFAULT 0.0,
-    error_message       TEXT
+    error_message       TEXT,
+    memory_mb           REAL    DEFAULT 0.0,
+    tokens_used         INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS improvement_history (
@@ -45,7 +47,11 @@ CREATE TABLE IF NOT EXISTS improvement_history (
     old_success_rate REAL,
     new_success_rate REAL,
     old_latency_p90  REAL,
-    new_latency_p90  REAL
+    new_latency_p90  REAL,
+    old_memory_mb    REAL DEFAULT 0.0,
+    new_memory_mb    REAL DEFAULT 0.0,
+    old_tokens_used  INTEGER DEFAULT 0,
+    new_tokens_used  INTEGER DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_executions_tool_time
@@ -92,18 +98,20 @@ def insert_execution(
     input_hash: str | None = None,
     output_quality_score: float = 0.0,
     error_message: str | None = None,
+    memory_mb: float = 0.0,
+    tokens_used: int = 0,
 ) -> None:
     with get_connection() as conn:
         conn.execute(
             """
             INSERT INTO tool_executions
                 (tool_name, timestamp, success, latency_seconds,
-                 input_hash, output_quality_score, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                 input_hash, output_quality_score, error_message, memory_mb, tokens_used)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 tool_name, timestamp, 1 if success else 0, latency_seconds,
-                input_hash, output_quality_score, error_message,
+                input_hash, output_quality_score, error_message, memory_mb, tokens_used
             ),
         )
 
@@ -119,18 +127,24 @@ def insert_improvement(
     new_success_rate: float | None = None,
     old_latency_p90: float | None = None,
     new_latency_p90: float | None = None,
+    old_memory_mb: float | None = None,
+    new_memory_mb: float | None = None,
+    old_tokens_used: int | None = None,
+    new_tokens_used: int | None = None,
 ) -> None:
     with get_connection() as conn:
         conn.execute(
             """
             INSERT INTO improvement_history
                 (tool_name, timestamp, status, reason, git_commit_hash,
-                 old_success_rate, new_success_rate, old_latency_p90, new_latency_p90)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 old_success_rate, new_success_rate, old_latency_p90, new_latency_p90,
+                 old_memory_mb, new_memory_mb, old_tokens_used, new_tokens_used)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 tool_name, timestamp, status, reason, git_commit_hash,
                 old_success_rate, new_success_rate, old_latency_p90, new_latency_p90,
+                old_memory_mb, new_memory_mb, old_tokens_used, new_tokens_used
             ),
         )
 
@@ -144,6 +158,8 @@ class ToolStats:
     success_rate: float
     avg_latency: float
     p90_latency: float
+    avg_memory_mb: float
+    avg_tokens_used: float
     last_seen: float | None
 
 
@@ -151,7 +167,7 @@ def get_tool_stats(tool_name: str, window: int = 100) -> ToolStats | None:
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT success, latency_seconds, timestamp
+            SELECT success, latency_seconds, timestamp, memory_mb, tokens_used
             FROM tool_executions
             WHERE tool_name = ?
             ORDER BY timestamp DESC
@@ -165,6 +181,8 @@ def get_tool_stats(tool_name: str, window: int = 100) -> ToolStats | None:
 
     successes = sum(r["success"] for r in rows)
     latencies = sorted(r["latency_seconds"] for r in rows)
+    memories = [r["memory_mb"] for r in rows]
+    tokens = [r["tokens_used"] for r in rows]
     n = len(rows)
     p90_idx = int(0.9 * n)
     p90 = latencies[min(p90_idx, n - 1)]
@@ -177,6 +195,8 @@ def get_tool_stats(tool_name: str, window: int = 100) -> ToolStats | None:
         success_rate=successes / n,
         avg_latency=sum(latencies) / n,
         p90_latency=p90,
+        avg_memory_mb=sum(memories) / n,
+        avg_tokens_used=sum(tokens) / n,
         last_seen=rows[0]["timestamp"],
     )
 

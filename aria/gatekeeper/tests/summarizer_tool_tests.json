@@ -1,0 +1,42 @@
+[
+  {
+    "id": "summarizer_tool_001",
+    "tool": "summarizer_tool",
+    "input": {
+      "text": ""
+    },
+    "expected_success": false,
+    "signature": "6bc2634d8d22c1dcd288949eb9532855c422bd432e9623e7b0961b72272f834d"
+  },
+  {
+    "id": "summarizer_tool_002",
+    "tool": "summarizer_tool",
+    "input": {
+      "text": "Hello world."
+    },
+    "expected_success": true,
+    "signature": "7d039ba4e5330b9af8cc43f39b39ed8ba85e75a18a8709b2f4f9a105088d16b0"
+  },
+  {
+    "id": "summarizer_tool_003",
+    "tool": "summarizer_tool",
+    "input": {
+      "text": "Artificial intelligence has transformed many industries. Machine learning allows computers to learn from data. Deep learning uses neural networks with many layers. Natural language processing enables computers to understand text. Computer vision allows machines to interpret images. These technologies are increasingly used in healthcare, finance, and education.",
+      "max_sentences": 2,
+      "mode": "extractive"
+    },
+    "expected_success": true,
+    "signature": "b6f3353ad92715c4f2c5291694164b071eca65ae32ea48679b87bc0bd0ce33ce"
+  },
+  {
+    "id": "summarizer_tool_004",
+    "tool": "summarizer_tool",
+    "input": {
+      "text": "Artificial intelligence has transformed many industries. Machine learning allows computers to learn from data. Deep learning uses neural networks with many layers. Natural language processing enables computers to understand text. Computer vision allows machines to interpret images. These technologies are increasingly used in healthcare, finance, and education.",
+      "max_sentences": 3,
+      "mode": "extractive"
+    },
+    "expected_success": true,
+    "signature": "91bcd82748ca06f939e65fa1b804a493b496f1b0ce6c4a30acd4ef879e68af5a"
+  }
+]

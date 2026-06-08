@@ -1,0 +1,39 @@
+[
+  {
+    "id": "weather_tool_001",
+    "tool": "weather_tool",
+    "input": {
+      "city": ""
+    },
+    "expected_success": false,
+    "signature": "ae64255ea266ad863cafce24ba7ebf1838a5e97262ec3b4c102851e1fbbe16a9"
+  },
+  {
+    "id": "weather_tool_002",
+    "tool": "weather_tool",
+    "input": {
+      "city": "xyzabc123notacity"
+    },
+    "expected_success": false,
+    "signature": "2ee56d7486dbc55958d94342f28ceed11d09d22c4251227038192fc582dfcea4"
+  },
+  {
+    "id": "weather_tool_003",
+    "tool": "weather_tool",
+    "input": {
+      "city": "London"
+    },
+    "expected_success": true,
+    "signature": "518b1f3f1b35354da1efc1ec4032d32842bf3f19855d8514d955270ed14ed1db"
+  },
+  {
+    "id": "weather_tool_004",
+    "tool": "weather_tool",
+    "input": {
+      "city": "New York",
+      "units": "fahrenheit"
+    },
+    "expected_success": true,
+    "signature": "cd7328b9f447dcc96d947e10c167f4ad6a1096beee8e2231cdc01e59dbb9f2aa"
+  }
+]

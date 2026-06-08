@@ -70,7 +70,6 @@ class _SecurityVisitor(ast.NodeVisitor):
         self.warnings: list[str] = []
         self._has_base_tool_class = False
         self._has_run_method = False
-        self._has_test_cases_method = False
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
@@ -119,8 +118,6 @@ class _SecurityVisitor(ast.NodeVisitor):
             if isinstance(item, ast.FunctionDef):
                 if item.name == "run":
                     self._has_run_method = True
-                elif item.name == "test_cases":
-                    self._has_test_cases_method = True
 
         self.generic_visit(node)
 
@@ -168,10 +165,6 @@ class StaticValidator:
         if not visitor._has_run_method:
             result.add_issue(
                 "Required method 'run(self, input: dict) -> ToolResult' not found."
-            )
-        if not visitor._has_test_cases_method:
-            result.add_issue(
-                "Required method 'test_cases(self) -> list[TestCase]' not found."
             )
 
         # 5. Warn if tool_name constant is missing or changed

@@ -149,39 +149,3 @@ class SummarizerTool(BaseTool):
         # Pick top N, restore original order
         top_indices = sorted(idx for idx, _ in scored[:max_sentences])
         return " ".join(sentences[i] for i in top_indices)
-
-    def test_cases(self) -> list[TestCase]:
-        long_text = (
-            "Artificial intelligence has transformed many industries. "
-            "Machine learning allows computers to learn from data. "
-            "Deep learning uses neural networks with many layers. "
-            "Natural language processing enables computers to understand text. "
-            "Computer vision allows machines to interpret images. "
-            "These technologies are increasingly used in healthcare, finance, and education."
-        )
-        return [
-            TestCase(
-                name="empty_text",
-                input={"text": ""},
-                expected_success=False,
-                description="Empty text must fail.",
-            ),
-            TestCase(
-                name="short_text_passthrough",
-                input={"text": "Hello world."},
-                expected_success=True,
-                description="Very short text should pass through unchanged.",
-            ),
-            TestCase(
-                name="extractive_mode",
-                input={"text": long_text, "max_sentences": 2, "mode": "extractive"},
-                expected_success=True,
-                description="Extractive mode must not call LLM.",
-            ),
-            TestCase(
-                name="long_text_extractive",
-                input={"text": long_text, "max_sentences": 3, "mode": "extractive"},
-                expected_success=True,
-                description="Multi-sentence summarization.",
-            ),
-        ]

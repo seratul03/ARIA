@@ -76,7 +76,8 @@ def build_improvement_prompt(report: WeaknessReport) -> str:
 ═══════════════════
 Tool Name:        {report.tool_name}
 Severity:         {report.severity.upper()}
-Success Rate:     {report.success_rate:.1%} (threshold: must be ≥ 70%)
+Fitness Score:    {report.fitness_score:.2f}
+Success Rate:     {report.success_rate:.1%}
 p90 Latency:      {report.p90_latency:.2f}s
 Total Executions: {report.total_executions}
 Failures:         {report.failure_count}
@@ -94,9 +95,9 @@ CURRENT SOURCE CODE (improve this):
 
 INSTRUCTIONS:
 - Analyze the weaknesses above.
-- Identify the root cause of failures or high latency.
-- Write an improved version of this tool that addresses those weaknesses.
-- Make the code more robust: add better error handling, retries, or alternative strategies.
+- Identify the root cause of failures, high latency, or high resource usage.
+- Write an improved version of this tool that addresses those weaknesses to maximize the Fitness Score.
+- Make the code more robust, efficient, and cost-effective.
 - Do NOT change the tool's name or its input/output contract.
 - Return ONLY the improved Python source code. No markdown, no explanation.
 """
