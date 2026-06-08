@@ -53,5 +53,3 @@ data/
 # ARIA output results 
 Results/*
 !Results/.gitkeep
-
-.env.example
