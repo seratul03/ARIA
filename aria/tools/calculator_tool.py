@@ -148,3 +148,33 @@ class CalculatorTool(BaseTool):
             return ToolResult(success=False, output=None, error=str(exc))
         except Exception as exc:
             return ToolResult(success=False, output=None, error=f"Evaluation error: {exc}")
+
+    def test_cases(self) -> list[TestCase]:
+        test_cases = [
+            TestCase(
+                input={"expression": "2 + 3 * sin(pi/2)"},
+                expected_output=5.0,
+                expected_error=None,
+            ),
+            TestCase(
+                input={"expression": "10 / 2"},
+                expected_output=5.0,
+                expected_error=None,
+            ),
+            TestCase(
+                input={"expression": "10 / 0"},
+                expected_output=None,
+                expected_error="Division by zero.",
+            ),
+            TestCase(
+                input={"expression": "sin(2)"},
+                expected_output=0.9092974268256817,
+                expected_error=None,
+            ),
+            TestCase(
+                input={"expression": "invalid syntax"},
+                expected_output=None,
+                expected_error="Invalid expression syntax: invalid syntax",
+            ),
+        ]
+        return test_cases
