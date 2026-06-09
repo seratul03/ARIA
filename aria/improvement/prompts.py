@@ -36,7 +36,8 @@ The improved module MUST NOT:
 - Use `eval()`, `exec()`, or `__import__()`.
 - Import: os, sys, subprocess, socket, shutil, pickle, ctypes, multiprocessing.
 - Write to any file or database.
-- Make network calls outside of httpx (httpx is allowed if the tool needs it).
+- Make network calls except via `httpx` or the `groq` python SDK.
+- Use raw `httpx` or `requests` to call the Groq API. You MUST use the `groq` python SDK (`from groq import Groq`).
 - Access environment variables.
 - Use threading or asyncio.
 - Contain any syntax errors.

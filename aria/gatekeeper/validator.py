@@ -144,7 +144,10 @@ class StaticValidator:
         try:
             tree = ast.parse(source_code)
         except SyntaxError as exc:
-            result.add_issue(f"Syntax error: {exc}")
+            err_line = "<unknown code>"
+            if exc.lineno is not None:
+                err_line = lines[exc.lineno - 1] if 0 < exc.lineno <= len(lines) else "<out of bounds>"
+            result.add_issue(f"Syntax error: {exc}. Code at line {exc.lineno}: '{err_line}'")
             return result  # Cannot proceed with AST analysis
 
         # 3. Security + interface analysis

@@ -257,6 +257,7 @@ class AgentCore:
         import subprocess
         import tempfile
         import json
+        import sys
 
         self._emit(EventType.STATIC_VALIDATION, f"Running isolated Gatekeeper subprocess...")
 
@@ -266,7 +267,7 @@ class AgentCore:
 
         try:
             result = subprocess.run(
-                ["python", "-m", "aria.gatekeeper.cli", "--tool", report.tool_name, "--source", temp_file_path],
+                [sys.executable, "-m", "aria.gatekeeper.cli", "--tool", report.tool_name, "--source", temp_file_path],
                 capture_output=True,
                 text=True,
                 check=False
@@ -280,7 +281,10 @@ class AgentCore:
                     break
                     
             if not gatekeeper_output:
-                sandbox_result = {"approved": False, "rejection_reason": "Gatekeeper failed to return JSON."}
+                err_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+                if not err_msg:
+                    err_msg = "Gatekeeper output was empty."
+                sandbox_result = {"approved": False, "rejection_reason": f"Gatekeeper failed to return JSON: {err_msg}"}
             else:
                 sandbox_result = json.loads(gatekeeper_output)
                 

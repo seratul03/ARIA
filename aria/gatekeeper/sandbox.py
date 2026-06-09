@@ -73,6 +73,7 @@ import sys
 import time
 import traceback
 import tracemalloc
+import importlib.util
 
 # ── Load the candidate tool module ──────────────────────────────────────────
 spec = importlib.util.spec_from_file_location("candidate_tool", "/sandbox/candidate_tool.py")
@@ -107,7 +108,7 @@ if tool_instance is None:
 # ── Run test cases ───────────────────────────────────────────────────────────
 results = []
 try:
-    test_cases = json.loads('''__INJECTED_TEST_CASES_JSON__''')
+    test_cases = json.loads(__INJECTED_TEST_CASES_JSON__)
 except Exception as e:
     print(json.dumps({
         "error": f"Failed to load injected test cases: {e}",
@@ -116,12 +117,25 @@ except Exception as e:
     }))
     sys.exit(0)
 
+# ── Mock External APIs ───────────────────────────────────────────────────────
+import respx
+from httpx import Response
+
+respx_mock = respx.mock(assert_all_called=False)
+respx_mock.post("https://api.groq.com/openai/v1/chat/completions").mock(
+    return_value=Response(
+        200, 
+        json={"id": "mock", "choices": [{"message": {"role": "assistant", "content": "print('hello world')"}}]}
+    )
+)
+respx_mock.start()
+
 for tc in test_cases:
     start = time.monotonic()
     tracemalloc.start()
     tc_input = tc.input if hasattr(tc, "input") else tc.get("input", {})
     tc_expected_success = tc.expected_success if hasattr(tc, "expected_success") else tc.get("expected_success", True)
-    tc_name = tc.name if hasattr(tc, "name") else tc.get("name", "unnamed")
+    tc_name = tc.name if hasattr(tc, "name") else tc.get("name", tc.get("id", "unnamed"))
     tc_output_contains = tc.output_contains if hasattr(tc, "output_contains") else tc.get("output_contains", None)
     
     try:
@@ -236,28 +250,23 @@ class DockerSandbox:
             with tempfile.TemporaryDirectory() as tmpdir:
                 tmp = Path(tmpdir)
 
-                candidate_source_standalone = candidate_source.replace(
-                    "from aria.tools.base import", "from base import"
-                )
-                (tmp / "candidate_tool.py").write_text(candidate_source_standalone, encoding="utf-8")
+                # Write candidate tool and runner
+                (tmp / "candidate_tool.py").write_text(candidate_source, encoding="utf-8")
                 (tmp / "runner.py").write_text(runner_script, encoding="utf-8")
 
-                # Also write the base.py so the runner can import BaseTool
-                base_src = (
-                    Path(__file__).parent.parent / "tools" / "base.py"
-                ).read_text(encoding="utf-8")
-                # Rewrite base.py without relative imports for standalone use
-                base_src_standalone = base_src.replace(
-                    "from aria.tools.base import", "# from aria.tools.base import"
-                )
-                (tmp / "base.py").write_text(base_src_standalone, encoding="utf-8")
-
+                aria_host_dir = Path(__file__).parent.parent
+                
                 try:
                     container = client.containers.run(
                         image="python:3.11-slim",
-                        command=["sh", "-c", "pip install -q httpx beautifulsoup4 groq && python /sandbox/runner.py"],
+                        command=["sh", "-c", "export PYTHONPATH=/app && pip install -q httpx beautifulsoup4 groq python-dotenv respx && python /sandbox/runner.py"],
                         volumes={
-                            str(tmp): {"bind": "/sandbox", "mode": "ro"}
+                            str(tmp): {"bind": "/sandbox", "mode": "ro"},
+                            str(aria_host_dir): {"bind": "/app/aria", "mode": "ro"}
+                        },
+                        environment={
+                            "GROQ_API_KEY": "mock_groq_key_for_sandbox",
+                            "TEST_SIGNING_KEY": "mock_test_key"
                         },
                         mem_limit=settings.sandbox_memory_limit,
                         nano_cpus=int(settings.sandbox_cpu_limit * 1e9),
@@ -297,7 +306,7 @@ class DockerSandbox:
         The runner receives the cryptographically verified test cases as a JSON string.
         """
         tests_json = json.dumps(test_cases)
-        return _RUNNER_TEMPLATE.replace("'''__INJECTED_TEST_CASES_JSON__'''", repr(tests_json))
+        return _RUNNER_TEMPLATE.replace("__INJECTED_TEST_CASES_JSON__", repr(tests_json))
 
     def _parse_results(
         self,
@@ -353,7 +362,14 @@ class DockerSandbox:
 
         # Decision logic: ALL tests must pass
         if failed > 0:
-            failed_names = [r["name"] for r in results if not r.get("passed")]
+            failed_details = []
+            for r in results:
+                if not r.get("passed"):
+                    name = r.get("name", "unnamed")
+                    error = r.get("error")
+                    detail = f"{name}" + (f" (Error: {error})" if error else "")
+                    failed_details.append(detail)
+                    
             return SandboxResult(
                 tool_name=tool_name,
                 approved=False,
@@ -361,7 +377,7 @@ class DockerSandbox:
                 tests_passed=passed,
                 tests_failed=failed,
                 avg_latency_seconds=avg_latency,
-                rejection_reason=f"{failed}/{total} tests failed: {', '.join(failed_names)}",
+                rejection_reason=f"{failed}/{total} tests failed: {', '.join(failed_details)}",
                 docker_logs=logs[:1000],
                 elapsed_seconds=elapsed,
             )

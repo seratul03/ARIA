@@ -41,15 +41,29 @@ class ImprovementResult:
     elapsed_seconds: float = 0.0
 
 
+import textwrap
+
 def _clean_code(raw: str) -> str:
     """
-    Strip any accidentally included markdown fences from the LLM response.
-    The prompt forbids them, but LLMs don't always comply.
+    Strip any accidentally included markdown fences and conversational text
+    from the LLM response, and dedent to fix unexpected indent syntax errors.
     """
-    # Remove ```python ... ``` wrappers
-    raw = re.sub(r"^```(?:python)?\s*\n?", "", raw.strip(), flags=re.MULTILINE)
-    raw = re.sub(r"\n?```\s*$", "", raw.strip(), flags=re.MULTILINE)
-    return raw.strip()
+    # Extract ONLY the content inside ```python ... ``` blocks if present
+    match = re.search(r"```(?:python)?\s*(.*?)```", raw, flags=re.DOTALL | re.IGNORECASE)
+    if match:
+        code = match.group(1).strip()
+    else:
+        # Fallback: try to strip conversational text at the beginning
+        lines = raw.split('\n')
+        start_idx = 0
+        for i, line in enumerate(lines):
+            # Find the first line that looks like Python code
+            if re.match(r"^\s*(import |from |class |def |@|#|r?\"\"\")", line):
+                start_idx = i
+                break
+        code = '\n'.join(lines[start_idx:]).strip()
+        
+    return textwrap.dedent(code).strip()
 
 
 def _looks_like_python(code: str) -> bool:
