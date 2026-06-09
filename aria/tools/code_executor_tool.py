@@ -50,6 +50,8 @@ class CodeExecutorTool(BaseTool):
 
             return ToolResult(success=True, output=out_str)
 
+        except httpx.HTTPError as exc:
+            return ToolResult(success=False, output=None, error=f"LLM Code Generation Error: {exc}")
         except Exception as exc:
             return ToolResult(success=False, output=None, error=f"LLM Code Generation Error: {exc}")
 
