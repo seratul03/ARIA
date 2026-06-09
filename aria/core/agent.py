@@ -124,7 +124,10 @@ class AgentCore:
             
         # Print internal steps to terminal for the interactive menu
         if event_type != EventType.TOOL_EXECUTED:
-            print(f"   > [{event_type.name}] {message}")
+            try:
+                print(f"   > [{event_type.name}] {message}")
+            except UnicodeEncodeError:
+                print(f"   > [{event_type.name}] {message.encode('ascii', 'replace').decode('ascii')}")
             
         logger.info(f"[Agent] {event_type.name}: {message}")
 
@@ -195,6 +198,10 @@ class AgentCore:
         self._total_cycles += 1
         cycle_num = self._total_cycles
 
+        # Initialize cycle trace
+        from aria.core.tracer import CycleTrace
+        trace = CycleTrace(component="improvement_engine")
+
         self._emit(
             EventType.CYCLE_STARTED,
             f"Improvement cycle #{cycle_num} started.",
@@ -213,7 +220,11 @@ class AgentCore:
                     EventType.ERROR,
                     f"Tool '{target_tool}' has no execution history. Run it first.",
                 )
+                trace.record_trigger(f"manual_trigger on {target_tool}")
+                trace.finalize("NO_HISTORY")
+                trace.save()
                 return False
+            trace.record_trigger(f"manual_trigger on {target_tool}")
         else:
             reports = engine.analyze_all()
             if not reports:
@@ -221,8 +232,12 @@ class AgentCore:
                     EventType.CYCLE_SKIPPED,
                     "All tools are healthy. No improvement needed.",
                 )
+                trace.record_trigger("auto_trigger")
+                trace.finalize("NO_WEAKNESS_FOUND")
+                trace.save()
                 return False
             report = reports[0]  # Worst-performing tool
+            trace.record_trigger(f"low_success_rate on {report.tool_name}")
 
         self._emit(
             EventType.WEAKNESS_FOUND,
@@ -242,6 +257,8 @@ class AgentCore:
         imp_engine = ImprovementEngine()
         improvement = imp_engine.generate_improvement(report)
 
+        trace.record_llm_usage(prompt_tokens=0, response_tokens=improvement.tokens_used)
+
         if not improvement.success:
             self._emit(
                 EventType.ERROR,
@@ -249,8 +266,11 @@ class AgentCore:
                 {"tool": report.tool_name},
             )
             log_audit_event("IMPROVEMENT_ATTEMPT", {"tool": report.tool_name, "success": False, "error": improvement.error})
+            trace.finalize("GENERATION_FAILED")
+            trace.save()
             return False
             
+        trace.record_candidate_generated()
         log_audit_event("IMPROVEMENT_ATTEMPT", {"tool": report.tool_name, "success": True, "tokens_used": improvement.tokens_used})
 
         # ── Step 3: Run Gatekeeper Subprocess ──────────────────────────────────
@@ -302,11 +322,15 @@ class AgentCore:
         log_audit_event("VALIDATION_RESULT", {"tool": report.tool_name, "sandbox_result": sandbox_result})
 
         if not sandbox_result.get("approved", False):
+            reason = f"Gatekeeper failed: {sandbox_result.get('rejection_reason', 'Unknown')}"
             self._record_rejection(
                 tool_name=report.tool_name,
-                reason=f"Gatekeeper failed: {sandbox_result.get('rejection_reason', 'Unknown')}",
+                reason=reason,
                 old_success_rate=report.success_rate,
             )
+            trace.record_candidate_rejected("candidate_1", reason)
+            trace.finalize("NO_IMPROVEMENT")
+            trace.save()
             return False
 
         # ── Step 5: Deploy ─────────────────────────────────────────────────────
@@ -316,6 +340,15 @@ class AgentCore:
             report=report,
             sandbox_result=sandbox_result,
         )
+
+        if deployed:
+            trace.record_candidate_deployed()
+            trace.finalize("DEPLOYED")
+        else:
+            trace.record_candidate_rejected("candidate_1", "DEPLOY_FAILED")
+            trace.finalize("DEPLOY_FAILED")
+            
+        trace.save()
 
         self._emit(
             EventType.CYCLE_COMPLETE,

@@ -128,6 +128,22 @@ respx_mock.post("https://api.groq.com/openai/v1/chat/completions").mock(
         json={"id": "mock", "choices": [{"message": {"role": "assistant", "content": "print('hello world')"}}]}
     )
 )
+
+import re
+def mock_geocode(request):
+    if "xyzabc123notacity" in str(request.url):
+        return Response(200, json={"results": []})
+    return Response(200, json={"results": [{"latitude": 51.50853, "longitude": -0.12574, "name": "London", "country": "United Kingdom"}]})
+
+respx_mock.get(re.compile(r"https://geocoding-api\.open-meteo\.com/v1/search.*")).mock(side_effect=mock_geocode)
+
+respx_mock.get(re.compile(r"https://api\.open-meteo\.com/v1/forecast.*")).mock(
+    return_value=Response(
+        200,
+        json={"current": {"temperature_2m": 15.0, "relative_humidity_2m": 72, "wind_speed_10m": 10.5, "weather_code": 3}}
+    )
+)
+
 respx_mock.start()
 
 for tc in test_cases:
@@ -355,6 +371,16 @@ class DockerSandbox:
 
         results = data.get("results", [])
         total = len(results)
+        
+        for r in results:
+            tc_name = r.get("name", "unnamed")
+            tc_passed = r.get("passed", False)
+            tc_error = r.get("error")
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("gatekeeper", "test_result", {"tool": tool_name, "test_name": tc_name, "passed": tc_passed, "error": tc_error})
+            except ImportError:
+                pass
         passed = sum(1 for r in results if r.get("passed"))
         failed = total - passed
         latencies = [r["latency"] for r in results if "latency" in r]

@@ -104,6 +104,11 @@ class ImprovementEngine:
             )
 
         user_prompt = build_improvement_prompt(report)
+        try:
+            from aria.core.tracer import emit_trace
+            emit_trace("improvement", "prompt_constructed", {"tool": report.tool_name, "prompt_length": len(user_prompt)})
+        except ImportError:
+            pass
 
         try:
             client = Groq(api_key=settings.groq_api_key)
@@ -124,9 +129,20 @@ class ImprovementEngine:
                 response.usage.total_tokens if response.usage else 0
             )
 
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("improvement", "llm_call_details", {"success": True, "tokens_used": tokens_used, "elapsed_seconds": elapsed})
+            except ImportError:
+                pass
+
             cleaned = _clean_code(raw_code)
 
             if not _looks_like_python(cleaned):
+                try:
+                    from aria.core.tracer import emit_trace
+                    emit_trace("improvement", "candidate_evaluation", {"tool": report.tool_name, "valid_python": False, "length": len(cleaned)})
+                except ImportError:
+                    pass
                 return ImprovementResult(
                     tool_name=report.tool_name,
                     generated_code=None,
@@ -139,6 +155,12 @@ class ImprovementEngine:
                     elapsed_seconds=elapsed,
                 )
 
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("improvement", "candidate_evaluation", {"tool": report.tool_name, "valid_python": True, "length": len(cleaned)})
+            except ImportError:
+                pass
+                
             return ImprovementResult(
                 tool_name=report.tool_name,
                 generated_code=cleaned,
@@ -157,6 +179,12 @@ class ImprovementEngine:
                     f"Groq rate limit hit. ARIA will retry after the cooldown period. "
                     f"Original error: {error_msg}"
                 )
+
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("improvement", "llm_call_details", {"success": False, "error": error_msg, "elapsed_seconds": elapsed})
+            except ImportError:
+                pass
 
             return ImprovementResult(
                 tool_name=report.tool_name,

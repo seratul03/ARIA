@@ -74,6 +74,13 @@ class ImprovementScheduler:
                 return
 
             self._last_run = time.monotonic()
+            
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("scheduler", "wakeup", {"interval_seconds": interval_seconds})
+            except ImportError:
+                pass
+
             self._run_cycle()
 
     def _run_cycle(self) -> None:
@@ -82,6 +89,11 @@ class ImprovementScheduler:
             from aria.core.agent import agent
 
             logger.info("[Scheduler] Triggering scheduled improvement cycle...")
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("scheduler", "component_invocation", {"target": "agent.run_improvement_cycle"})
+            except ImportError:
+                pass
             agent.run_improvement_cycle()
         except Exception as exc:
             logger.error(f"[Scheduler] Cycle error: {exc}")

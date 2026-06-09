@@ -54,11 +54,61 @@ CREATE TABLE IF NOT EXISTS improvement_history (
     new_tokens_used  INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS cycle_traces (
+    cycle_id            TEXT PRIMARY KEY,
+    timestamp           REAL NOT NULL,
+    component           TEXT NOT NULL,
+    trigger             TEXT,
+    llm_prompt_tokens   INTEGER DEFAULT 0,
+    llm_response_tokens INTEGER DEFAULT 0,
+    candidates_generated INTEGER DEFAULT 0,
+    candidates_rejected TEXT,
+    candidates_deployed INTEGER DEFAULT 0,
+    cycle_outcome       TEXT NOT NULL,
+    duration_seconds    REAL DEFAULT 0.0
+);
+
+CREATE TABLE IF NOT EXISTS detailed_traces (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    cycle_id            TEXT,
+    timestamp           REAL NOT NULL,
+    component           TEXT NOT NULL,
+    event_type          TEXT NOT NULL,
+    details             TEXT
+);
+
+CREATE TRIGGER IF NOT EXISTS prevent_cycle_traces_update
+BEFORE UPDATE ON cycle_traces
+BEGIN
+    SELECT RAISE(ABORT, 'cycle_traces is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS prevent_cycle_traces_delete
+BEFORE DELETE ON cycle_traces
+BEGIN
+    SELECT RAISE(ABORT, 'cycle_traces is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS prevent_detailed_traces_update
+BEFORE UPDATE ON detailed_traces
+BEGIN
+    SELECT RAISE(ABORT, 'detailed_traces is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS prevent_detailed_traces_delete
+BEFORE DELETE ON detailed_traces
+BEGIN
+    SELECT RAISE(ABORT, 'detailed_traces is append-only');
+END;
+
 CREATE INDEX IF NOT EXISTS idx_executions_tool_time
     ON tool_executions(tool_name, timestamp);
 
 CREATE INDEX IF NOT EXISTS idx_improvement_tool
     ON improvement_history(tool_name, timestamp);
+
+CREATE INDEX IF NOT EXISTS idx_cycle_traces_time
+    ON cycle_traces(timestamp);
 """
 
 _local = threading.local()
@@ -147,6 +197,86 @@ def insert_improvement(
                 old_memory_mb, new_memory_mb, old_tokens_used, new_tokens_used
             ),
         )
+
+
+def insert_cycle_trace(
+    *,
+    cycle_id: str,
+    timestamp: float,
+    component: str,
+    trigger: str | None,
+    llm_prompt_tokens: int,
+    llm_response_tokens: int,
+    candidates_generated: int,
+    candidates_rejected: str,
+    candidates_deployed: int,
+    cycle_outcome: str,
+    duration_seconds: float,
+) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO cycle_traces
+                (cycle_id, timestamp, component, trigger, llm_prompt_tokens,
+                 llm_response_tokens, candidates_generated, candidates_rejected,
+                 candidates_deployed, cycle_outcome, duration_seconds)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                cycle_id, timestamp, component, trigger, llm_prompt_tokens,
+                llm_response_tokens, candidates_generated, candidates_rejected,
+                candidates_deployed, cycle_outcome, duration_seconds
+            ),
+        )
+
+
+def insert_detailed_trace(
+    *,
+    cycle_id: str | None,
+    timestamp: float,
+    component: str,
+    event_type: str,
+    details: str,
+) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO detailed_traces
+                (cycle_id, timestamp, component, event_type, details)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (cycle_id, timestamp, component, event_type, details),
+        )
+
+
+def query_cycle_traces(
+    limit: int = 10,
+    component: str | None = None,
+    outcome: str | None = None,
+    tool: str | None = None,
+) -> list[dict]:
+    query = "SELECT * FROM cycle_traces WHERE 1=1"
+    params = []
+
+    if component:
+        query += " AND component = ?"
+        params.append(component)
+    
+    if outcome:
+        query += " AND cycle_outcome = ?"
+        params.append(outcome)
+
+    if tool:
+        query += " AND trigger LIKE ?"
+        params.append(f"%{tool}%")
+        
+    query += " ORDER BY timestamp DESC LIMIT ?"
+    params.append(limit)
+    
+    with get_connection() as conn:
+        rows = conn.execute(query, tuple(params)).fetchall()
+        return [dict(r) for r in rows]
+
 
 
 @dataclass

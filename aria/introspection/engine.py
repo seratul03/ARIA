@@ -148,6 +148,13 @@ class IntrospectionEngine:
                 recent_improvement_failures=rejected_history,
                 source_code=source,
             )
+            
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("introspection", "weakness_detected", {"tool": stats.tool_name, "fitness": fitness, "reasons": reasons})
+            except ImportError:
+                pass
+                
             reports.append(report)
 
         # Sort: critical first, then by success rate ascending (worst first)
@@ -174,6 +181,12 @@ class IntrospectionEngine:
         
         history = get_improvement_history(tool_name, limit=5)
         rejected_history = [h for h in history if h["status"] == "rejected"]
+
+        try:
+            from aria.core.tracer import emit_trace
+            emit_trace("introspection", "weakness_detected", {"tool": tool_name, "fitness": fitness, "reasons": reasons})
+        except ImportError:
+            pass
 
         return WeaknessReport(
             tool_name=tool_name,

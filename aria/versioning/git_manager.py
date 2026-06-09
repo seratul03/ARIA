@@ -111,6 +111,11 @@ class GitManager:
 
             short_hash = commit.hexsha[:8]
             logger.info(f"[GitManager] Committed: {short_hash} — {message}")
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("versioning", "commit", {"tool": tool_name, "hash": short_hash, "message": message})
+            except ImportError:
+                pass
             return short_hash
 
         except Exception as exc:
@@ -151,10 +156,20 @@ class GitManager:
                 f"[GitManager] Rolled back '{tool_name}' to "
                 f"commit {previous_commit.hexsha[:8]}"
             )
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("versioning", "rollback", {"tool": tool_name, "success": True, "target_hash": previous_commit.hexsha[:8]})
+            except ImportError:
+                pass
             return True
 
         except Exception as exc:
             logger.error(f"[GitManager] Rollback failed for '{tool_name}': {exc}")
+            try:
+                from aria.core.tracer import emit_trace
+                emit_trace("versioning", "rollback", {"tool": tool_name, "success": False, "error": str(exc)})
+            except ImportError:
+                pass
             return False
 
     def get_tool_history(self, tool_name: str, limit: int = 10) -> list[CommitInfo]:

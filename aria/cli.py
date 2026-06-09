@@ -60,10 +60,19 @@ def cmd_improve(args: argparse.Namespace) -> None:
     with console.status(f"[bold blue]Running improvement cycle for '{tool_name}'..."):
         deployed = agent.run_improvement_cycle(target_tool=tool_name)
 
+    try:
+        "\u2192".encode(sys.stdout.encoding or 'ascii')
+        arrow = "\u2192"
+    except (UnicodeEncodeError, TypeError):
+        arrow = "->"
+
     # Print any events that were emitted
     events = agent.get_events(max_items=100)
     for event in events:
-        console.print(f"  [dim]→[/dim] {event.message}")
+        msg = event.message
+        if arrow == "->":
+            msg = msg.encode('ascii', 'replace').decode('ascii')
+        console.print(f"  [dim]{arrow}[/dim] {msg}")
 
     if deployed:
         console.print(f"\n[bold green]✓ Improvement deployed for '{tool_name}'[/bold green]")
@@ -95,17 +104,27 @@ def cmd_status(args: argparse.Namespace) -> None:
     table.add_column("p90 Latency", justify="center")
     table.add_column("Executions", justify="right")
     table.add_column("Failures", justify="right")
+    table.add_column("Fitness", justify="right")
+    table.add_column("Upgrades", justify="right")
     table.add_column("Last Seen", justify="center")
     table.add_column("Status", justify="center")
 
     from aria.config import settings
-    from aria.metrics.db import get_tool_stats
+    from aria.metrics.db import get_tool_stats, get_improvement_history
+
+    try:
+        "\u2713".encode(sys.stdout.encoding or 'ascii')
+        check_char = "✓"
+        warn_char = "⚠"
+    except (UnicodeEncodeError, TypeError):
+        check_char = "OK"
+        warn_char = "!"
 
     for name in registry.names():
         stats = get_tool_stats(name)
         if stats is None:
             table.add_row(
-                name, "—", "—", "0", "0", "—",
+                name, "—", "—", "0", "0", "—", "0", "—",
                 "[dim]No data[/dim]"
             )
             continue
@@ -118,12 +137,22 @@ def cmd_status(args: argparse.Namespace) -> None:
         )
 
         rate_color = "green" if rate >= 0.9 else "yellow" if rate >= 0.7 else "red"
-        status_str = "[bold red]⚠ WEAK[/bold red]" if is_weak else "[green]✓ Healthy[/green]"
+        status_str = f"[bold red]{warn_char} WEAK[/bold red]" if is_weak else f"[green]{check_char} Healthy[/green]"
 
         last_seen = (
             datetime.fromtimestamp(stats.last_seen).strftime("%H:%M:%S")
             if stats.last_seen else "—"
         )
+        
+        fitness = (
+            settings.weight_pass_rate * stats.success_rate
+            - settings.weight_latency * stats.avg_latency
+            - settings.weight_memory * stats.avg_memory_mb
+            - settings.weight_tokens * stats.avg_tokens_used
+        )
+        
+        history = get_improvement_history(name, limit=10000)
+        upgrades = sum(1 for h in history if h["status"] == "deployed")
 
         table.add_row(
             name,
@@ -131,6 +160,8 @@ def cmd_status(args: argparse.Namespace) -> None:
             f"{latency:.3f}s",
             str(stats.total_executions),
             str(stats.failure_count),
+            f"{fitness:.2f}",
+            str(upgrades),
             last_seen,
             status_str,
         )
@@ -249,6 +280,69 @@ def cmd_history(args: argparse.Namespace) -> None:
     console.print(table)
 
 
+def cmd_traces(args: argparse.Namespace) -> None:
+    """Query and display ARIA cycle traces."""
+    from rich.console import Console
+    from rich.table import Table
+    from datetime import datetime
+    import json
+
+    from aria.main import bootstrap
+    bootstrap()
+
+    from aria.metrics.db import query_cycle_traces
+
+    console = Console()
+    
+    traces = query_cycle_traces(
+        limit=args.last,
+        component=args.component,
+        outcome=args.outcome,
+        tool=args.tool,
+    )
+
+    if not traces:
+        console.print("[dim]No traces found matching criteria.[/dim]")
+        return
+
+    table = Table(
+        title="[bold cyan]ARIA Improvement Cycle Traces[/bold cyan]",
+        border_style="dim",
+        show_lines=True,
+    )
+    table.add_column("Timestamp", style="dim")
+    table.add_column("Cycle ID", style="bold")
+    table.add_column("Component", style="dim")
+    table.add_column("Outcome", justify="center")
+    table.add_column("Trigger (Tool)")
+    table.add_column("Duration")
+    table.add_column("Candidates")
+
+    for t in traces:
+        ts = datetime.fromtimestamp(t["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+        cycle_id = t["cycle_id"][:8] + "..." if t["cycle_id"] else "—"
+        outcome = t["cycle_outcome"]
+        color = "green" if outcome == "IMPROVED" else "yellow" if outcome == "NO_IMPROVEMENT" else "red"
+        
+        trigger = (t["trigger"] or "")[:50]
+        duration = f"{t['duration_seconds']:.1f}s"
+        
+        try:
+            rej_count = len(json.loads(t['candidates_rejected'] or '{}'))
+        except Exception:
+            rej_count = 0
+            
+        candidates = f"Gen: {t['candidates_generated']} | Rej: {rej_count} | Dep: {t['candidates_deployed']}"
+        
+        table.add_row(
+            ts, cycle_id, t["component"],
+            f"[{color}]{outcome}[/{color}]",
+            trigger, duration, candidates
+        )
+
+    console.print(table)
+
+
 # ── Argument parser ───────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
@@ -287,6 +381,13 @@ def build_parser() -> argparse.ArgumentParser:
     history_p.add_argument("--tool", default=None, metavar="<tool_name>",
                            help="Filter by tool name (optional)")
 
+    # traces
+    traces_p = sub.add_parser("traces", help="Query trace history")
+    traces_p.add_argument("--last", type=int, default=10, metavar="N", help="Limit to N recent traces")
+    traces_p.add_argument("--component", default=None, help="Filter by component")
+    traces_p.add_argument("--outcome", default=None, help="Filter by outcome (e.g. NO_IMPROVEMENT)")
+    traces_p.add_argument("--tool", default=None, help="Filter by tool name in trigger")
+
     return parser
 
 
@@ -305,6 +406,7 @@ def main() -> None:
         "rollback": cmd_rollback,
         "run-tool": cmd_run_tool,
         "history": cmd_history,
+        "traces": cmd_traces,
     }
 
     handler = dispatch.get(args.command)

@@ -130,6 +130,23 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
         score_str = get_confidence_score(tool_name, user_input, res_str)
         print(f"Confidence Score: {score_str}/10\n")
         
+        from aria.metrics.db import get_tool_stats, get_improvement_history
+        stats = get_tool_stats(tool_name)
+        if stats:
+            fitness = (
+                settings.weight_pass_rate * stats.success_rate
+                - settings.weight_latency * stats.avg_latency
+                - settings.weight_memory * stats.avg_memory_mb
+                - settings.weight_tokens * stats.avg_tokens_used
+            )
+            print(f"Internal Fitness Score: {fitness:.2f} (Based on rolling metrics)")
+        else:
+            print("Internal Fitness Score: N/A (Not enough data)")
+            
+        history = get_improvement_history(tool_name, limit=10000)
+        upgrades = sum(1 for h in history if h["status"] == "deployed")
+        print(f"Total Upgrades Implemented: {upgrades}\n")
+        
         save_output(tool_name, res_str, score_str)
         
         try:
