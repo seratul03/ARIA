@@ -14,9 +14,7 @@ from __future__ import annotations
 import httpx
 import logging
 from aria.tools.base import BaseTool, TestCase, ToolResult
-import asyncio
-import time
-import random
+from groq import Groq
 
 # WMO Weather Interpretation Codes → human-readable descriptions
 _WMO_CODES: dict[int, str] = {
@@ -146,17 +144,51 @@ class WeatherTool(BaseTool):
         # Try again
         return self.run({})
 
-    def _async_retry_request(self, max_retries: int = 3) -> asyncio.Task:
-        async def _async_retry():
-            for _ in range(max_retries):
-                try:
-                    return await self.run({})
-                except Exception as exc:
-                    logging.error(f"An error occurred: {exc}")
-                    await asyncio.sleep(random.uniform(1, 5))
-            return ToolResult(success=False, output=None, error="Max retries exceeded")
-
-        return asyncio.create_task(_async_retry())
-
-    async def run_async(self, input: dict) -> ToolResult:
-        return await self._async_retry_request()
+    def test_cases(self) -> list[TestCase]:
+        return [
+            TestCase(
+                name="weather_tool_001",
+                input={"city": "London", "units": "celsius"},
+                expected_output={
+                    "city": "London",
+                    "country": "United Kingdom",
+                    "latitude": 51.5074,
+                    "longitude": -0.1278,
+                    "temperature": "12.0°C",
+                    "condition": "Partly cloudy",
+                    "wind_speed_kmh": "16.1",
+                    "humidity_percent": "81",
+                    "units": "celsius",
+                },
+            ),
+            TestCase(
+                name="weather_tool_002",
+                input={"city": "New York", "units": "fahrenheit"},
+                expected_output={
+                    "city": "New York",
+                    "country": "United States",
+                    "latitude": 40.7128,
+                    "longitude": -74.0060,
+                    "temperature": "53.6°F",
+                    "condition": "Partly cloudy",
+                    "wind_speed_kmh": "10.0",
+                    "humidity_percent": "67",
+                    "units": "fahrenheit",
+                },
+            ),
+            TestCase(
+                name="weather_tool_003",
+                input={"city": "Paris", "units": "celsius"},
+                expected_output={
+                    "city": "Paris",
+                    "country": "France",
+                    "latitude": 48.8566,
+                    "longitude": 2.3522,
+                    "temperature": "15.0°C",
+                    "condition": "Partly cloudy",
+                    "wind_speed_kmh": "14.5",
+                    "humidity_percent": "78",
+                    "units": "celsius",
+                },
+            ),
+        ]
