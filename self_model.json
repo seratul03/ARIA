@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:09:03.328799+00:00",
+  "last_updated": "2026-06-11T05:09:03.392722+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -19,7 +19,8 @@
         "Gatekeeper failed: 3/4 tests failed",
         "Gatekeeper failed: Sandbox error: Cannot instantiate tool",
         "Gatekeeper failed: 5/8 tests failed",
-        "Gatekeeper failed: Static validation failed: Syntax error"
+        "Gatekeeper failed: Static validation failed: Syntax error",
+        "Gatekeeper failed: Docker unavailable"
       ],
       "recent_failure_patterns": [
         "AST Static Validation Failure",
