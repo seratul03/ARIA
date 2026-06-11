@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:21:58.251729+00:00",
+  "last_updated": "2026-06-11T05:21:58.300828+00:00",
   "components": {
     "improvement_engine": {
       "known_weaknesses": [
@@ -150,7 +150,6 @@
     }
   },
   "system_wide_patterns": [
-    "Inconsistent test results",
     "Gatekeeper failures due to sandbox errors",
     "Evaluation errors in calculator_tool",
     "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given",
@@ -159,6 +158,7 @@
     "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)",
     "Gatekeeper failed: 5/8 tests failed: calculator_tool_001 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_002 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_003 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_004 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_007 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given)",
     "Groq.__init__() takes 1 positional argument but 2 were given",
-    "Syntax error: invalid syntax (<unknown>, line 50)"
+    "Syntax error: invalid syntax (<unknown>, line 50)",
+    "Gatekeeper failed: 3/4 tests failed"
   ]
 }
