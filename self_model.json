@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:12:58.193777+00:00",
+  "last_updated": "2026-06-11T05:12:58.272440+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -151,6 +151,7 @@
     "Gatekeeper failed: various errors",
     "NO_IMPROVEMENT due to Gatekeeper failures",
     "Inconsistent test results",
-    "Gatekeeper failures due to sandbox errors"
+    "Gatekeeper failures due to sandbox errors",
+    "Evaluation errors in calculator_tool"
   ]
 }
