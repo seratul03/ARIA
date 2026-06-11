@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:14:04.509575+00:00",
+  "last_updated": "2026-06-11T05:14:04.791389+00:00",
   "components": {
     "improvement_engine": {
       "known_weaknesses": [
@@ -17,7 +17,8 @@
         "Inconsistent test results",
         "Gatekeeper failures due to sandbox errors",
         "Evaluation errors in calculator_tool",
-        "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given"
+        "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given",
+        "Gatekeeper failed: Static validation failed: Syntax error: invalid syntax (<unknown>, line 50). Code at line 50: '    \\\"\\\"\\\"AST visitor that safely evaluates mathematical expressions.\\\"\\\"\\\"'"
       ],
       "recent_failure_patterns": [
         "Gatekeeper failed: 3/4 tests failed",
