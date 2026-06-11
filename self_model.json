@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T12:49:40.545434+00:00",
+  "last_updated": "2026-06-11T12:49:55.784395+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -132,14 +132,9 @@
     "gatekeeper": {
       "known_weaknesses": [],
       "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-11T12:46:42.419945+00:00",
+      "last_successful_improvement": "2026-06-11T12:49:55.784322+00:00",
       "health_score": 0.5,
       "recent_cycles": [
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:47:00.552098+00:00"
-        },
         {
           "success": true,
           "safety_violation": false,
@@ -184,6 +179,11 @@
           "success": true,
           "safety_violation": false,
           "timestamp": "2026-06-11T12:46:42.419917+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:49:55.784268+00:00"
         }
       ]
     }
