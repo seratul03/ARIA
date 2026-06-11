@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:14:05.175773+00:00",
+  "last_updated": "2026-06-11T05:14:05.227052+00:00",
   "components": {
     "improvement_engine": {
       "known_weaknesses": [
@@ -148,7 +148,6 @@
     }
   },
   "system_wide_patterns": [
-    "Inconsistent test results due to various reasons",
     "Gatekeeper failed: various errors",
     "NO_IMPROVEMENT due to Gatekeeper failures",
     "Inconsistent test results",
@@ -157,6 +156,7 @@
     "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given",
     "Gatekeeper failed: Static validation failed: Syntax error: invalid syntax (<unknown>, line 50). Code at line 50: '    \\\"\\\"\\\"AST visitor that safely evaluates mathematical expressions.\\\"\\\"\\\"'",
     "Gatekeeper failed: Docker unavailable: Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')",
-    "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)"
+    "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)",
+    "Gatekeeper failed: 5/8 tests failed: calculator_tool_001 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_002 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_003 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_004 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_007 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given)"
   ]
 }
