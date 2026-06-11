@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:14:04.959174+00:00",
+  "last_updated": "2026-06-11T05:14:05.021639+00:00",
   "components": {
     "improvement_engine": {
       "known_weaknesses": [
@@ -155,6 +155,7 @@
     "NO_IMPROVEMENT due to Gatekeeper failures",
     "Inconsistent test results",
     "Gatekeeper failures due to sandbox errors",
-    "Evaluation errors in calculator_tool"
+    "Evaluation errors in calculator_tool",
+    "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given"
   ]
 }
