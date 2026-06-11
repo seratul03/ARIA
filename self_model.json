@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:39:23.254844+00:00",
+  "last_updated": "2026-06-11T05:48:37.162492+00:00",
   "components": {
     "introspection_engine": {
       "known_weaknesses": [],
@@ -46,44 +46,6 @@
       "health_score": 1.0,
       "recent_cycles": []
     },
-    "gatekeeper": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-10T03:02:42.540425+00:00",
-      "health_score": 1.0,
-      "recent_cycles": [
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:37:07.046165+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:11.742882+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:43:00.886117+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:47:00.552098+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:58.429551+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:42.540395+00:00"
-        }
-      ]
-    },
     "improvement_engine": {
       "known_weaknesses": [
         "inadequate mocking of external APIs",
@@ -107,7 +69,8 @@
         "Syntax error: invalid syntax (<unknown>, line 50)",
         "Inconsistent test results from Gatekeeper",
         "Inconsistent test results from Sandbox",
-        "Inconsistent test results from Static validation"
+        "Inconsistent test results from Static validation",
+        "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)"
       ],
       "recent_failure_patterns": [
         "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)",
@@ -148,6 +111,44 @@
           "success": false,
           "safety_violation": false,
           "timestamp": "2026-06-10T03:02:42.541359+00:00"
+        }
+      ]
+    },
+    "gatekeeper": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": "2026-06-10T03:02:42.540425+00:00",
+      "health_score": 1.0,
+      "recent_cycles": [
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:37:07.046165+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:41:11.742882+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:43:00.886117+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:47:00.552098+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:57:58.429551+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T03:02:42.540395+00:00"
         }
       ]
     }
