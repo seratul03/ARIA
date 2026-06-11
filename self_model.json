@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:39:22.540473+00:00",
+  "last_updated": "2026-06-11T05:39:22.634069+00:00",
   "components": {
     "introspection_engine": {
       "known_weaknesses": [],
@@ -106,7 +106,8 @@
         "Groq.__init__() takes 1 positional argument but 2 were given",
         "Syntax error: invalid syntax (<unknown>, line 50)",
         "Inconsistent test results from Gatekeeper",
-        "Inconsistent test results from Sandbox"
+        "Inconsistent test results from Sandbox",
+        "Inconsistent test results from Static validation"
       ],
       "recent_failure_patterns": [
         "Gatekeeper failed: 5/8 tests failed: calculator_tool_001 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_002 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_003 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_004 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_007 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given)",
