@@ -1,120 +1,12 @@
 {
-  "last_updated": "2026-06-11T05:48:37.620162+00:00",
+  "last_updated": "2026-06-11T12:17:56.306955+00:00",
   "components": {
-    "introspection_engine": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-10T03:02:03.758433+00:00",
-      "health_score": 1.0,
-      "recent_cycles": [
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:36:56.226340+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:03.205331+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:42:51.616546+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:46:27.901267+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:22.726930+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:03.758394+00:00"
-        }
-      ]
-    },
     "scheduler": {
       "known_weaknesses": [],
       "recent_failure_patterns": [],
       "last_successful_improvement": null,
       "health_score": 1.0,
       "recent_cycles": []
-    },
-    "improvement_engine": {
-      "known_weaknesses": [
-        "inadequate mocking of external APIs",
-        "Inconsistent test results due to unmocked external APIs",
-        "Inconsistent test results due to sandbox errors",
-        "Inconsistent test results due to evaluation errors",
-        "Inconsistent test results due to syntax errors",
-        "Inconsistent test results due to Docker unavailable errors",
-        "Gatekeeper failed: 3/4 tests failed",
-        "Gatekeeper failed: Sandbox error: Cannot instantiate tool",
-        "Gatekeeper failed: 5/8 tests failed",
-        "Gatekeeper failed: Static validation failed: Syntax error",
-        "Gatekeeper failed: Docker unavailable",
-        "Inconsistent test results",
-        "Gatekeeper failures due to sandbox errors",
-        "Evaluation errors in calculator_tool",
-        "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given",
-        "Gatekeeper failed: Static validation failed: Syntax error: invalid syntax (<unknown>, line 50). Code at line 50: '    \\\"\\\"\\\"AST visitor that safely evaluates mathematical expressions.\\\"\\\"\\\"'",
-        "Gatekeeper failed: Docker unavailable: Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')",
-        "Groq.__init__() takes 1 positional argument but 2 were given",
-        "Syntax error: invalid syntax (<unknown>, line 50)",
-        "Inconsistent test results from Gatekeeper",
-        "Inconsistent test results from Sandbox",
-        "Inconsistent test results from Static validation",
-        "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)",
-        "Gatekeeper failed: 5/8 tests failed: calculator_tool_001 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_002 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_003 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_004 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_007 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given)",
-        "Gatekeeper failed: Static validation failed: Syntax error: invalid syntax (<unknown>, line 50). Code at line 50: '    \\\"\\\"\\\"AST visitor that safely evaluates mathematical expressions.\\\"\\\"\\''"
-      ],
-      "recent_failure_patterns": [
-        "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)",
-        "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given",
-        "Gatekeeper failed: 5/8 tests failed: calculator_tool_001 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_002 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_003 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_004 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given), calculator_tool_007 (Error: Evaluation error: Groq.__init__() takes 1 positional argument but 2 were given)",
-        "Gatekeeper failed: Static validation failed: Syntax error: invalid syntax (<unknown>, line 50). Code at line 50: '    \\\"\\\"\\\"AST visitor that safely evaluates mathematical expressions.\\\"\\\"\\''",
-        "Gatekeeper failed: Docker unavailable: Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')"
-      ],
-      "last_successful_improvement": null,
-      "health_score": 0.0,
-      "recent_cycles": [
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:37:07.047387+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:11.744771+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": true,
-          "timestamp": "2026-06-10T02:43:00.886994+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:47:00.552992+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:58.430599+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:42.541359+00:00"
-        }
-      ]
     },
     "gatekeeper": {
       "known_weaknesses": [],
@@ -153,18 +45,96 @@
           "timestamp": "2026-06-10T03:02:42.540395+00:00"
         }
       ]
+    },
+    "introspection_engine": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": "2026-06-11T12:17:56.306933+00:00",
+      "health_score": 1.0,
+      "recent_cycles": [
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:36:56.226340+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:41:03.205331+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:42:51.616546+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:46:27.901267+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:57:22.726930+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T03:02:03.758394+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:17:56.306917+00:00"
+        }
+      ]
+    },
+    "improvement_engine": {
+      "known_weaknesses": [
+        "inadequate mocking of external APIs"
+      ],
+      "recent_failure_patterns": [
+        "AST Static Validation Failure",
+        "manual_trigger on search_tool resulted in NO_IMPROVEMENT"
+      ],
+      "last_successful_improvement": null,
+      "health_score": 0.0,
+      "recent_cycles": [
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:37:07.047387+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:41:11.744771+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": true,
+          "timestamp": "2026-06-10T02:43:00.886994+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:47:00.552992+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:57:58.430599+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T03:02:42.541359+00:00"
+        }
+      ]
     }
   },
   "system_wide_patterns": [
-    "Syntax error: invalid syntax (<unknown>, line 50)",
-    "Gatekeeper failed: 3/4 tests failed",
-    "Gatekeeper failed: Sandbox error: Cannot instantiate tool",
-    "Gatekeeper failed: Static validation failed",
-    "Gatekeeper failed: Docker unavailable",
-    "Inconsistent test results from Gatekeeper",
-    "Inconsistent test results from Sandbox",
-    "Inconsistent test results from Static validation",
-    "Gatekeeper failed: Sandbox error",
-    "Gatekeeper failed: 5/8 tests failed"
+    "inadequate mocking of external APIs",
+    "Test pattern for git commit"
   ]
 }
