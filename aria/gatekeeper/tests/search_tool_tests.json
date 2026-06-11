@@ -6,7 +6,8 @@
       "query": "Python programming language"
     },
     "expected_success": true,
-    "signature": "e8c0eada43cd9ca3f1c3d1c05bdb9f6ca60d7111e8200fa7ec8587c82f5fe6ea"
+    "signature": "57465ff2879b2e09cf8bee0290ae886fb55ac18d40bdbf6782bd3a899be54a41",
+    "tier": "tier_1"
   },
   {
     "id": "search_tool_002",
@@ -15,7 +16,8 @@
       "query": ""
     },
     "expected_success": false,
-    "signature": "4d6d07781ec2ccc7127248a4cda0ababcdb9cab196d3caeb7dcf8eb43b883d89"
+    "signature": "eb5ad3d3389737fa16d979bbd501ea5133a4c4968abf6e614650c1cd824a851a",
+    "tier": "tier_3_adversarial"
   },
   {
     "id": "search_tool_003",
@@ -25,7 +27,8 @@
       "max_results": 2
     },
     "expected_success": true,
-    "signature": "302c04453779e7310bd2f79086ee37da213c4927e86be993137ea16080b4df72"
+    "signature": "cff9f8713166d5d84d3255f74dba6785ea348cac0f4552f78256aecfe532c913",
+    "tier": "tier_1"
   },
   {
     "id": "search_tool_004",
@@ -34,6 +37,7 @@
       "query": "Quantum"
     },
     "expected_success": true,
-    "signature": "38025a3595ee7a7cb15010088f11275255d6f581836a575703d670d1d13d5e52"
+    "signature": "f2ad6c5b1073ba4aa7e9292afcf88868a969c55bce83adbb28274967ee30798f",
+    "tier": "tier_1"
   }
 ]

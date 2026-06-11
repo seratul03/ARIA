@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--input", required=True, help="JSON string for input")
     parser.add_argument("--expected-success", type=str, default="true", help="true or false")
     parser.add_argument("--output-contains", type=str, help="Optional string the output must contain")
+    parser.add_argument("--tier", type=str, default="tier_1", help="Test tier (tier_1, tier_2, tier_3_adversarial)")
     
     args = parser.parse_args()
     
@@ -36,6 +37,7 @@ def main():
         "tool": args.tool,
         "input": input_data,
         "expected_success": args.expected_success.lower() == "true",
+        "tier": args.tier
     }
     if args.output_contains:
         tc["output_contains"] = args.output_contains

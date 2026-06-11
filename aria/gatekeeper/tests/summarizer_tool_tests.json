@@ -6,7 +6,8 @@
       "text": ""
     },
     "expected_success": false,
-    "signature": "6bc2634d8d22c1dcd288949eb9532855c422bd432e9623e7b0961b72272f834d"
+    "signature": "ba3499e7b353337fc9d29f296aaa817dbaff9eb7bfca363a6bd0026ce9832095",
+    "tier": "tier_3_adversarial"
   },
   {
     "id": "summarizer_tool_002",
@@ -15,7 +16,8 @@
       "text": "Hello world."
     },
     "expected_success": true,
-    "signature": "7d039ba4e5330b9af8cc43f39b39ed8ba85e75a18a8709b2f4f9a105088d16b0"
+    "signature": "55aeb87ae3d9ef94e97382de25c2cb5f3c0f576c9f5354f9b116467e31ada79d",
+    "tier": "tier_1"
   },
   {
     "id": "summarizer_tool_003",
@@ -26,7 +28,8 @@
       "mode": "extractive"
     },
     "expected_success": true,
-    "signature": "b6f3353ad92715c4f2c5291694164b071eca65ae32ea48679b87bc0bd0ce33ce"
+    "signature": "f8045496bac30752aca3d450ca75d628ae42c2f638258668b6461721e9d96eb6",
+    "tier": "tier_1"
   },
   {
     "id": "summarizer_tool_004",
@@ -37,6 +40,7 @@
       "mode": "extractive"
     },
     "expected_success": true,
-    "signature": "91bcd82748ca06f939e65fa1b804a493b496f1b0ce6c4a30acd4ef879e68af5a"
+    "signature": "b1ce3b0c4b37adb82e9113268abd83f9c9553e76fd232b6371eae6d72ef6cb4f",
+    "tier": "tier_1"
   }
 ]

@@ -1,7 +1,6 @@
 {
   "validator.py": "50fa235c851461e4f3b8ceb3678e01292ec423ff025f567b602f051299a71ce3",
-  "sandbox.py": "687e651a7d3dc2b27b70909d407d7982bb668a28eb674e4dc183ee7cf07b75f9",
-  "test_verifier.py": "bae08465a22249861a226c80fb0415396210543339742dc2044bf49661d846ef",
-  "cli.py": "21bd18eea216051ec232a0ad72f2fed90005aa1fa2a4036d4798e834fbef0c08",
-  "signature": "sha256_hmac_signed_by_you"
+  "sandbox.py": "401d582e667ecb1c56318bb806dddae41846933c8997b3488a23de66af1366b5",
+  "test_verifier.py": "f7494582be5b0d60bb7bd9b95c2ec058c6945eaa18ab24afdf7c57337794942d",
+  "cli.py": "21bd18eea216051ec232a0ad72f2fed90005aa1fa2a4036d4798e834fbef0c08"
 }

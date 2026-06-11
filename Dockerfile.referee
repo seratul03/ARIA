@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# No network required beyond what compose provides
+# We'll run as root because Docker named volumes are owned by root,
+# but container is read-only and no-network.
+COPY ./aria/gatekeeper/referee /app/referee
+
+# Default socket path
+ENV REFEREE_SOCKET_PATH=/sockets/referee.sock
+
+CMD ["python", "-u", "/app/referee/server.py"]

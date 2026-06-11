@@ -330,7 +330,7 @@ class AgentCore:
             log_audit_event("VALIDATION_RESULT", {"tool": report.tool_name, "sandbox_result": sandbox_result})
     
             # Check Gatekeeper health
-            rejection_reason = sandbox_result.get("rejection_reason", "")
+            rejection_reason = sandbox_result.get("rejection_reason") or ""
             if any(err in rejection_reason for err in [
                 "Gatekeeper failed to return JSON", 
                 "Gatekeeper subprocess crashed", 

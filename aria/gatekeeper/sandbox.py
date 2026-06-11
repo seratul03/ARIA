@@ -251,6 +251,8 @@ class DockerSandbox:
 
         try:
             import docker  # type: ignore
+            import tarfile
+            import io
 
             try:
                 client = docker.from_env()
@@ -262,44 +264,76 @@ class DockerSandbox:
                     elapsed_seconds=time.monotonic() - start,
                 )
 
-            # Write files to a temp directory that we'll mount into the container
-            with tempfile.TemporaryDirectory() as tmpdir:
-                tmp = Path(tmpdir)
-
-                # Write candidate tool and runner
-                (tmp / "candidate_tool.py").write_text(candidate_source, encoding="utf-8")
-                (tmp / "runner.py").write_text(runner_script, encoding="utf-8")
-
-                aria_host_dir = Path(__file__).parent.parent
+            # Create an in-memory tarball containing candidate_tool.py and runner.py
+            tar_stream = io.BytesIO()
+            with tarfile.open(fileobj=tar_stream, mode='w') as tar:
+                tool_info = tarfile.TarInfo(name="sandbox/candidate_tool.py")
+                tool_bytes = candidate_source.encode("utf-8")
+                tool_info.size = len(tool_bytes)
+                tar.addfile(tool_info, io.BytesIO(tool_bytes))
                 
+                runner_info = tarfile.TarInfo(name="sandbox/runner.py")
+                runner_bytes = runner_script.encode("utf-8")
+                runner_info.size = len(runner_bytes)
+                tar.addfile(runner_info, io.BytesIO(runner_bytes))
+            tar_stream.seek(0)
+            
+            try:
+                # Create the container without running it yet
+                container = client.containers.create(
+                    image="python:3.11-slim",
+                    command=["sh", "-c", "export PYTHONPATH=/app && pip install -q httpx beautifulsoup4 groq python-dotenv respx && python /sandbox/runner.py"],
+                    environment={
+                        "GROQ_API_KEY": "mock_groq_key_for_sandbox",
+                        "TEST_SIGNING_KEY": "mock_test_key"
+                    },
+                    mem_limit=settings.sandbox_memory_limit,
+                    nano_cpus=int(settings.sandbox_cpu_limit * 1e9),
+                    stdin_open=True,
+                    tty=False
+                )
+                
+                # Create a tar of the aria directory
+                aria_src_path = str(Path(__file__).parent.parent.absolute())
+                aria_tar_stream = io.BytesIO()
+                with tarfile.open(fileobj=aria_tar_stream, mode='w') as tar:
+                    tar.add(aria_src_path, arcname="app/aria")
+                aria_tar_stream.seek(0)
+                
+                # Upload aria source and sandbox files into the root '/'
+                # Docker will automatically create /app and /sandbox if they are in the tar
+                container.put_archive("/", aria_tar_stream)
+                container.put_archive("/", tar_stream)
+                
+                # Start container and wait for completion
+                container.start()
+                exit_status = container.wait(timeout=settings.sandbox_timeout_seconds)
+                logs_bytes = container.logs()
+                logs = logs_bytes.decode("utf-8", errors="replace")
+                
+                # Remove container manually since we used create()
                 try:
-                    container = client.containers.run(
-                        image="python:3.11-slim",
-                        command=["sh", "-c", "export PYTHONPATH=/app && pip install -q httpx beautifulsoup4 groq python-dotenv respx && python /sandbox/runner.py"],
-                        volumes={
-                            str(tmp): {"bind": "/sandbox", "mode": "ro"},
-                            str(aria_host_dir): {"bind": "/app/aria", "mode": "ro"}
-                        },
-                        environment={
-                            "GROQ_API_KEY": "mock_groq_key_for_sandbox",
-                            "TEST_SIGNING_KEY": "mock_test_key"
-                        },
-                        mem_limit=settings.sandbox_memory_limit,
-                        nano_cpus=int(settings.sandbox_cpu_limit * 1e9),
-                        remove=True,
-                        stdout=True,
-                        stderr=True,
-                        detach=False,
-                    )
-                    logs = container.decode("utf-8", errors="replace") if isinstance(container, bytes) else str(container)
-                except Exception as exc:
+                    container.remove(force=True)
+                except:
+                    pass
+                    
+                if exit_status.get("StatusCode", 0) != 0:
                     return SandboxResult(
                         tool_name=tool_name,
                         approved=False,
-                        rejection_reason=f"Docker run failed: {exc}",
+                        rejection_reason=f"Docker run failed with status {exit_status.get('StatusCode')}",
                         elapsed_seconds=time.monotonic() - start,
-                        docker_logs=str(exc)[:500],
+                        docker_logs=logs[:500]
                     )
+                    
+            except Exception as exc:
+                return SandboxResult(
+                    tool_name=tool_name,
+                    approved=False,
+                    rejection_reason=f"Docker execution error: {exc}",
+                    elapsed_seconds=time.monotonic() - start,
+                    docker_logs=str(exc)[:500],
+                )
 
             return self._parse_results(
                 tool_name=tool_name,
@@ -381,21 +415,61 @@ class DockerSandbox:
                 emit_trace("gatekeeper", "test_result", {"tool": tool_name, "test_name": tc_name, "passed": tc_passed, "error": tc_error})
             except ImportError:
                 pass
-        passed = sum(1 for r in results if r.get("passed"))
-        failed = total - passed
+
+        total = len(results)
         latencies = [r["latency"] for r in results if "latency" in r]
         avg_latency = sum(latencies) / len(latencies) if latencies else 0.0
 
-        # Decision logic: ALL tests must pass
-        if failed > 0:
-            failed_details = []
-            for r in results:
-                if not r.get("passed"):
-                    name = r.get("name", "unnamed")
-                    error = r.get("error")
-                    detail = f"{name}" + (f" (Error: {error})" if error else "")
-                    failed_details.append(detail)
-                    
+        current_stats_dict = None
+        if current_stats:
+            current_stats_dict = {
+                "success_rate": current_stats.success_rate if hasattr(current_stats, "success_rate") else 0.0,
+                "avg_latency": current_stats.avg_latency if hasattr(current_stats, "avg_latency") else 0.0,
+            }
+            
+        # --- Referee Evaluation ---
+        import socket
+        try:
+            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            client.settimeout(10.0)
+            client.connect("/sockets/referee.sock")
+            payload = json.dumps({
+                "tool_name": tool_name,
+                "results": results,
+                "current_stats": current_stats_dict
+            })
+            client.sendall(payload.encode("utf-8"))
+            
+            referee_response = b""
+            while True:
+                chunk = client.recv(4096)
+                if not chunk:
+                    break
+                referee_response += chunk
+                
+            referee_data = json.loads(referee_response.decode("utf-8"))
+        except Exception as e:
+            return SandboxResult(
+                tool_name=tool_name,
+                approved=False,
+                tests_total=total,
+                avg_latency_seconds=avg_latency,
+                rejection_reason=f"Referee communication failed: {e}",
+                docker_logs=logs[:500],
+                elapsed_seconds=elapsed,
+            )
+        finally:
+            try:
+                client.close()
+            except:
+                pass
+
+        approved = referee_data.get("approved", False)
+        passed = referee_data.get("tests_passed", 0)
+        failed = total - passed
+        referee_reason = referee_data.get("reason", "No reason provided by Referee")
+
+        if not approved:
             return SandboxResult(
                 tool_name=tool_name,
                 approved=False,
@@ -403,7 +477,7 @@ class DockerSandbox:
                 tests_passed=passed,
                 tests_failed=failed,
                 avg_latency_seconds=avg_latency,
-                rejection_reason=f"{failed}/{total} tests failed: {', '.join(failed_details)}",
+                rejection_reason=f"Referee rejected: {referee_reason}",
                 docker_logs=logs[:1000],
                 elapsed_seconds=elapsed,
             )

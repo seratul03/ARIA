@@ -24,7 +24,8 @@ def _compute_signature(tc: dict) -> str:
         "tool": tc.get("tool"),
         "input": tc.get("input"),
         "expected_success": tc.get("expected_success", True),
-        "output_contains": tc.get("output_contains")
+        "output_contains": tc.get("output_contains"),
+        "tier": tc.get("tier", "tier_1")
     }
     
     payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")

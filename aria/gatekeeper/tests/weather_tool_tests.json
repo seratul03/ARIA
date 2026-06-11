@@ -6,7 +6,8 @@
       "city": ""
     },
     "expected_success": false,
-    "signature": "ae64255ea266ad863cafce24ba7ebf1838a5e97262ec3b4c102851e1fbbe16a9"
+    "signature": "3fa3f26c60f0f4385da79091365878ba797aa32d8402cce8392237191beea8b5",
+    "tier": "tier_3_adversarial"
   },
   {
     "id": "weather_tool_002",
@@ -15,7 +16,8 @@
       "city": "xyzabc123notacity"
     },
     "expected_success": false,
-    "signature": "2ee56d7486dbc55958d94342f28ceed11d09d22c4251227038192fc582dfcea4"
+    "signature": "6ba8513514e67c99bbc5bf9fe63355c0076b1a350b15114d42130f71b126ae56",
+    "tier": "tier_3_adversarial"
   },
   {
     "id": "weather_tool_003",
@@ -24,7 +26,8 @@
       "city": "London"
     },
     "expected_success": true,
-    "signature": "518b1f3f1b35354da1efc1ec4032d32842bf3f19855d8514d955270ed14ed1db"
+    "signature": "0033674b1044f0b5a53e9beb9e4266babf9e5d7785b3a64517297985307fcd58",
+    "tier": "tier_1"
   },
   {
     "id": "weather_tool_004",
@@ -34,6 +37,7 @@
       "units": "fahrenheit"
     },
     "expected_success": true,
-    "signature": "cd7328b9f447dcc96d947e10c167f4ad6a1096beee8e2231cdc01e59dbb9f2aa"
+    "signature": "4b8cca08e5abdab23f05e17421b4919407fa339985fd4dd5ff518a2eb91d5082",
+    "tier": "tier_1"
   }
 ]

@@ -6,6 +6,7 @@
       "topic": "print hello world"
     },
     "expected_success": true,
-    "signature": "00fc01cf0fbffdb1f8cd125f7adc6aea2e111de93e87e649dfe73534dba2b744"
+    "signature": "2bb01958226a37225fa42b66aec4452ff465fff1602e6182f6b3d240a0cb03fa",
+    "tier": "tier_1"
   }
 ]

@@ -1,0 +1,8 @@
+{
+  "weights": {
+    "correctness": 0.5,
+    "robustness": 0.3,
+    "latency": 0.2
+  },
+  "min_improvement_delta": 0.02
+}
