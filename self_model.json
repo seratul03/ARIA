@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:12:57.854130+00:00",
+  "last_updated": "2026-06-11T05:12:57.909345+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -64,11 +64,11 @@
         "Evaluation errors in calculator_tool"
       ],
       "recent_failure_patterns": [
-        "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)",
         "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given",
         "NO_IMPROVEMENT due to Gatekeeper failures",
         "Gatekeeper failed: 3/4 tests failed",
-        "Gatekeeper failed: Sandbox error: Cannot instantiate tool"
+        "Gatekeeper failed: Sandbox error: Cannot instantiate tool",
+        "Gatekeeper failed: 5/8 tests failed"
       ],
       "last_successful_improvement": null,
       "health_score": 0.0,
