@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T12:19:18.008771+00:00",
+  "last_updated": "2026-06-11T12:19:29.975700+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -48,6 +48,11 @@
           "success": false,
           "safety_violation": true,
           "timestamp": "2026-06-11T12:18:11.034741+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": true,
+          "timestamp": "2026-06-11T12:19:29.975631+00:00"
         }
       ]
     },
