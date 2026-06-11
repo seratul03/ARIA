@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:14:05.227052+00:00",
+  "last_updated": "2026-06-11T05:21:57.794939+00:00",
   "components": {
     "improvement_engine": {
       "known_weaknesses": [
@@ -19,7 +19,8 @@
         "Evaluation errors in calculator_tool",
         "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given",
         "Gatekeeper failed: Static validation failed: Syntax error: invalid syntax (<unknown>, line 50). Code at line 50: '    \\\"\\\"\\\"AST visitor that safely evaluates mathematical expressions.\\\"\\\"\\\"'",
-        "Gatekeeper failed: Docker unavailable: Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')"
+        "Gatekeeper failed: Docker unavailable: Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')",
+        "Groq.__init__() takes 1 positional argument but 2 were given"
       ],
       "recent_failure_patterns": [
         "Gatekeeper failed: 5/8 tests failed",
