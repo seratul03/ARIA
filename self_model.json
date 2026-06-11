@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:14:04.838110+00:00",
+  "last_updated": "2026-06-11T05:14:04.898282+00:00",
   "components": {
     "improvement_engine": {
       "known_weaknesses": [
@@ -22,11 +22,11 @@
         "Gatekeeper failed: Docker unavailable: Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')"
       ],
       "recent_failure_patterns": [
-        "Gatekeeper failed: 3/4 tests failed",
         "Gatekeeper failed: Sandbox error: Cannot instantiate tool",
         "Gatekeeper failed: 5/8 tests failed",
         "Gatekeeper failed: Static validation failed: Syntax error",
-        "Gatekeeper failed: Docker unavailable"
+        "Gatekeeper failed: Docker unavailable",
+        "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)"
       ],
       "last_successful_improvement": null,
       "health_score": 0.0,
