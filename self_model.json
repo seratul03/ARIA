@@ -1,63 +1,12 @@
 {
-  "last_updated": "2026-06-11T12:34:48.449351+00:00",
+  "last_updated": "2026-06-11T12:45:19.710573+00:00",
   "components": {
-    "introspection_engine": {
+    "scheduler": {
       "known_weaknesses": [],
       "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-11T12:34:19.711720+00:00",
+      "last_successful_improvement": null,
       "health_score": 1.0,
-      "recent_cycles": [
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:03.205331+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:42:51.616546+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:46:27.901267+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:22.726930+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:03.758394+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:17:56.306917+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:19:18.008622+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:23:55.440821+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:31:47.657212+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:34:19.711700+00:00"
-        }
-      ]
+      "recent_cycles": []
     },
     "gatekeeper": {
       "known_weaknesses": [],
@@ -116,13 +65,6 @@
           "timestamp": "2026-06-11T12:34:48.189239+00:00"
         }
       ]
-    },
-    "scheduler": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": null,
-      "health_score": 1.0,
-      "recent_cycles": []
     },
     "improvement_engine": {
       "known_weaknesses": [
@@ -184,6 +126,64 @@
           "success": false,
           "safety_violation": false,
           "timestamp": "2026-06-11T12:34:48.449322+00:00"
+        }
+      ]
+    },
+    "introspection_engine": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": "2026-06-11T12:45:19.710551+00:00",
+      "health_score": 1.0,
+      "recent_cycles": [
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:42:51.616546+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:46:27.901267+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:57:22.726930+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T03:02:03.758394+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:17:56.306917+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:19:18.008622+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:23:55.440821+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:31:47.657212+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:34:19.711700+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:45:19.710538+00:00"
         }
       ]
     }
