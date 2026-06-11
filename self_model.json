@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T12:52:43.361187+00:00",
+  "last_updated": "2026-06-11T13:31:46.189177+00:00",
   "components": {
     "improvement_engine": {
       "known_weaknesses": [
@@ -64,71 +64,6 @@
         }
       ]
     },
-    "introspection_engine": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-11T12:52:06.936106+00:00",
-      "health_score": 1.0,
-      "recent_cycles": [
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:03.758394+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:17:56.306917+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:19:18.008622+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:23:55.440821+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:31:47.657212+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:34:19.711700+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:45:19.710538+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:45:55.777786+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:49:40.545396+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:52:06.936079+00:00"
-        }
-      ]
-    },
-    "scheduler": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": null,
-      "health_score": 1.0,
-      "recent_cycles": []
-    },
     "gatekeeper": {
       "known_weaknesses": [],
       "recent_failure_patterns": [],
@@ -186,6 +121,71 @@
           "timestamp": "2026-06-11T12:52:42.900187+00:00"
         }
       ]
+    },
+    "introspection_engine": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": "2026-06-11T13:31:46.189151+00:00",
+      "health_score": 1.0,
+      "recent_cycles": [
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:17:56.306917+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:19:18.008622+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:23:55.440821+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:31:47.657212+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:34:19.711700+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:45:19.710538+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:45:55.777786+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:49:40.545396+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:52:06.936079+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T13:31:46.189133+00:00"
+        }
+      ]
+    },
+    "scheduler": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": null,
+      "health_score": 1.0,
+      "recent_cycles": []
     }
   },
   "system_wide_patterns": [
