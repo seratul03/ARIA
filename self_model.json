@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T12:49:55.784395+00:00",
+  "last_updated": "2026-06-11T12:49:56.297818+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -80,11 +80,6 @@
         {
           "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:47:00.552992+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
           "timestamp": "2026-06-10T02:57:58.430599+00:00"
         },
         {
@@ -126,6 +121,11 @@
           "success": false,
           "safety_violation": false,
           "timestamp": "2026-06-11T12:46:46.987636+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": true,
+          "timestamp": "2026-06-11T12:49:56.297783+00:00"
         }
       ]
     },
