@@ -1,51 +1,6 @@
 {
-  "last_updated": "2026-06-11T05:12:58.272440+00:00",
+  "last_updated": "2026-06-11T05:14:04.509575+00:00",
   "components": {
-    "scheduler": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": null,
-      "health_score": 1.0,
-      "recent_cycles": []
-    },
-    "introspection_engine": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-10T03:02:03.758433+00:00",
-      "health_score": 1.0,
-      "recent_cycles": [
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:36:56.226340+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:03.205331+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:42:51.616546+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:46:27.901267+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:22.726930+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:03.758394+00:00"
-        }
-      ]
-    },
     "improvement_engine": {
       "known_weaknesses": [
         "inadequate mocking of external APIs",
@@ -61,7 +16,8 @@
         "Gatekeeper failed: Docker unavailable",
         "Inconsistent test results",
         "Gatekeeper failures due to sandbox errors",
-        "Evaluation errors in calculator_tool"
+        "Evaluation errors in calculator_tool",
+        "Gatekeeper failed: Sandbox error: Cannot instantiate tool: Groq.__init__() takes 1 positional argument but 2 were given"
       ],
       "recent_failure_patterns": [
         "Gatekeeper failed: 3/4 tests failed",
@@ -142,6 +98,51 @@
           "timestamp": "2026-06-10T03:02:42.540395+00:00"
         }
       ]
+    },
+    "introspection_engine": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": "2026-06-10T03:02:03.758433+00:00",
+      "health_score": 1.0,
+      "recent_cycles": [
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:36:56.226340+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:41:03.205331+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:42:51.616546+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:46:27.901267+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:57:22.726930+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T03:02:03.758394+00:00"
+        }
+      ]
+    },
+    "scheduler": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": null,
+      "health_score": 1.0,
+      "recent_cycles": []
     }
   },
   "system_wide_patterns": [
