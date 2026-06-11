@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:12:57.183741+00:00",
+  "last_updated": "2026-06-11T05:12:57.616940+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -59,7 +59,8 @@
         "Gatekeeper failed: 5/8 tests failed",
         "Gatekeeper failed: Static validation failed: Syntax error",
         "Gatekeeper failed: Docker unavailable",
-        "Inconsistent test results"
+        "Inconsistent test results",
+        "Gatekeeper failures due to sandbox errors"
       ],
       "recent_failure_patterns": [
         "AST Static Validation Failure",
