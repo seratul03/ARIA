@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T12:46:42.419976+00:00",
+  "last_updated": "2026-06-11T12:46:46.987693+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -19,11 +19,6 @@
       "last_successful_improvement": null,
       "health_score": 0.0,
       "recent_cycles": [
-        {
-          "success": false,
-          "safety_violation": true,
-          "timestamp": "2026-06-10T02:43:00.886994+00:00"
-        },
         {
           "success": false,
           "safety_violation": false,
@@ -68,6 +63,11 @@
           "success": false,
           "safety_violation": false,
           "timestamp": "2026-06-11T12:45:54.076473+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:46:46.987636+00:00"
         }
       ]
     },
