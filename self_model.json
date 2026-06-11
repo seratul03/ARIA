@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:07:51.476571+00:00",
+  "last_updated": "2026-06-11T05:07:52.167904+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -11,7 +11,8 @@
     "improvement_engine": {
       "known_weaknesses": [
         "inadequate mocking of external APIs",
-        "Inconsistent test results due to unmocked external APIs"
+        "Inconsistent test results due to unmocked external APIs",
+        "Inconsistent test results due to sandbox errors"
       ],
       "recent_failure_patterns": [
         "AST Static Validation Failure",
