@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T12:34:48.189383+00:00",
+  "last_updated": "2026-06-11T12:34:48.449351+00:00",
   "components": {
     "introspection_engine": {
       "known_weaknesses": [],
@@ -138,11 +138,6 @@
         {
           "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:37:07.047387+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
           "timestamp": "2026-06-10T02:41:11.744771+00:00"
         },
         {
@@ -184,6 +179,11 @@
           "success": false,
           "safety_violation": false,
           "timestamp": "2026-06-11T12:32:10.950625+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:34:48.449322+00:00"
         }
       ]
     }
