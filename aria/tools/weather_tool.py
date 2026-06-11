@@ -11,10 +11,11 @@ This tool is intentionally improvable by ARIA's Improvement Engine.
 
 from __future__ import annotations
 
-import httpx
 import logging
+import random
 from aria.tools.base import BaseTool, TestCase, ToolResult
 from groq import Groq
+import httpx
 
 # WMO Weather Interpretation Codes → human-readable descriptions
 _WMO_CODES: dict[int, str] = {
@@ -99,12 +100,9 @@ class WeatherTool(BaseTool):
             return ToolResult(success=False, output=None, error=str(exc))
 
     def _geocode(self, city: str) -> dict | None:
+        params = {"name": city, "count": 1, "language": "en", "format": "json"}
         with httpx.Client(timeout=8.0) as client:
-            resp = client.get(
-                self._GEOCODE_URL,
-                params={"name": city, "count": 1, "language": "en", "format": "json"},
-                timeout=8.0,
-            )
+            resp = client.get(self._GEOCODE_URL, params=params, timeout=8.0)
             resp.raise_for_status()
             data = resp.json()
 
@@ -139,6 +137,7 @@ class WeatherTool(BaseTool):
     def _retry_request(self) -> ToolResult:
         # Simple exponential backoff
         delay = random.uniform(1, 5)
+        import time
         time.sleep(delay)
 
         # Try again
