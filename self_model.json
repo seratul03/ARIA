@@ -1,68 +1,12 @@
 {
-  "last_updated": "2026-06-11T13:32:16.169076+00:00",
+  "last_updated": "2026-06-11T13:43:33.785000+00:00",
   "components": {
-    "improvement_engine": {
-      "known_weaknesses": [
-        "inadequate mocking of external APIs"
-      ],
-      "recent_failure_patterns": [
-        "AST Static Validation Failure",
-        "manual_trigger on search_tool resulted in NO_IMPROVEMENT"
-      ],
+    "scheduler": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
       "last_successful_improvement": null,
-      "health_score": 0.0,
-      "recent_cycles": [
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:18:11.361060+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:19:30.276686+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:24:42.294304+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:32:10.950625+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:34:48.449322+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:45:54.076473+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:46:46.987636+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": true,
-          "timestamp": "2026-06-11T12:49:56.297783+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:52:43.361150+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T13:32:16.169046+00:00"
-        }
-      ]
+      "health_score": 1.0,
+      "recent_cycles": []
     },
     "gatekeeper": {
       "known_weaknesses": [],
@@ -125,14 +69,9 @@
     "introspection_engine": {
       "known_weaknesses": [],
       "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-11T13:31:46.189151+00:00",
+      "last_successful_improvement": "2026-06-11T13:43:33.784969+00:00",
       "health_score": 1.0,
       "recent_cycles": [
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:17:56.306917+00:00"
-        },
         {
           "success": true,
           "safety_violation": false,
@@ -177,15 +116,76 @@
           "success": true,
           "safety_violation": false,
           "timestamp": "2026-06-11T13:31:46.189133+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T13:43:33.784946+00:00"
         }
       ]
     },
-    "scheduler": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
+    "improvement_engine": {
+      "known_weaknesses": [
+        "inadequate mocking of external APIs"
+      ],
+      "recent_failure_patterns": [
+        "AST Static Validation Failure",
+        "manual_trigger on search_tool resulted in NO_IMPROVEMENT"
+      ],
       "last_successful_improvement": null,
-      "health_score": 1.0,
-      "recent_cycles": []
+      "health_score": 0.0,
+      "recent_cycles": [
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:18:11.361060+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:19:30.276686+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:24:42.294304+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:32:10.950625+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:34:48.449322+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:45:54.076473+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:46:46.987636+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": true,
+          "timestamp": "2026-06-11T12:49:56.297783+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:52:43.361150+00:00"
+        },
+        {
+          "success": false,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T13:32:16.169046+00:00"
+        }
+      ]
     }
   },
   "system_wide_patterns": [
