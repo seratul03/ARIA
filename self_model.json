@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-11T05:12:57.958017+00:00",
+  "last_updated": "2026-06-11T05:12:58.037398+00:00",
   "components": {
     "scheduler": {
       "known_weaknesses": [],
@@ -64,11 +64,11 @@
         "Evaluation errors in calculator_tool"
       ],
       "recent_failure_patterns": [
-        "NO_IMPROVEMENT due to Gatekeeper failures",
         "Gatekeeper failed: 3/4 tests failed",
         "Gatekeeper failed: Sandbox error: Cannot instantiate tool",
         "Gatekeeper failed: 5/8 tests failed",
-        "Gatekeeper failed: Static validation failed: Syntax error"
+        "Gatekeeper failed: Static validation failed: Syntax error",
+        "Gatekeeper failed: Docker unavailable"
       ],
       "last_successful_improvement": null,
       "health_score": 0.0,
