@@ -1,63 +1,61 @@
 {
-  "last_updated": "2026-06-11T12:24:42.294355+00:00",
+  "last_updated": "2026-06-11T12:31:47.657247+00:00",
   "components": {
-    "scheduler": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
+    "improvement_engine": {
+      "known_weaknesses": [
+        "inadequate mocking of external APIs"
+      ],
+      "recent_failure_patterns": [
+        "AST Static Validation Failure",
+        "manual_trigger on search_tool resulted in NO_IMPROVEMENT"
+      ],
       "last_successful_improvement": null,
-      "health_score": 1.0,
-      "recent_cycles": []
-    },
-    "introspection_engine": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-11T12:23:55.440860+00:00",
-      "health_score": 1.0,
+      "health_score": 0.0,
       "recent_cycles": [
         {
-          "success": true,
+          "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:36:56.226340+00:00"
+          "timestamp": "2026-06-10T02:37:07.047387+00:00"
         },
         {
-          "success": true,
+          "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:03.205331+00:00"
+          "timestamp": "2026-06-10T02:41:11.744771+00:00"
         },
         {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:42:51.616546+00:00"
+          "success": false,
+          "safety_violation": true,
+          "timestamp": "2026-06-10T02:43:00.886994+00:00"
         },
         {
-          "success": true,
+          "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:46:27.901267+00:00"
+          "timestamp": "2026-06-10T02:47:00.552992+00:00"
         },
         {
-          "success": true,
+          "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:22.726930+00:00"
+          "timestamp": "2026-06-10T02:57:58.430599+00:00"
         },
         {
-          "success": true,
+          "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:03.758394+00:00"
+          "timestamp": "2026-06-10T03:02:42.541359+00:00"
         },
         {
-          "success": true,
+          "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-11T12:17:56.306917+00:00"
+          "timestamp": "2026-06-11T12:18:11.361060+00:00"
         },
         {
-          "success": true,
+          "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-11T12:19:18.008622+00:00"
+          "timestamp": "2026-06-11T12:19:30.276686+00:00"
         },
         {
-          "success": true,
+          "success": false,
           "safety_violation": false,
-          "timestamp": "2026-06-11T12:23:55.440821+00:00"
+          "timestamp": "2026-06-11T12:24:42.294304+00:00"
         }
       ]
     },
@@ -114,61 +112,68 @@
         }
       ]
     },
-    "improvement_engine": {
-      "known_weaknesses": [
-        "inadequate mocking of external APIs"
-      ],
-      "recent_failure_patterns": [
-        "AST Static Validation Failure",
-        "manual_trigger on search_tool resulted in NO_IMPROVEMENT"
-      ],
+    "scheduler": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
       "last_successful_improvement": null,
-      "health_score": 0.0,
+      "health_score": 1.0,
+      "recent_cycles": []
+    },
+    "introspection_engine": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": "2026-06-11T12:31:47.657225+00:00",
+      "health_score": 1.0,
       "recent_cycles": [
         {
-          "success": false,
+          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:37:07.047387+00:00"
+          "timestamp": "2026-06-10T02:36:56.226340+00:00"
         },
         {
-          "success": false,
+          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:11.744771+00:00"
+          "timestamp": "2026-06-10T02:41:03.205331+00:00"
         },
         {
-          "success": false,
-          "safety_violation": true,
-          "timestamp": "2026-06-10T02:43:00.886994+00:00"
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-10T02:42:51.616546+00:00"
         },
         {
-          "success": false,
+          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:47:00.552992+00:00"
+          "timestamp": "2026-06-10T02:46:27.901267+00:00"
         },
         {
-          "success": false,
+          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:58.430599+00:00"
+          "timestamp": "2026-06-10T02:57:22.726930+00:00"
         },
         {
-          "success": false,
+          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:42.541359+00:00"
+          "timestamp": "2026-06-10T03:02:03.758394+00:00"
         },
         {
-          "success": false,
+          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-11T12:18:11.361060+00:00"
+          "timestamp": "2026-06-11T12:17:56.306917+00:00"
         },
         {
-          "success": false,
+          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-11T12:19:30.276686+00:00"
+          "timestamp": "2026-06-11T12:19:18.008622+00:00"
         },
         {
-          "success": false,
+          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-11T12:24:42.294304+00:00"
+          "timestamp": "2026-06-11T12:23:55.440821+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:31:47.657212+00:00"
         }
       ]
     }
