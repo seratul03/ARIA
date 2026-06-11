@@ -1,12 +1,63 @@
 {
-  "last_updated": "2026-06-11T13:44:08.610607+00:00",
+  "last_updated": "2026-06-11T14:45:31.742085+00:00",
   "components": {
-    "scheduler": {
+    "introspection_engine": {
       "known_weaknesses": [],
       "recent_failure_patterns": [],
-      "last_successful_improvement": null,
+      "last_successful_improvement": "2026-06-11T14:45:31.742023+00:00",
       "health_score": 1.0,
-      "recent_cycles": []
+      "recent_cycles": [
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:23:55.440821+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:31:47.657212+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:34:19.711700+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:45:19.710538+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:45:55.777786+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:49:40.545396+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T12:52:06.936079+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T13:31:46.189133+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T13:43:33.784946+00:00"
+        },
+        {
+          "success": true,
+          "safety_violation": false,
+          "timestamp": "2026-06-11T14:45:31.741999+00:00"
+        }
+      ]
     },
     "gatekeeper": {
       "known_weaknesses": [],
@@ -63,64 +114,6 @@
           "success": true,
           "safety_violation": false,
           "timestamp": "2026-06-11T13:44:08.347809+00:00"
-        }
-      ]
-    },
-    "introspection_engine": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-11T13:43:33.784969+00:00",
-      "health_score": 1.0,
-      "recent_cycles": [
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:19:18.008622+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:23:55.440821+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:31:47.657212+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:34:19.711700+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:45:19.710538+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:45:55.777786+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:49:40.545396+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T12:52:06.936079+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T13:31:46.189133+00:00"
-        },
-        {
-          "success": true,
-          "safety_violation": false,
-          "timestamp": "2026-06-11T13:43:33.784946+00:00"
         }
       ]
     },
@@ -186,6 +179,13 @@
           "timestamp": "2026-06-11T13:44:08.610578+00:00"
         }
       ]
+    },
+    "scheduler": {
+      "known_weaknesses": [],
+      "recent_failure_patterns": [],
+      "last_successful_improvement": null,
+      "health_score": 1.0,
+      "recent_cycles": []
     }
   },
   "system_wide_patterns": [
