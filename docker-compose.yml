@@ -20,6 +20,7 @@ services:
       - ./aria.log:/app/aria.log
       - ./data:/app/data
       - ./workspace:/app/workspace
+      - ./clones:/app/clones
       
       # --- CONFIG & VERSIONING ---
       - ./.env:/app/.env

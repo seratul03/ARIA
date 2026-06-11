@@ -122,6 +122,44 @@ class GitManager:
             logger.error(f"[GitManager] Commit failed: {exc}")
             return None
 
+    def commit_file(
+        self,
+        file_path: Path,
+        message: str,
+    ) -> str | None:
+        """
+        Stage a specific file and commit it.
+        """
+        if self._repo is None:
+            return None
+
+        try:
+            import git  # type: ignore
+
+            if not file_path.exists():
+                logger.warning(f"[GitManager] File not found: {file_path}")
+                return None
+
+            # Stage file
+            self._repo.index.add([str(file_path)])
+
+            # Configure author
+            author = git.Actor(self._ARIA_AUTHOR, self._ARIA_EMAIL)
+
+            commit = self._repo.index.commit(
+                f"[ARIA] {message}",
+                author=author,
+                committer=author,
+            )
+
+            short_hash = commit.hexsha[:8]
+            logger.info(f"[GitManager] Committed {file_path.name}: {short_hash} — {message}")
+            return short_hash
+
+        except Exception as exc:
+            logger.error(f"[GitManager] Commit failed for {file_path.name}: {exc}")
+            return None
+
     def rollback_tool(self, tool_name: str) -> bool:
         """
         Revert the tool file to the previous commit's version.

@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 
 from aria.introspection.engine import WeaknessReport
+from aria.introspection.self_model import self_model
 
 
 SYSTEM_PROMPT = """\
@@ -73,7 +74,23 @@ def build_improvement_prompt(report: WeaknessReport) -> str:
             for f in report.recent_improvement_failures
         ) + "\nWARNING: Do NOT repeat these mistakes!\n"
 
-    prompt = f"""IMPROVEMENT REQUEST
+    # Incorporate Self-Model patterns
+    model_data = self_model.get_model()
+    improvement_engine_data = model_data.get("components", {}).get("improvement_engine", {})
+    patterns = improvement_engine_data.get("recent_failure_patterns", [])
+    system_patterns = model_data.get("system_wide_patterns", [])
+    
+    self_model_text = ""
+    if patterns or system_patterns:
+        self_model_text = "━━━ ARIA SELF-MODEL KNOWLEDGE ━━━\n"
+        self_model_text += "You must avoid these known failure patterns from your previous improvement cycles:\n"
+        for p in patterns:
+            self_model_text += f"  - [Improvement Engine Failure] {p}\n"
+        for p in system_patterns:
+            self_model_text += f"  - [System-wide Pattern] {p}\n"
+        self_model_text += "\n"
+
+    prompt = f"""{self_model_text}IMPROVEMENT REQUEST
 ═══════════════════
 Tool Name:        {report.tool_name}
 Severity:         {report.severity.upper()}

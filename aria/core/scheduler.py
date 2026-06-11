@@ -87,6 +87,7 @@ class ImprovementScheduler:
         """Trigger one improvement cycle via the Agent Core."""
         try:
             from aria.core.agent import agent
+            from aria.introspection.self_model import self_model
 
             logger.info("[Scheduler] Triggering scheduled improvement cycle...")
             try:
@@ -95,8 +96,11 @@ class ImprovementScheduler:
             except ImportError:
                 pass
             agent.run_improvement_cycle()
+            self_model.record_cycle("scheduler", success=True)
         except Exception as exc:
             logger.error(f"[Scheduler] Cycle error: {exc}")
+            from aria.introspection.self_model import self_model
+            self_model.record_cycle("scheduler", success=False)
 
     @property
     def is_running(self) -> bool:

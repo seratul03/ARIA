@@ -25,6 +25,7 @@ from aria.metrics.db import (
     get_tool_stats,
     get_improvement_history,
 )
+from aria.introspection.self_model import self_model
 
 
 @dataclass
@@ -160,6 +161,7 @@ class IntrospectionEngine:
         # Sort: critical first, then by success rate ascending (worst first)
         severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         reports.sort(key=lambda r: (severity_order[r.severity], r.success_rate))
+        self_model.record_cycle("introspection_engine", success=True)
         return reports
 
     def analyze_tool(self, tool_name: str) -> WeaknessReport | None:
@@ -187,6 +189,8 @@ class IntrospectionEngine:
             emit_trace("introspection", "weakness_detected", {"tool": tool_name, "fitness": fitness, "reasons": reasons})
         except ImportError:
             pass
+            
+        self_model.record_cycle("introspection_engine", success=True)
 
         return WeaknessReport(
             tool_name=tool_name,

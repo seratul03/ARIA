@@ -79,6 +79,12 @@ class Settings:
     # ── Scheduler ──────────────────────────────────────────────
     scheduler_interval_minutes: int     # e.g. 30
 
+    # ── Meta-Introspection ─────────────────────────────────────
+    meta_introspection_interval: int    # e.g. 10
+    meta_introspection_max_hours: float # e.g. 4.0
+    clone_base_dir: Path
+    clone_keep_on_failure: bool
+
     # ── Docker sandbox ─────────────────────────────────────────
     sandbox_memory_limit: str           # e.g. "256m"
     sandbox_cpu_limit: float            # e.g. 0.5
@@ -94,6 +100,9 @@ class Settings:
 
     # ── Database ───────────────────────────────────────────────
     db_path: Path = field(default_factory=lambda: Path("aria.db"))
+    
+    # ── Self-Model ─────────────────────────────────────────────
+    self_model_path: Path = field(default_factory=lambda: Path("self_model.json"))
 
 
 def _load_settings() -> Settings:
@@ -120,6 +129,11 @@ def _load_settings() -> Settings:
 
         scheduler_interval_minutes=_get_int("SCHEDULER_INTERVAL_MINUTES", 30),
 
+        meta_introspection_interval=_get_int("META_INTROSPECTION_INTERVAL", 10),
+        meta_introspection_max_hours=_get_float("META_INTROSPECTION_MAX_HOURS", 4.0),
+        clone_base_dir=Path(_get("CLONE_BASE_DIR", "/tmp/aria_clones")),
+        clone_keep_on_failure=_get("CLONE_KEEP_ON_FAILURE", "true").lower() == "true",
+
         sandbox_memory_limit=_get("SANDBOX_MEMORY_LIMIT", "256m"),
         sandbox_cpu_limit=_get_float("SANDBOX_CPU_LIMIT", 0.5),
         sandbox_timeout_seconds=_get_int("SANDBOX_TIMEOUT_SECONDS", 30),
@@ -132,6 +146,7 @@ def _load_settings() -> Settings:
         # Fields with defaults
         file_reader_allowed_dirs=allowed_dirs,
         db_path=Path(_get("DB_PATH", "aria.db")),
+        self_model_path=Path(_get("SELF_MODEL_PATH", "self_model.json")),
     )
 
 
