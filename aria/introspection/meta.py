@@ -11,6 +11,7 @@ import json
 import logging
 from typing import Any
 from pathlib import Path
+import time
 
 from aria.config import settings
 from aria.core.rate_limiter import groq_limiter
@@ -142,10 +143,32 @@ def run_meta_introspection(n_cycles: int) -> None:
             self_model.add_system_pattern(p)
             
         logger.info("[MetaIntrospection] Self-model updated successfully.")
-        
+    
     except Exception as exc:
         logger.error(f"[MetaIntrospection] Failed during self-model update: {exc}")
         return
+
+    # ── Phase 7.2: Rate Limits & Constraints ──
+    # Max 1 concurrent clone at a time
+    active = [c for c in clone_manager.active_clones.values() if c["status"] == "running"]
+    if len(active) >= 1:
+        logger.info("[MetaImprovement] Skipped: A clone is currently active.")
+        return
+
+    # Max 1 meta-improvement cycle per day (24 hours)
+    meta_state_file = Path("meta_state.json")
+    if meta_state_file.exists():
+        try:
+            state = json.loads(meta_state_file.read_text(encoding="utf-8"))
+            last_run = state.get("last_run_time", 0)
+            if time.time() - last_run < 86400:  # 24 hours
+                logger.info("[MetaImprovement] Skipped: Rate limit reached (max 1 cycle/day).")
+                return
+        except Exception:
+            pass
+
+    # Record the start of a meta-cycle
+    meta_state_file.write_text(json.dumps({"last_run_time": time.time()}), encoding="utf-8")
 
     # --- Clone Lifecycle ---
     
@@ -196,6 +219,12 @@ def run_meta_introspection(n_cycles: int) -> None:
             clone_manager.active_clones[clone_id]["status"] = "failed"
             return
             
+        # ── Phase 7.3: The meta loop itself can NEVER be improved ──
+        if target_file == "aria/introspection/meta.py":
+            logger.error(f"[MetaImprovement] Rejected proposal: ARIA is forbidden from rewriting its own meta-loop ({target_file}).")
+            clone_manager.active_clones[clone_id]["status"] = "failed"
+            return
+            
         # Validate Python syntax (Mitigate token truncation risk)
         try:
             import ast
@@ -213,10 +242,51 @@ def run_meta_introspection(n_cycles: int) -> None:
         clone_file_path.write_text(new_content, encoding="utf-8")
         
         # 5. Clone runs evaluation suite 
-        logger.info(f"[MetaImprovement] Running evaluation in clone {clone_id}...")
+        logger.info(f"[MetaImprovement] Running Arena Combat for clone {clone_id} on 'code_executor_tool'...")
+        
+        # We will use code_executor_tool as the benchmark since it's hard.
+        benchmark_tool = "code_executor_tool"
+        
+        # We write a small evaluation script to run in the clone that triggers an improvement cycle
+        # and captures the combat report result (specifically the clone's score vs current aria's score).
+        eval_script_content = f"""
+import sys
+import json
+from aria.main import bootstrap
+bootstrap()
+from aria.core.agent import agent
+from aria.metrics.db import get_pending_reviews, get_tool_stats
+import aria.core.tracer as tracer
+
+# Ensure the benchmark tool has execution history, otherwise the cycle aborts
+stats = get_tool_stats("{benchmark_tool}")
+if not stats:
+    if "{benchmark_tool}" == "code_executor_tool":
+        agent.run_tool("{benchmark_tool}", {{"code": "print('hello')"}})
+    elif "{benchmark_tool}" == "calculator_tool":
+        agent.run_tool("{benchmark_tool}", {{"expression": "2+2"}})
+    else:
+        agent.run_tool("{benchmark_tool}", {{}})
+
+# Disable actual deployments in the evaluation
+agent._deploy = lambda *args, **kwargs: False
+
+deployed = agent.run_improvement_cycle(target_tool="{benchmark_tool}")
+reviews = get_pending_reviews()
+for r in reviews:
+    if r['tool_name'] == "{benchmark_tool}":
+        print("COMBAT_REPORT:" + r['combat_report'])
+        sys.exit(0)
+print("COMBAT_REPORT_NOT_FOUND")
+sys.exit(1)
+"""
+        eval_script_path = Path(clone_dir) / "run_meta_eval.py"
+        eval_script_path.write_text(eval_script_content, encoding="utf-8")
+        
         eval_result = clone_manager.run_evaluation(
             clone_id, 
-            command=["python", "-c", "import aria; print('ok')"]
+            command=["python", "run_meta_eval.py"],
+            timeout_seconds=600 # longer timeout because improvement takes time
         )
         
         # 6. Results returned to current ARIA
@@ -225,26 +295,74 @@ def run_meta_introspection(n_cycles: int) -> None:
             clone_manager.active_clones[clone_id]["status"] = "failed"
             return
             
-        if eval_result.get("exit_code") == 0:
-            logger.info(f"[MetaImprovement] Evaluation PASSED! Deploying {target_file} to host...")
+        logs = eval_result.get("logs", "")
+        combat_report_json = None
+        for line in logs.splitlines():
+            if line.startswith("COMBAT_REPORT:"):
+                try:
+                    combat_report_json = json.loads(line.replace("COMBAT_REPORT:", "", 1))
+                except json.JSONDecodeError:
+                    pass
+                break
+                
+        if not combat_report_json:
+            logger.warning(f"[MetaImprovement] Evaluation FAILED (No combat report found). Logs: {logs[-500:]}")
+            clone_manager.active_clones[clone_id]["status"] = "failed"
+            return
             
-            # 8. Decision: deploy
-            import shutil
-            from aria.versioning.git_manager import git_manager
+        b = combat_report_json.get("baseline", {})
+        c = combat_report_json.get("clone", {})
+        baseline_score = b.get("overall_score", 0.0)
+        clone_score = c.get("overall_score", 0.0)
+        delta = clone_score - baseline_score
+        
+        # The benchmark is hard, we require a meaningful delta to accept root changes
+        min_meta_delta = 0.05 
+        
+        if delta >= min_meta_delta and combat_report_json.get("safety_gate") == "PASS":
+            logger.info(f"[MetaImprovement] Evaluation PASSED! (Delta: {delta:.3f}) Queueing {target_file}...")
             
-            host_file_path = Path(__file__).parent.parent.parent / target_file
-            host_file_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(clone_file_path, host_file_path)
+            # Create review queue entry for meta_improvement
+            from aria.metrics.db import insert_review_queue
+            insert_review_queue(
+                session_id=clone_id,
+                tool_name=target_file, # We use tool_name field for target_file here
+                timestamp=time.time(),
+                combat_report=json.dumps(combat_report_json),
+                generated_code=new_content,
+                status="pending"
+            )
             
-            commit_msg = f"Meta-improvement: {reasoning}"
-            git_manager.commit_file(host_file_path, commit_msg)
-            
-            logger.info("[MetaImprovement] Deployment successful!")
-            clone_manager.active_clones[clone_id]["status"] = "success"
+            if settings.require_human_review:
+                logger.info(f"[MetaImprovement] Meta-improvement for {target_file} pending human review.")
+            else:
+                # 8. Decision: deploy
+                import shutil
+                from aria.versioning.git_manager import git_manager
+                
+                host_file_path = Path(__file__).parent.parent.parent / target_file
+                host_file_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                # Tag pre-meta deployment
+                git_manager.tag_commit(f"pre_meta_deployment_{int(time.time())}")
+                
+                shutil.copyfile(clone_file_path, host_file_path)
+                
+                commit_msg = f"Meta-improvement: {reasoning}"
+                commit_hash = git_manager.commit_file(host_file_path, commit_msg)
+                if commit_hash:
+                    git_manager.tag_commit(f"post_meta_deployment_{int(time.time())}", commit_hash)
+                
+                logger.info("[MetaImprovement] Deployment successful!")
+                from aria.metrics.db import update_review_status
+                # Auto approve the review
+                reviews = get_pending_reviews()
+                for r in reviews:
+                    if r['session_id'] == clone_id:
+                        update_review_status(r['id'], "approved")
+                clone_manager.active_clones[clone_id]["status"] = "success"
         else:
-            # Decision: discard
-            logger.warning(f"[MetaImprovement] Evaluation FAILED with exit code {eval_result.get('exit_code')}. Discarding change.")
-            logger.debug(f"Evaluation logs:\n{eval_result.get('logs')}")
+            logger.warning(f"[MetaImprovement] Evaluation FAILED. Delta {delta:.3f} < {min_meta_delta}. Discarding.")
             clone_manager.active_clones[clone_id]["status"] = "failed"
             
     except Exception as exc:
@@ -253,4 +371,5 @@ def run_meta_introspection(n_cycles: int) -> None:
     finally:
         # 7. Clone container destroyed
         clone_manager.destroy_clone(clone_id, keep_on_failure=settings.clone_keep_on_failure)
+
 

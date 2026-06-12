@@ -1,7 +1,7 @@
 {
-  "server.py": "4a53eb0b7f64ef71542a66814d9c694e57b0786ec4ac8c0a3e89d3ca90cb7765",
+  "server.py": "1cbf083f9a9ac7a94f0437a19d68a0c959ede781bc139a5c2875b7e9d16fc11b",
   "evaluators.py": "f86475629c0758bb3d3bc06eb34359d546b5ebe6d0d99374200400b5f56a4aa5",
   "verifier.py": "a484f30b280f6db155fa5219fd82289c58410760cf805b3cd2720d90c11cce2a",
   "scoring_config.json": "fffa54b48285447aa88cbbd02abb31e7824953890bdec46f02cf48cbedbdcd9b",
-  "signature": "183f59c174ef32f6b5bdf7c596b9614546cefd7e6b14eb1bd7bb489e9610284d"
+  "signature": "926d61bde946df620e108a9e0a310e3b25c52f04c246cd9e11fb4e95b2249cca"
 }

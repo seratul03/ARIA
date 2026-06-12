@@ -29,8 +29,9 @@ The improved module MUST:
 2. Implement `run(self, input: dict) -> ToolResult` — same signature.
 3. Implement `test_cases(self) -> list[TestCase]` — at least 3 test cases.
 4. Keep the same `name` class attribute as the original.
-5. Be importable as a standalone Python 3.11 module.
-6. Be under 300 lines total.
+5. The `__init__` method MUST NOT require any arguments (e.g., `def __init__(self):`). The framework will instantiate your class with zero arguments.
+6. Be importable as a standalone Python 3.11 module.
+7. Be under 300 lines total.
 
 ━━━ FORBIDDEN ━━━
 The improved module MUST NOT:
@@ -39,9 +40,11 @@ The improved module MUST NOT:
 - Write to any file or database.
 - Make network calls except via `httpx` or the `groq` python SDK.
 - Use raw `httpx` or `requests` to call the Groq API. You MUST use the `groq` python SDK (`from groq import Groq`).
+- When instantiating the Groq client, you MUST use keyword arguments (e.g. `Groq(api_key=...)`), never positional arguments.
 - Access environment variables.
 - Use threading or asyncio.
 - Contain any syntax errors.
+- Include hardcoded real-world data (URLs, Wikipedia snippets, API responses, etc.) as string literals inside `test_cases()`. Test case inputs must use short, simple placeholder strings only (e.g. `"python"`, `"test query"`, `"London"`). Long strings with special characters will cause syntax errors.
 
 ━━━ OUTPUT FORMAT ━━━
 Return ONLY the complete Python source code of the improved module.

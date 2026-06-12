@@ -41,7 +41,7 @@ services:
       context: .
       dockerfile: Dockerfile.referee
     container_name: referee
-    network_mode: none
+    network_mode: bridge
     read_only: true
     volumes:
       - aria_sockets:/sockets
@@ -51,6 +51,8 @@ services:
       - REFEREE_SOCKET_PATH=/sockets/referee.sock
       - TESTS_DIR=/app/tests
       - TEST_SIGNING_KEY=testing_key_1234
+    ports:
+      - "5006:5006"
 
   audit_logger:
     build:

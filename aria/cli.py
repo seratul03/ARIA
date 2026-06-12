@@ -26,6 +26,18 @@ import argparse
 import json
 import sys
 
+# ── Windows UTF-8 fix ──────────────────────────────────────────────────────────
+# Rich uses unicode symbols (✓, ✗, ─, ≥, …) that cp1252 (the default Windows
+# console encoding) cannot represent.  Force UTF-8 so we never get a
+# UnicodeEncodeError from the Rich renderer.
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        # reconfigure() was added in Python 3.7; should always be present here
+        pass
+
 
 def cmd_run(args: argparse.Namespace) -> None:
     """Launch the interactive terminal menu."""
@@ -483,21 +495,47 @@ def cmd_review(args: argparse.Namespace) -> None:
         
         do_deploy = Confirm.ask(f"\n[bold yellow]Deploy these changes to {review['tool_name']}?[/bold yellow]")
         if do_deploy:
-            stats = get_tool_stats(review['tool_name'])
-            class MockReport:
-                success_rate = stats.success_rate if stats else 0.0
-                p90_latency = stats.p90_latency if stats else 0.0
+            if review['tool_name'].startswith("aria/") or review['tool_name'].endswith(".py"):
+                # Meta-improvement deployment
+                import shutil
+                from pathlib import Path
+                from aria.versioning.git_manager import git_manager
+                import time
                 
-            sandbox_result = {
-                "tests_passed": c.get("tests_passed", 0),
-                "tests_total": c.get("tests_total", 0)
-            }
-            
-            success = agent._deploy(review['tool_name'], review['generated_code'], MockReport(), sandbox_result)
-            if success:
-                update_review_status(review['id'], "approved")
+                host_file_path = Path(review['tool_name'])
+                host_file_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                # We need to write the generated_code from the review to the host_file_path
+                try:
+                    git_manager.tag_commit(f"pre_meta_deployment_{int(time.time())}")
+                    host_file_path.write_text(review['generated_code'], encoding="utf-8")
+                    
+                    commit_msg = f"Meta-improvement: Human Approved"
+                    commit_hash = git_manager.commit_file(host_file_path, commit_msg)
+                    if commit_hash:
+                        git_manager.tag_commit(f"post_meta_deployment_{int(time.time())}", commit_hash)
+                        
+                    update_review_status(review['id'], "approved")
+                    console.print(f"[bold green]✓ Meta-improvement deployed for '{review['tool_name']}'[/bold green]")
+                except Exception as e:
+                    console.print(f"[red]Deployment failed: {e}[/red]")
             else:
-                console.print("[red]Deployment failed.[/red]")
+                # Tool deployment
+                stats = get_tool_stats(review['tool_name'])
+                class MockReport:
+                    success_rate = stats.success_rate if stats else 0.0
+                    p90_latency = stats.p90_latency if stats else 0.0
+                    
+                sandbox_result = {
+                    "tests_passed": c.get("tests_passed", 0),
+                    "tests_total": c.get("tests_total", 0)
+                }
+                
+                success = agent._deploy(review['tool_name'], review['generated_code'], MockReport(), sandbox_result)
+                if success:
+                    update_review_status(review['id'], "approved")
+                else:
+                    console.print("[red]Deployment failed.[/red]")
         else:
             update_review_status(review['id'], "rejected")
             console.print(f"[red]Review {review['id']} rejected.[/red]")

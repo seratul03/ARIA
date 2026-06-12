@@ -145,7 +145,7 @@ class CloneManager:
                     str(clone_dir / "aria" / "core" / "scheduler.py"): {"bind": "/app/aria/core/scheduler.py", "mode": "rw"},
                     str(clone_dir / ".env"): {"bind": "/app/.env", "mode": "ro"},
                 },
-                network_mode="none",
+                network_mode="bridge",
                 mem_limit="512m",
                 nano_cpus=int(2 * 1e9),
                 detach=True,

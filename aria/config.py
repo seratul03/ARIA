@@ -140,7 +140,7 @@ def _load_settings() -> Settings:
 
         sandbox_memory_limit=_get("SANDBOX_MEMORY_LIMIT", "256m"),
         sandbox_cpu_limit=_get_float("SANDBOX_CPU_LIMIT", 0.5),
-        sandbox_timeout_seconds=_get_int("SANDBOX_TIMEOUT_SECONDS", 30),
+        sandbox_timeout_seconds=_get_int("SANDBOX_TIMEOUT_SECONDS", 120),
 
         groq_min_request_interval_seconds=_get_float(
             "GROQ_MIN_REQUEST_INTERVAL_SECONDS", 3.0

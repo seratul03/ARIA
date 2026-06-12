@@ -121,8 +121,10 @@ CREATE INDEX IF NOT EXISTS idx_cycle_traces_time
     ON cycle_traces(timestamp);
 """
 
+from aria.config import settings
+
 _local = threading.local()
-_db_path: Path = Path("aria.db")
+_db_path: Path = settings.db_path
 
 
 def init_db(db_path: Path) -> None:

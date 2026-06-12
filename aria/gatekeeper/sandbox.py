@@ -452,13 +452,15 @@ class DockerSandbox:
 
         # --- Referee Evaluation ---
         import socket
+        import sys
         try:
-            if hasattr(socket, "AF_UNIX"):
+            if sys.platform != "win32" and hasattr(socket, "AF_UNIX"):
+                # Linux/Mac: use Unix socket (production Docker path)
                 client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 client.settimeout(10.0)
                 client.connect("/sockets/referee.sock")
             else:
-                # Windows local testing fallback
+                # Windows: always use TCP (Referee exposed on port 5006)
                 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 client.settimeout(10.0)
                 client.connect(("127.0.0.1", 5006))

@@ -188,6 +188,38 @@ class AgentCore:
                 with get_connection() as conn:
                     conn.execute("UPDATE improvement_history SET status = 'rolled_back' WHERE id = ?", (row["id"],))
 
+        # Check meta improvements health
+        from aria.versioning.git_manager import git_manager
+        if git_manager._repo:
+            for tag in git_manager._repo.tags:
+                if tag.name.startswith("post_meta_deployment_"):
+                    try:
+                        ts = int(tag.name.split("_")[-1])
+                        if ts >= cutoff:
+                            with get_connection() as conn:
+                                recent_cycles = conn.execute(
+                                    "SELECT cycle_outcome FROM cycle_traces WHERE timestamp >= ?",
+                                    (ts,)
+                                ).fetchall()
+                            
+                            if recent_cycles:
+                                failures = sum(1 for c in recent_cycles if c["cycle_outcome"] not in ("IMPROVED", "DEPLOYED", "NO_IMPROVEMENT", "PENDING_REVIEW"))
+                                failure_rate = failures / len(recent_cycles)
+                                
+                                if failure_rate >= 0.5 and len(recent_cycles) >= 3:
+                                    self._emit(
+                                        EventType.ERROR,
+                                        f"Global degradation detected since meta-improvement (Failure Rate: {failure_rate:.0%}). Auto-rolling back."
+                                    )
+                                    git_manager.rollback_to_tag(f"pre_meta_deployment_{ts}")
+                                    self._emit(
+                                        EventType.ROLLED_BACK,
+                                        f"↩ Meta-improvement rolled back to 'pre_meta_deployment_{ts}'.",
+                                    )
+                                    break
+                    except Exception as e:
+                        logger.error(f"[Agent] Error checking meta-improvement health: {e}")
+
     # ── Tool execution ─────────────────────────────────────────────────────────
 
     def run_tool(self, tool_name: str, input_data: dict) -> Any:
