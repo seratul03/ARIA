@@ -1,24 +1,31 @@
 import httpx
-import respx
 from aria.tools.base import BaseTool
+import respx
 
 class CryptoTool(BaseTool):
     name = "crypto_tool"
     description = "Fetches the real-time price of Bitcoin using Coingecko API"
 
-    @respx.mock
     def run(self, input_data: dict) -> dict:
-        respx.get("https://api.coingecko.com/api/v3/simple/price").mock(
-            return_value=httpx.Response(200, json={"bitcoin": {"usd": 40000}})
+        """Fetches the real-time price of Bitcoin using Coingecko API"""
+        try:
+            response = httpx.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
+            response.raise_for_status()
+            return {"success": True, "output": response.json()}
+        except httpx.HTTPError as e:
+            return {"success": False, "output": str(e)}
+
+    def mock_apis(self, respx_mock):
+        """Mock Coingecko API for testing"""
+        respx_mock.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd").mock(
+            return_value=httpx.Response(200, json={"bitcoin": {"usd": 30000.0}})
         )
-        response = httpx.get("https://api.coingecko.com/api/v3/simple/price")
-        response.raise_for_status()
-        return {"success": True, "output": response.json()}
 
     def test_cases(self) -> list:
+        """Returns a list of test cases for the tool"""
         return [
             {
-                "name": "Fetch Bitcoin price",
+                "name": "Test successful response",
                 "input": {},
                 "expected_success": True,
             }
