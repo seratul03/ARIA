@@ -1,6 +1,6 @@
 # ARIA — Autonomous Recursive Improvement Agent
 
-> A fully autonomous, recursively self-improving AI system. ARIA monitors its own tools, detects weaknesses, generates better code via LLMs, validates it in isolated Docker sandboxes, and deploys improvements automatically. With Phase 7, ARIA can now even introspect its own internal architecture and rewrite its own framework code safely.
+> A fully autonomous, recursively self-improving AI system. ARIA monitors its own tools, detects weaknesses, generates better code via LLMs, validates it in isolated Docker sandboxes, and deploys improvements automatically. With the new Tool Synthesis Engine, ARIA can also generate entirely new capabilities on-the-fly from natural language specifications.
 
 ---
 
@@ -74,6 +74,7 @@ python -m aria run
 | `python -m aria improve --tool search_tool` | Manually trigger improvement for a specific tool |
 | `python -m aria rollback --tool search_tool` | Revert a tool to its last Git version |
 | `python -m aria run-tool --tool <name>` | Execute a tool directly from CLI |
+| `python -m aria synthesize --tool <name> --spec "<spec>"` | Synthesize a completely new tool from a specification |
 | `python -m aria history` | Show all improvement history |
 
 ---
@@ -123,7 +124,8 @@ ARIA executes untrusted, AI-generated code. It relies on a 7-layer defense syste
 
 | Variable | Default | Description |
 |---|---|---|
-| `GROQ_API_KEY` | required | Your Groq API key |
+| `GROQ_API_KEY` | required | Your primary Groq API key for standard operations |
+| `SYNTHESIS_GROQ_API_KEY` | optional | Secondary Groq API key to prevent rate-limiting during tool synthesis |
 | `GROQ_MODEL` | `llama3-8b-8192` | Groq model to use |
 | `REQUIRE_HUMAN_REVIEW` | `true` | Gate meta-improvements behind human review |
 | `SUCCESS_RATE_THRESHOLD` | `0.70` | Flag tools below this success rate |

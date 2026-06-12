@@ -129,6 +129,53 @@ def cmd_improve(args: argparse.Namespace) -> None:
         console.print(f"\n[bold yellow]✗ No improvement deployed for '{tool_name}'[/bold yellow]")
 
 
+def cmd_synthesize(args: argparse.Namespace) -> None:
+    """Manually trigger tool synthesis."""
+    from rich.console import Console
+    from rich.panel import Panel
+    import sys
+
+    console = Console()
+    tool_name = args.tool
+    spec = args.spec
+
+    console.print(
+        Panel(
+            f"[bold cyan]Triggering Tool Synthesis for:[/] [yellow]{tool_name}[/]\n"
+            f"[dim]Specification: {spec}[/dim]",
+            title="[bold]ARIA Tool Synthesis Engine[/bold]",
+            border_style="cyan",
+        )
+    )
+
+    from aria.main import bootstrap
+    bootstrap()
+
+    from aria.core.agent import agent
+
+    with console.status(f"[bold blue]Synthesizing '{tool_name}'... (This may take a few minutes)"):
+        deployed = agent.synthesize_new_tool(tool_name, spec)
+
+    try:
+        "\u2192".encode(sys.stdout.encoding or 'ascii')
+        arrow = "\u2192"
+    except (UnicodeEncodeError, TypeError):
+        arrow = "->"
+
+    # Print any events that were emitted
+    events = agent.get_events(max_items=100)
+    for event in events:
+        msg = event.message
+        if arrow == "->":
+            msg = msg.encode('ascii', 'replace').decode('ascii')
+        console.print(f"  [dim]{arrow}[/dim] {msg}")
+
+    if deployed:
+        console.print(f"\n[bold green]✓ '{tool_name}' synthesized and deployed successfully![/bold green]")
+    else:
+        console.print(f"\n[bold red]✗ Tool synthesis failed.[/bold red]")
+
+
 def cmd_status(args: argparse.Namespace) -> None:
     """Print current tool metrics as a rich table."""
     from rich.console import Console
@@ -560,6 +607,11 @@ def build_parser() -> argparse.ArgumentParser:
     improve_p.add_argument("--tool", required=True, metavar="<tool_name>",
                            help="Name of the tool to improve (e.g. search_tool)")
 
+    # synthesize
+    synthesize_p = sub.add_parser("synthesize", help="Synthesize a new tool from scratch")
+    synthesize_p.add_argument("--tool", required=True, metavar="<tool_name>")
+    synthesize_p.add_argument("--spec", required=True, metavar="<specification>", help="Description of what the tool should do")
+
     # status
     sub.add_parser("status", help="Print current tool metrics")
 
@@ -606,6 +658,7 @@ def main() -> None:
     dispatch = {
         "run": cmd_run,
         "improve": cmd_improve,
+        "synthesize": cmd_synthesize,
         "status": cmd_status,
         "rollback": cmd_rollback,
         "meta-rollback": cmd_meta_rollback,

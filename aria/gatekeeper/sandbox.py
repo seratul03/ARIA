@@ -111,6 +111,8 @@ if tool_instance is None:
 results = []
 try:
     test_cases = json.loads(__INJECTED_TEST_CASES_JSON__)
+    if not test_cases and hasattr(tool_instance, "test_cases"):
+        test_cases = tool_instance.test_cases()
 except Exception as e:
     print(json.dumps({
         "error": f"Failed to load injected test cases: {e}",
@@ -147,6 +149,13 @@ respx_mock.get(re.compile(r"https://api\.open-meteo\.com/v1/forecast.*")).mock(
 )
 
 respx_mock.start()
+
+if hasattr(tool_instance, "mock_apis"):
+    try:
+        tool_instance.mock_apis(respx_mock)
+    except Exception as e:
+        print(json.dumps({"error": f"Failed to run mock_apis: {e}", "results": []}))
+        sys.exit(0)
 
 for tc in test_cases:
     start = time.monotonic()
@@ -238,16 +247,18 @@ class DockerSandbox:
         start = time.monotonic()
 
         # 1. Load and verify signed test cases from the host filesystem
-        try:
-            from aria.gatekeeper.test_verifier import verify_and_load_tests
-            test_cases = verify_and_load_tests(tool_name)
-        except Exception as exc:
-            return SandboxResult(
-                tool_name=tool_name,
-                approved=False,
-                rejection_reason=f"Gatekeeper signature verification failed: {exc}",
-                elapsed_seconds=time.monotonic() - start,
-            )
+        test_cases = []
+        if not raw_results_only:
+            try:
+                from aria.gatekeeper.test_verifier import verify_and_load_tests
+                test_cases = verify_and_load_tests(tool_name)
+            except Exception as exc:
+                return SandboxResult(
+                    tool_name=tool_name,
+                    approved=False,
+                    rejection_reason=f"Gatekeeper signature verification failed: {exc}",
+                    elapsed_seconds=time.monotonic() - start,
+                )
 
         # 2. Prepare the runner script — inject the verified test cases as JSON
         if session_tests:

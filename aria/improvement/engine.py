@@ -72,7 +72,7 @@ def _looks_like_python(code: str) -> bool:
         return False
     # Should have at least one class definition and one def
     has_class = bool(re.search(r"^class\s+\w+", code, re.MULTILINE))
-    has_def = bool(re.search(r"^\s+def\s+run\b", code, re.MULTILINE))
+    has_def = bool(re.search(r"^\s+(?:async\s+)?def\s+run\b", code, re.MULTILINE))
     return has_class and has_def
 
 

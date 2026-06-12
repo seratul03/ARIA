@@ -55,6 +55,9 @@ class EventType(Enum):
     TOOL_EXECUTED = auto()
     META_INTROSPECTION_STARTED = auto()
     META_INTROSPECTION_COMPLETE = auto()
+    SYNTHESIS_STARTED = auto()
+    SYNTHESIS_SUCCESS = auto()
+    SYNTHESIS_FAILED = auto()
 
 
 @dataclass
@@ -252,6 +255,69 @@ class AgentCore:
             {"tool": tool_name, "success": result.success},
         )
         return result
+
+    # ── Tool Synthesis ─────────────────────────────────────────────────────────
+
+    def synthesize_new_tool(self, tool_name: str, specification: str) -> bool:
+        """
+        End-to-end pipeline to generate a brand new tool, test it, and deploy it.
+        """
+        self._emit(
+            EventType.SYNTHESIS_STARTED,
+            f"Starting synthesis for new tool: '{tool_name}'",
+            {"tool": tool_name}
+        )
+        
+        from aria.improvement.synthesis import ToolSynthesisEngine
+        engine = ToolSynthesisEngine()
+        
+        result = engine.synthesize(tool_name, specification)
+        
+        if not result.success or not result.generated_code:
+            self._emit(
+                EventType.SYNTHESIS_FAILED,
+                f"Failed to synthesize '{tool_name}' after {result.attempts} attempts. Error: {result.error}",
+                {"tool": tool_name}
+            )
+            return False
+            
+        # Sandbox passed! Deploy it to host
+        try:
+            from aria.versioning.git_manager import git_manager
+            import time
+            from pathlib import Path
+            
+            tool_path = Path(__file__).parent.parent / "tools" / f"{tool_name}.py"
+            
+            if tool_path.exists():
+                self._emit(EventType.ERROR, f"Tool '{tool_name}' already exists at {tool_path}. Cannot synthesize over it.")
+                return False
+                
+            tool_path.write_text(result.generated_code, encoding="utf-8")
+            
+            # Git commit
+            commit_msg = f"Synthesize new tool: {tool_name}"
+            commit_hash = git_manager.commit_file(tool_path, commit_msg)
+            
+            # Hot reload registry
+            try:
+                registry.reload_tool(tool_name)
+            except Exception as e:
+                self._emit(EventType.ERROR, f"Host smoke test failed for newly synthesized '{tool_name}': {e}. Rolling back.")
+                git_manager.rollback_tool(tool_name)
+                tool_path.unlink(missing_ok=True)
+                return False
+                
+            self._emit(
+                EventType.SYNTHESIS_SUCCESS,
+                f"✓ Successfully synthesized and deployed '{tool_name}' (commit: {commit_hash})",
+                {"tool": tool_name}
+            )
+            return True
+            
+        except Exception as e:
+            self._emit(EventType.ERROR, f"Exception during synthesis deployment: {e}")
+            return False
 
     # ── Improvement cycle ──────────────────────────────────────────────────────
 

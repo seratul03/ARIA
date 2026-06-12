@@ -55,6 +55,7 @@ def _get_int(key: str, default: int) -> int:
 class Settings:
     # ── Groq LLM ──────────────────────────────────────────────
     groq_api_key: str
+    synthesis_groq_api_key: str
     groq_model: str
 
     # ── Security ──────────────────────────────────────────────
@@ -113,6 +114,7 @@ def _load_settings() -> Settings:
 
     return Settings(
         groq_api_key=_require("GROQ_API_KEY"),
+        synthesis_groq_api_key=_get("SYNTHESIS_GROQ_API_KEY", _get("GROQ_API_KEY", "")),
         groq_model=_get("GROQ_MODEL", "llama3-8b-8192"),
         test_signing_key=_get("TEST_SIGNING_KEY", "YOUR_16_CHAR_KEY"),
         require_human_review=_get("REQUIRE_HUMAN_REVIEW", "true").lower() == "true",
