@@ -52,6 +52,7 @@ _FUNCTIONS: dict[str, Any] = {
     "exp":   math.exp,
     "ceil":  math.ceil,
     "floor": math.floor,
+    "factorial": math.factorial,
     "pi":    math.pi,
     "e":     math.e,
 }
@@ -102,7 +103,7 @@ class _SafeEvaluator(ast.NodeVisitor):
 
 def _safe_eval(expression: str) -> float:
     """Parse and evaluate a math expression safely using the AST."""
-    expression = expression.strip()
+    expression = expression.strip().replace("^", "**")
     try:
         tree = ast.parse(expression, mode="eval")
     except SyntaxError as exc:

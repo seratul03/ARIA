@@ -281,35 +281,100 @@ class AgentCore:
             trace.record_candidate_generated()
             log_audit_event("IMPROVEMENT_ATTEMPT", {"tool": report.tool_name, "success": True, "tokens_used": improvement.tokens_used})
     
-            # ── Step 3: Run Gatekeeper Subprocess ──────────────────────────────────
+            # ── Step 3: Arena Combat Protocol ──────────────────────────────────────
             import subprocess
             import tempfile
             import json
             import sys
+            from aria.improvement.adversarial import AdversarialGenerator
+            
+            self._emit(EventType.STATIC_VALIDATION, f"Generating Tier 3 adversarial tests...")
+            adv_gen = AdversarialGenerator()
+            session_tests, session_token = adv_gen.generate_session_tests(report.tool_name)
     
-            self._emit(EventType.STATIC_VALIDATION, f"Running isolated Gatekeeper subprocess...")
+            self._emit(EventType.STATIC_VALIDATION, f"Running isolated Gatekeeper on baseline...")
     
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as temp_file:
-                temp_file.write(improvement.generated_code)
-                temp_file_path = temp_file.name
-    
+            # We need to run baseline with the current source
+            from aria.tools.registry import registry
+            tool_path = Path(__file__).parent.parent / "tools" / f"{report.tool_name}.py"
             try:
-                result = subprocess.run(
-                    [sys.executable, "-m", "aria.gatekeeper.cli", "--tool", report.tool_name, "--source", temp_file_path],
-                    capture_output=True,
-                    text=True,
-                    check=False
+                current_source = tool_path.read_text(encoding="utf-8")
+            except Exception as e:
+                self._emit(EventType.ERROR, f"Failed to read baseline source: {e}")
+                trace.finalize("BASELINE_READ_ERROR")
+                trace.save()
+                return False
+
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as temp_file_clone, \
+                 tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as temp_file_base, \
+                 tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as temp_session_tests, \
+                 tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as temp_baseline_res:
+                
+                temp_file_clone.write(improvement.generated_code)
+                clone_path = temp_file_clone.name
+                
+                temp_file_base.write(current_source)
+                base_path = temp_file_base.name
+                
+                json.dump(session_tests, temp_session_tests)
+                session_tests_path = temp_session_tests.name
+                
+                baseline_res_path = temp_baseline_res.name
+
+            try:
+                # Sandbox Run 1: Baseline
+                res_base = subprocess.run(
+                    [
+                        sys.executable, "-m", "aria.gatekeeper.cli", 
+                        "--tool", report.tool_name, 
+                        "--source", base_path, 
+                        "--raw-results-only",
+                        "--session-tests-file", session_tests_path
+                    ],
+                    capture_output=True, text=True, check=False
                 )
                 
-                # The Gatekeeper prints JSON to stdout as its last line
+                baseline_output = None
+                for line in reversed(res_base.stdout.strip().splitlines()):
+                    if line.startswith("[") or line.startswith("{"):
+                        baseline_output = line
+                        break
+                        
+                if not baseline_output:
+                    raise ValueError(f"Baseline run failed to return JSON: {res_base.stderr or res_base.stdout}")
+                    
+                baseline_results = json.loads(baseline_output)
+                if isinstance(baseline_results, dict) and not baseline_results.get("approved", True):
+                    # It failed static validation or something
+                    raise ValueError(f"Baseline failed static validation: {baseline_results.get('rejection_reason')}")
+                    
+                # Save baseline results to file
+                with open(baseline_res_path, "w", encoding="utf-8") as f:
+                    json.dump(baseline_results, f)
+
+                self._emit(EventType.SANDBOX_VALIDATION, f"Running isolated Gatekeeper on clone...")
+
+                # Sandbox Run 2: Clone
+                res_clone = subprocess.run(
+                    [
+                        sys.executable, "-m", "aria.gatekeeper.cli", 
+                        "--tool", report.tool_name, 
+                        "--source", clone_path,
+                        "--session-tests-file", session_tests_path,
+                        "--session-token", session_token,
+                        "--baseline-results-file", baseline_res_path
+                    ],
+                    capture_output=True, text=True, check=False
+                )
+                
                 gatekeeper_output = None
-                for line in reversed(result.stdout.strip().splitlines()):
+                for line in reversed(res_clone.stdout.strip().splitlines()):
                     if line.startswith("{"):
                         gatekeeper_output = line
                         break
                         
                 if not gatekeeper_output:
-                    err_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+                    err_msg = res_clone.stderr.strip() if res_clone.stderr else res_clone.stdout.strip()
                     if not err_msg:
                         err_msg = "Gatekeeper output was empty."
                     sandbox_result = {"approved": False, "rejection_reason": f"Gatekeeper failed to return JSON: {err_msg}"}
@@ -319,7 +384,10 @@ class AgentCore:
             except Exception as exc:
                 sandbox_result = {"approved": False, "rejection_reason": f"Gatekeeper subprocess crashed: {exc}"}
             finally:
-                Path(temp_file_path).unlink(missing_ok=True)
+                Path(clone_path).unlink(missing_ok=True)
+                Path(base_path).unlink(missing_ok=True)
+                Path(session_tests_path).unlink(missing_ok=True)
+                Path(baseline_res_path).unlink(missing_ok=True)
     
             self._emit(
                 EventType.SANDBOX_VALIDATION,
@@ -327,6 +395,76 @@ class AgentCore:
                 sandbox_result
             )
             
+            combat_report = sandbox_result.get("combat_report")
+            if combat_report:
+                import uuid
+                from datetime import datetime
+                from rich.console import Console
+                from rich.table import Table
+                
+                console = Console()
+                session_id = uuid.uuid4().hex
+                date_iso = datetime.utcnow().isoformat() + "Z"
+                
+                console.print(f"\n[bold]Combat Session:[/bold] {session_id}")
+                console.print(f"[bold]Date:[/bold] {date_iso}")
+                console.print(f"[bold]Proposed Change:[/bold] \"Improved {report.tool_name}\"\n")
+                
+                table = Table(show_header=True, header_style="bold")
+                table.add_column("")
+                table.add_column("Current ARIA", justify="center")
+                table.add_column("Clone", justify="center")
+                table.add_column("Delta", justify="right")
+                
+                b = combat_report["baseline"]
+                c = combat_report["clone"]
+                
+                def fmt_delta(delta: float, is_ms=False) -> str:
+                    # Floating point comparisons can be tricky
+                    if abs(delta) < 0.001:
+                        prefix = ""
+                        is_positive = False
+                    else:
+                        prefix = "+" if delta > 0 else ""
+                        is_positive = delta > 0
+                        
+                    if is_ms:
+                        val = f"{prefix}{delta:.0f}ms"
+                    else:
+                        val = f"{prefix}{delta:.2f}"
+                        
+                    if abs(delta) < 0.001:
+                        return f"{val} ➖"
+                    elif is_positive and not is_ms:
+                        return f"[green]{val}[/green] ✅"
+                    elif not is_positive and is_ms:
+                        return f"[green]{val}[/green] ✅"
+                    else:
+                        return f"[red]{val}[/red] ❌"
+                        
+                c_delta = c["correctness"] - b["correctness"]
+                r_delta = c["robustness"] - b["robustness"]
+                l_delta = (c["latency_p90"] - b["latency_p90"]) * 1000
+                s_delta = c["overall_score"] - b["overall_score"]
+                
+                table.add_row("Correctness:", f"{b['correctness']:.2f}", f"{c['correctness']:.2f}", fmt_delta(c_delta))
+                table.add_row("Latency P90 (ms):", f"{b['latency_p90']*1000:.0f}", f"{c['latency_p90']*1000:.0f}", fmt_delta(l_delta, is_ms=True))
+                table.add_row("Robustness:", f"{b['robustness']:.2f}", f"{c['robustness']:.2f}", fmt_delta(r_delta))
+                
+                sg = combat_report.get("safety_gate", "PASS")
+                sg_fmt = "✅" if sg == "PASS" else "❌"
+                table.add_row("Safety Gate:", sg, sg, sg_fmt)
+                
+                table.add_row("Overall Score:", f"{b['overall_score']:.2f}", f"{c['overall_score']:.2f}", fmt_delta(s_delta))
+                
+                console.print(table)
+                
+                verdict = combat_report.get("verdict", "ARIA_WINS")
+                if verdict == "CLONE_WINS":
+                    console.print("\n[bold green]Verdict: CLONE WINS[/bold green]\n")
+                else:
+                    console.print("\n[bold red]Verdict: ARIA WINS — discarding clone[/bold red]\n")
+                    
             log_audit_event("VALIDATION_RESULT", {"tool": report.tool_name, "sandbox_result": sandbox_result})
     
             # Check Gatekeeper health
@@ -360,8 +498,37 @@ class AgentCore:
                 trace.finalize("NO_IMPROVEMENT")
                 trace.save()
                 return False
+
+            # ── Step 5: Human Review Gate ──────────────────────────────────────────
+            if combat_report and combat_report.get("verdict") == "CLONE_WINS":
+                from aria.metrics.db import insert_review_queue
+                
+                # Insert the queue item
+                queue_id = insert_review_queue(
+                    session_id=session_id if 'session_id' in locals() else 'unknown',
+                    tool_name=report.tool_name,
+                    timestamp=time.time(),
+                    combat_report=json.dumps(combat_report),
+                    generated_code=improvement.generated_code,
+                    status="pending"
+                )
+                
+                if settings.require_human_review:
+                    # TUI is running, so we shouldn't prompt interactively here.
+                    # Exit gracefully and let user review it later via the CLI.
+                    self._emit(
+                        EventType.CYCLE_COMPLETE,
+                        f"Cycle #{cycle_num} complete. [bold yellow]Pending human review.[/bold yellow] Run `aria review` to deploy.",
+                        {"cycle": cycle_num, "status": "pending_review"}
+                    )
+                    trace.finalize("PENDING_REVIEW")
+                    trace.save()
+                    return False
+                else:
+                    from aria.metrics.db import update_review_status
+                    update_review_status(queue_id, "auto_approved")
     
-            # ── Step 5: Deploy ─────────────────────────────────────────────────────
+            # ── Step 6: Deploy ─────────────────────────────────────────────────────
             deployed = self._deploy(
                 tool_name=report.tool_name,
                 new_source=improvement.generated_code,

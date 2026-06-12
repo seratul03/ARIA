@@ -4,5 +4,5 @@
     "robustness": 0.3,
     "latency": 0.2
   },
-  "min_improvement_delta": 0.02
+  "min_improvement_delta": 0.0
 }

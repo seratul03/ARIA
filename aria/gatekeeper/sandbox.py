@@ -45,6 +45,8 @@ class SandboxResult:
     rejection_reason: str | None = None
     docker_logs: str = ""
     elapsed_seconds: float = 0.0
+    
+    combat_report: dict | None = None
 
     @property
     def pass_rate(self) -> float:
@@ -213,7 +215,11 @@ class DockerSandbox:
         tool_name: str,
         candidate_source: str,
         current_stats: Any | None = None,
-    ) -> SandboxResult:
+        raw_results_only: bool = False,
+        session_tests: list[dict] = None,
+        session_token: str = None,
+        baseline_results: list[dict] = None
+    ) -> SandboxResult | list | dict:
         """
         Execute the candidate tool's tests in Docker.
 
@@ -221,9 +227,13 @@ class DockerSandbox:
             tool_name:           The tool's name string (for logging)
             candidate_source:    The generated Python source code
             current_stats:       Current tool's average stats for comparison
+            raw_results_only:    If True, bypass referee and just return results
+            session_tests:       Optional Tier 3 test cases
+            session_token:       HMAC signature of the session_tests
+            baseline_results:    Raw results from the baseline run
 
         Returns:
-            A SandboxResult with approval decision.
+            A SandboxResult with approval decision, OR raw results list/dict if raw_results_only.
         """
         start = time.monotonic()
 
@@ -240,6 +250,8 @@ class DockerSandbox:
             )
 
         # 2. Prepare the runner script — inject the verified test cases as JSON
+        if session_tests:
+            test_cases.extend(session_tests)
         runner_script = self._prepare_runner(candidate_source, test_cases)
         if runner_script is None:
             return SandboxResult(
@@ -340,6 +352,10 @@ class DockerSandbox:
                 logs=logs,
                 current_stats=current_stats,
                 elapsed=time.monotonic() - start,
+                raw_results_only=raw_results_only,
+                session_tests=session_tests,
+                session_token=session_token,
+                baseline_results=baseline_results
             )
 
         except ImportError:
@@ -364,7 +380,11 @@ class DockerSandbox:
         logs: str,
         current_stats: Any | None,
         elapsed: float,
-    ) -> SandboxResult:
+        raw_results_only: bool = False,
+        session_tests: list[dict] = None,
+        session_token: str = None,
+        baseline_results: list[dict] = None
+    ) -> SandboxResult | list | dict:
         """Parse Docker output and make an approval decision."""
         # Extract the last JSON line from logs (runner always prints JSON last)
         json_line = None
@@ -427,16 +447,29 @@ class DockerSandbox:
                 "avg_latency": current_stats.avg_latency if hasattr(current_stats, "avg_latency") else 0.0,
             }
             
+        if raw_results_only:
+            return results
+
         # --- Referee Evaluation ---
         import socket
         try:
-            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            client.settimeout(10.0)
-            client.connect("/sockets/referee.sock")
+            if hasattr(socket, "AF_UNIX"):
+                client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                client.settimeout(10.0)
+                client.connect("/sockets/referee.sock")
+            else:
+                # Windows local testing fallback
+                client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                client.settimeout(10.0)
+                client.connect(("127.0.0.1", 5006))
+                
             payload = json.dumps({
                 "tool_name": tool_name,
                 "results": results,
-                "current_stats": current_stats_dict
+                "current_stats": current_stats_dict,
+                "session_tests": session_tests,
+                "session_token": session_token,
+                "baseline_results": baseline_results
             })
             client.sendall(payload.encode("utf-8"))
             
@@ -480,6 +513,7 @@ class DockerSandbox:
                 rejection_reason=f"Referee rejected: {referee_reason}",
                 docker_logs=logs[:1000],
                 elapsed_seconds=elapsed,
+                combat_report=referee_data.get("combat_report")
             )
 
         avg_memory_mb = sum(r.get("memory_mb", 0.0) for r in results) / len(results) if results else 0.0
@@ -528,4 +562,5 @@ class DockerSandbox:
             avg_latency_seconds=avg_latency,
             docker_logs=logs[:500],
             elapsed_seconds=elapsed,
+            combat_report=referee_data.get("combat_report")
         )

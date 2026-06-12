@@ -21,6 +21,10 @@ def main():
     parser = argparse.ArgumentParser(description="ARIA Gatekeeper Subprocess")
     parser.add_argument("--tool", required=True, help="Name of the tool being evaluated")
     parser.add_argument("--source", required=True, help="Path to the candidate source code file")
+    parser.add_argument("--raw-results-only", action="store_true", help="Return raw execution results without contacting Referee")
+    parser.add_argument("--session-tests-file", help="Path to JSON file containing unsigned Tier 3 session tests")
+    parser.add_argument("--session-token", help="HMAC signature of the session tests")
+    parser.add_argument("--baseline-results-file", help="Path to JSON file containing raw baseline execution results")
     
     args = parser.parse_args()
     
@@ -54,23 +58,50 @@ def main():
         print(json.dumps({"approved": False, "rejection_reason": f"Gatekeeper DB error: {e}"}))
         sys.exit(0)
         
+    # Load extra arguments
+    session_tests = None
+    if args.session_tests_file:
+        try:
+            with open(args.session_tests_file, "r", encoding="utf-8") as f:
+                session_tests = json.load(f)
+        except Exception as e:
+            print(json.dumps({"approved": False, "rejection_reason": f"Failed to load session tests: {e}"}))
+            sys.exit(0)
+            
+    baseline_results = None
+    if args.baseline_results_file:
+        try:
+            with open(args.baseline_results_file, "r", encoding="utf-8") as f:
+                baseline_results = json.load(f)
+        except Exception as e:
+            print(json.dumps({"approved": False, "rejection_reason": f"Failed to load baseline results: {e}"}))
+            sys.exit(0)
+
     sandbox = DockerSandbox()
     sandbox_result = sandbox.run(
         tool_name=args.tool,
         candidate_source=candidate_source,
-        current_stats=current_stats
+        current_stats=current_stats,
+        raw_results_only=args.raw_results_only,
+        session_tests=session_tests,
+        session_token=args.session_token,
+        baseline_results=baseline_results
     )
     
-    output = {
-        "approved": sandbox_result.approved,
-        "rejection_reason": sandbox_result.rejection_reason,
-        "tests_passed": sandbox_result.tests_passed,
-        "tests_total": sandbox_result.tests_total,
-        "avg_latency_seconds": sandbox_result.avg_latency_seconds,
-        "elapsed": time.monotonic() - start_time
-    }
-    
-    print(json.dumps(output))
+    if args.raw_results_only:
+        # sandbox_result is just a list of dicts or an error dict
+        print(json.dumps(sandbox_result))
+    else:
+        output = {
+            "approved": sandbox_result.approved,
+            "rejection_reason": sandbox_result.rejection_reason,
+            "tests_passed": sandbox_result.tests_passed,
+            "tests_total": sandbox_result.tests_total,
+            "avg_latency_seconds": sandbox_result.avg_latency_seconds,
+            "elapsed": time.monotonic() - start_time,
+            "combat_report": sandbox_result.combat_report
+        }
+        print(json.dumps(output))
 
 if __name__ == "__main__":
     main()

@@ -68,14 +68,51 @@ def cmd_improve(args: argparse.Namespace) -> None:
 
     # Print any events that were emitted
     events = agent.get_events(max_items=100)
+    pending_review = False
     for event in events:
         msg = event.message
         if arrow == "->":
             msg = msg.encode('ascii', 'replace').decode('ascii')
         console.print(f"  [dim]{arrow}[/dim] {msg}")
+        if event.data.get("status") == "pending_review":
+            pending_review = True
 
     if deployed:
         console.print(f"\n[bold green]✓ Improvement deployed for '{tool_name}'[/bold green]")
+    elif pending_review:
+        from aria.metrics.db import get_pending_reviews, update_review_status, get_tool_stats
+        from rich.prompt import Confirm
+        import json
+        
+        pending = get_pending_reviews()
+        review = next((r for r in pending if r['tool_name'] == tool_name and r['status'] == 'pending'), None)
+        if review:
+            do_deploy = Confirm.ask(f"\n[bold yellow]Deploy these changes? (press y for approve or n for deny)[/bold yellow]")
+            if do_deploy:
+                combat_report = json.loads(review['combat_report'])
+                c = combat_report["clone"]
+                stats = get_tool_stats(tool_name)
+                
+                class MockReport:
+                    success_rate = stats.success_rate if stats else 0.0
+                    p90_latency = stats.p90_latency if stats else 0.0
+                    
+                sandbox_result = {
+                    "tests_passed": c.get("tests_passed", 0),
+                    "tests_total": c.get("tests_total", 0)
+                }
+                
+                success = agent._deploy(tool_name, review['generated_code'], MockReport(), sandbox_result)
+                if success:
+                    update_review_status(review['id'], "approved")
+                    console.print(f"\n[bold green]✓ Improvement deployed for '{tool_name}'[/bold green]")
+                else:
+                    console.print(f"\n[bold red]✗ Deployment failed.[/bold red]")
+            else:
+                update_review_status(review['id'], "rejected")
+                console.print(f"\n[bold yellow]✗ Improvement rejected by user.[/bold yellow]")
+        else:
+            console.print(f"\n[bold yellow]✗ No improvement deployed for '{tool_name}'[/bold yellow]")
     else:
         console.print(f"\n[bold yellow]✗ No improvement deployed for '{tool_name}'[/bold yellow]")
 
@@ -343,6 +380,103 @@ def cmd_traces(args: argparse.Namespace) -> None:
     console.print(table)
 
 
+def cmd_review(args: argparse.Namespace) -> None:
+    """Review and approve pending deployments."""
+    from rich.console import Console
+    from rich.prompt import Confirm
+    from rich.table import Table
+    from datetime import datetime
+    import json
+
+    from aria.main import bootstrap
+    bootstrap()
+
+    from aria.metrics.db import get_pending_reviews, update_review_status, get_tool_stats
+    from aria.core.agent import agent
+
+    console = Console()
+    pending = get_pending_reviews()
+
+    if not pending:
+        console.print("[bold green]No pending deployments in the review queue.[/bold green]")
+        return
+
+    for review in pending:
+        console.print(f"\n[bold cyan]── Pending Review ID: {review['id']} ──[/bold cyan]")
+        console.print(f"Tool: [yellow]{review['tool_name']}[/yellow]")
+        console.print(f"Session: {review['session_id']}")
+        
+        combat_report = json.loads(review['combat_report'])
+        
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("")
+        table.add_column("Current ARIA", justify="center")
+        table.add_column("Clone", justify="center")
+        table.add_column("Delta", justify="right")
+        
+        b = combat_report["baseline"]
+        c = combat_report["clone"]
+        
+        def fmt_delta(delta: float, is_ms=False) -> str:
+            if abs(delta) < 0.001:
+                prefix = ""
+                is_positive = False
+            else:
+                prefix = "+" if delta > 0 else ""
+                is_positive = delta > 0
+                
+            if is_ms:
+                val = f"{prefix}{delta:.0f}ms"
+            else:
+                val = f"{prefix}{delta:.2f}"
+                
+            if abs(delta) < 0.001:
+                return f"{val} ➖"
+            elif is_positive and not is_ms:
+                return f"[green]{val}[/green] ✅"
+            elif not is_positive and is_ms:
+                return f"[green]{val}[/green] ✅"
+            else:
+                return f"[red]{val}[/red] ❌"
+                
+        c_delta = c["correctness"] - b["correctness"]
+        r_delta = c["robustness"] - b["robustness"]
+        l_delta = (c["latency_p90"] - b["latency_p90"]) * 1000
+        s_delta = c["overall_score"] - b["overall_score"]
+        
+        table.add_row("Correctness:", f"{b['correctness']:.2f}", f"{c['correctness']:.2f}", fmt_delta(c_delta))
+        table.add_row("Latency P90 (ms):", f"{b['latency_p90']*1000:.0f}", f"{c['latency_p90']*1000:.0f}", fmt_delta(l_delta, is_ms=True))
+        table.add_row("Robustness:", f"{b['robustness']:.2f}", f"{c['robustness']:.2f}", fmt_delta(r_delta))
+        
+        sg = combat_report.get("safety_gate", "PASS")
+        sg_fmt = "✅" if sg == "PASS" else "❌"
+        table.add_row("Safety Gate:", sg, sg, sg_fmt)
+        
+        table.add_row("Overall Score:", f"{b['overall_score']:.2f}", f"{c['overall_score']:.2f}", fmt_delta(s_delta))
+        
+        console.print(table)
+        
+        do_deploy = Confirm.ask(f"\n[bold yellow]Deploy these changes to {review['tool_name']}?[/bold yellow]")
+        if do_deploy:
+            stats = get_tool_stats(review['tool_name'])
+            class MockReport:
+                success_rate = stats.success_rate if stats else 0.0
+                p90_latency = stats.p90_latency if stats else 0.0
+                
+            sandbox_result = {
+                "tests_passed": c.get("tests_passed", 0),
+                "tests_total": c.get("tests_total", 0)
+            }
+            
+            success = agent._deploy(review['tool_name'], review['generated_code'], MockReport(), sandbox_result)
+            if success:
+                update_review_status(review['id'], "approved")
+            else:
+                console.print("[red]Deployment failed.[/red]")
+        else:
+            update_review_status(review['id'], "rejected")
+            console.print(f"[red]Review {review['id']} rejected.[/red]")
+
 # ── Argument parser ───────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
@@ -388,6 +522,9 @@ def build_parser() -> argparse.ArgumentParser:
     traces_p.add_argument("--outcome", default=None, help="Filter by outcome (e.g. NO_IMPROVEMENT)")
     traces_p.add_argument("--tool", default=None, help="Filter by tool name in trigger")
 
+    # review
+    sub.add_parser("review", help="Review and approve pending deployments")
+
     return parser
 
 
@@ -407,6 +544,7 @@ def main() -> None:
         "run-tool": cmd_run_tool,
         "history": cmd_history,
         "traces": cmd_traces,
+        "review": cmd_review,
     }
 
     handler = dispatch.get(args.command)

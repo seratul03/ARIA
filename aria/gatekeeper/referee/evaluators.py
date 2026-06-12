@@ -33,6 +33,10 @@ class RefereeEvaluator:
         payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
         return hmac.new(self.signing_key, payload_bytes, hashlib.sha256).hexdigest()
 
+    def _compute_session_token(self, tests: list[dict]) -> str:
+        payload_bytes = json.dumps(tests, sort_keys=True).encode("utf-8")
+        return hmac.new(self.signing_key, payload_bytes, hashlib.sha256).hexdigest()
+
     def load_tests(self, tool_name: str) -> list[dict]:
         if tool_name in self._test_cases_cache:
             return self._test_cases_cache[tool_name]
@@ -57,35 +61,14 @@ class RefereeEvaluator:
         return data
 
     def _is_passed(self, expected: dict, actual: dict) -> bool:
-        tc_expected_success = expected.get("expected_success", True)
-        tc_output_contains = expected.get("output_contains")
+        return actual.get("passed", False)
 
-        actual_success = actual.get("success", False)
-        actual_output = str(actual.get("output", ""))
-
-        passed = (actual_success == tc_expected_success)
-        if passed and tc_output_contains and actual_success:
-            passed = tc_output_contains in actual_output
-        return passed
-
-    def evaluate(self, tool_name: str, execution_results: list[dict], current_stats: dict = None) -> dict:
-        try:
-            expected_tests = self.load_tests(tool_name)
-        except Exception as e:
-            return {"approved": False, "reason": str(e)}
-
-        if len(execution_results) != len(expected_tests):
-            return {
-                "approved": False, 
-                "reason": f"Test count mismatch. Expected {len(expected_tests)}, got {len(execution_results)}"
-            }
-
+    def _compute_score(self, expected_tests: list[dict], execution_results: list[dict]) -> dict:
         tier_1_2_total = 0
         tier_1_2_passed = 0
         tier_3_total = 0
         tier_3_passed = 0
         latencies = []
-        forbidden_action_count = 0  # Pre-checked by static AST analysis
 
         for expected, actual in zip(expected_tests, execution_results):
             passed = self._is_passed(expected, actual)
@@ -116,17 +99,48 @@ class RefereeEvaluator:
         # Convert latency to a 0-1 score, where 0.0s = 1.0, 2.0s = 0.0
         latency_score = max(0.0, 1.0 - (latency_p90 / 2.0))
         
-        clone_score = (
+        final_score = (
             self.weights.get("correctness", 0.5) * correctness +
             self.weights.get("robustness", 0.3) * robustness +
             self.weights.get("latency", 0.2) * latency_score
         )
+        return {
+            "correctness": correctness,
+            "robustness": robustness,
+            "latency_p90": latency_p90,
+            "overall_score": final_score,
+            "tests_passed": tier_1_2_passed + tier_3_passed,
+            "tests_total": tier_1_2_total + tier_3_total
+        }
+
+    def evaluate(self, tool_name: str, execution_results: list[dict], current_stats: dict = None, session_tests: list[dict] = None, session_token: str = None, baseline_results: list[dict] = None) -> dict:
+        try:
+            expected_tests = self.load_tests(tool_name).copy()
+        except Exception as e:
+            return {"approved": False, "reason": str(e)}
+
+        if session_tests and session_token:
+            expected_token = self._compute_session_token(session_tests)
+            if not hmac.compare_digest(session_token, expected_token):
+                return {"approved": False, "reason": "Invalid session token for session_tests. Tamper detected."}
+            expected_tests.extend(session_tests)
+
+        if len(execution_results) != len(expected_tests):
+            return {
+                "approved": False, 
+                "reason": f"Test count mismatch. Expected {len(expected_tests)}, got {len(execution_results)}"
+            }
+
+        forbidden_action_count = 0  # Pre-checked by static AST analysis
+
+        clone_metrics = self._compute_score(expected_tests, execution_results)
+        clone_score = clone_metrics["overall_score"]
         
-        # Calculate baseline score from current_stats
-        current_aria_score = 0.0
-        if current_stats:
+        baseline_metrics = None
+        if baseline_results and len(baseline_results) == len(expected_tests):
+            baseline_metrics = self._compute_score(expected_tests, baseline_results)
+        elif current_stats:
             baseline_correctness = current_stats.get("success_rate", 0.0)
-            # If no robustness metric is tracked yet, assume it matches success_rate
             baseline_robustness = current_stats.get("robustness", baseline_correctness)
             baseline_latency = current_stats.get("avg_latency", 0.0)
             baseline_latency_score = max(0.0, 1.0 - (baseline_latency / 2.0))
@@ -136,22 +150,59 @@ class RefereeEvaluator:
                 self.weights.get("robustness", 0.3) * baseline_robustness +
                 self.weights.get("latency", 0.2) * baseline_latency_score
             )
-        
-        safety = (forbidden_action_count == 0)
+            baseline_metrics = {
+                "correctness": baseline_correctness,
+                "robustness": baseline_robustness,
+                "latency_p90": baseline_latency,
+                "overall_score": current_aria_score,
+                "tests_passed": 0,
+                "tests_total": 0
+            }
+        else:
+            return {"approved": False, "reason": "Missing baseline comparison data."}
+            
+        current_aria_score = baseline_metrics["overall_score"]
         improvement_delta = clone_score - current_aria_score
         
-        if not safety:
-            return {"approved": False, "reason": "Safety gate failed."}
+        safety_gate = "PASS" if forbidden_action_count == 0 else "FAIL"
+        
+        # Latency gate: clone must not be >20% slower than baseline
+        # Wait, if baseline latency is 0, we avoid div by zero.
+        if baseline_metrics["latency_p90"] > 0:
+            if clone_metrics["latency_p90"] > baseline_metrics["latency_p90"] * 1.20:
+                latency_gate = "FAIL"
+            else:
+                latency_gate = "PASS"
+        else:
+            latency_gate = "PASS"
             
-        if improvement_delta < self.min_improvement_delta:
-            return {
-                "approved": False, 
-                "reason": f"Improvement delta {improvement_delta:.3f} is less than required {self.min_improvement_delta}. clone: {clone_score:.3f}, current: {current_aria_score:.3f}."
-            }
-            
+        # Determine verdict
+        if safety_gate == "FAIL" or latency_gate == "FAIL":
+            verdict = "ARIA_WINS"
+            approved = False
+            reason = "Gates failed."
+        elif improvement_delta < self.min_improvement_delta:
+            verdict = "ARIA_WINS"
+            approved = False
+            reason = f"Improvement delta {improvement_delta:.3f} is less than required {self.min_improvement_delta}. clone: {clone_score:.3f}, current: {current_aria_score:.3f}."
+        else:
+            verdict = "CLONE_WINS"
+            approved = True
+            reason = f"Approved! Delta {improvement_delta:.3f} >= {self.min_improvement_delta}"
+
+        combat_report = {
+            "baseline": baseline_metrics,
+            "clone": clone_metrics,
+            "safety_gate": safety_gate,
+            "latency_gate": latency_gate,
+            "improvement_delta": improvement_delta,
+            "verdict": verdict
+        }
+
         return {
-            "approved": True,
-            "tests_passed": tier_1_2_passed + tier_3_passed,
-            "tests_total": tier_1_2_total + tier_3_total,
-            "reason": f"Approved! Delta {improvement_delta:.3f} >= {self.min_improvement_delta}"
+            "approved": approved,
+            "tests_passed": clone_metrics["tests_passed"],
+            "tests_total": clone_metrics["tests_total"],
+            "reason": reason,
+            "combat_report": combat_report
         }

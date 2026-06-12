@@ -37,6 +37,16 @@ CREATE TABLE IF NOT EXISTS tool_executions (
     tokens_used         INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS review_queue (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id          TEXT    NOT NULL,
+    tool_name           TEXT    NOT NULL,
+    timestamp           REAL    NOT NULL,
+    combat_report       TEXT    NOT NULL,
+    generated_code      TEXT    NOT NULL,
+    status              TEXT    DEFAULT 'pending'
+);
+
 CREATE TABLE IF NOT EXISTS improvement_history (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     tool_name       TEXT    NOT NULL,
@@ -198,6 +208,42 @@ def insert_improvement(
             ),
         )
 
+
+def insert_review_queue(
+    *,
+    session_id: str,
+    tool_name: str,
+    timestamp: float,
+    combat_report: str,
+    generated_code: str,
+    status: str = "pending",
+) -> int:
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO review_queue
+                (session_id, tool_name, timestamp, combat_report, generated_code, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (session_id, tool_name, timestamp, combat_report, generated_code, status),
+        )
+        return cursor.lastrowid
+
+
+def get_pending_reviews() -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM review_queue WHERE status = 'pending' ORDER BY timestamp ASC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_review_status(review_id: int, status: str) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE review_queue SET status = ? WHERE id = ?",
+            (status, review_id),
+        )
 
 def insert_cycle_trace(
     *,
