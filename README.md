@@ -1,58 +1,56 @@
 # ARIA — Autonomous Recursive Improvement Agent
 
-> A self-improving AI system that monitors its own tools, detects weaknesses, generates better code via LLM, validates it in Docker, and deploys improvements automatically — all with Git version control and a live terminal dashboard.
+> A fully autonomous, recursively self-improving AI system. ARIA monitors its own tools, detects weaknesses, generates better code via LLMs, validates it in isolated Docker sandboxes, and deploys improvements automatically. With Phase 7, ARIA can now even introspect its own internal architecture and rewrite its own framework code safely.
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         ARIA System                             │
-│                                                                 │
-│  ┌──────────────┐    ┌──────────────┐    ┌───────────────────┐ │
-│  │  Agent Core  │───▶│ Tool Layer   │───▶│ Metrics Collector │ │
-│  │  (scheduler) │    │  (6 tools)   │    │   (SQLite)        │ │
-│  └──────┬───────┘    └──────────────┘    └────────┬──────────┘ │
-│         │                                          │            │
-│         ▼                                          ▼            │
-│  ┌──────────────┐    ┌──────────────┐    ┌───────────────────┐ │
-│  │ Improvement  │◀───│ Introspection│◀───│  Weakness Report  │ │
-│  │   Engine     │    │   Engine     │    │  (thresholds)     │ │
-│  │  (Groq LLM)  │    └──────────────┘    └───────────────────┘ │
-│  └──────┬───────┘                                               │
-│         │                                                        │
-│         ▼                                                        │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                    GATEKEEPER (Immutable)                  │   │
-│  │  Static AST Analysis  →  Docker Sandbox  →  Deploy/Reject │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│         │                                                        │
-│         ▼                                                        │
-│  ┌──────────────┐    ┌───────────────┐   ┌───────────────────┐ │
-│  │  Git Manager │    │Interactive Menu│  │   CLI Interface   │ │
-│  │  (rollback)  │    │ (Questionary) │   │   (argparse)      │ │
-│  └──────────────┘    └───────────────┘   └───────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Core System
+        AC[Agent Core & Scheduler] --> TL[Tool Layer]
+        TL --> MC[Metrics Collector DB]
+        AC --> IM[Improvement Engine]
+    end
+
+    subgraph Meta-Introspection Loop
+        MC --> IE[Introspection Engine]
+        IE --> SM[Self-Model JSON]
+        SM --> MI[Meta-Improvement Engine]
+    end
+
+    subgraph Safe Execution
+        IM --> GK[Gatekeeper: Tool Sandbox]
+        MI --> CM[Clone Manager]
+        CM --> AC2[Arena Combat: Clone vs Baseline]
+        AC2 --> REF[Referee Service]
+    end
+
+    subgraph Deployment
+        GK --> GM[Git Manager]
+        REF --> GM
+        GM --> CLI[Interactive Menu & CLI]
+    end
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Prerequisites
 
 - Python 3.11+
-- Docker Desktop (running)
+- Docker Desktop (must be running)
 - A [Groq API key](https://console.groq.com) (free tier available)
 
-### 2. Install dependencies
+### 2. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure environment
+### 3. Configure Environment
 
 ```bash
 cp .env.example .env
@@ -67,29 +65,48 @@ python -m aria run
 
 ---
 
-## CLI Commands
+## 💻 CLI Commands
 
 | Command | Description |
 |---|---|
 | `python -m aria run` | Launch the Interactive Command Center (Menu) |
 | `python -m aria status` | Print current tool metrics table |
-| `python -m aria improve --tool search_tool` | Manually trigger improvement for a tool |
+| `python -m aria improve --tool search_tool` | Manually trigger improvement for a specific tool |
 | `python -m aria rollback --tool search_tool` | Revert a tool to its last Git version |
-| `python -m aria run-tool --tool calculator_tool --input '{"expression":"2+2"}'` | Execute a tool directly |
+| `python -m aria run-tool --tool <name>` | Execute a tool directly from CLI |
 | `python -m aria history` | Show all improvement history |
 
 ---
 
-## Interactive Output Grading
+## 🧠 Recursive Meta-Improvement (Phase 7)
 
-Every time you run a tool via the Interactive Menu, ARIA uses an LLM to grade its own output. 
-- Start at 10/10.
-- Deduct points for minor formatting, lack of detail, or missing edge cases.
-- If the score drops below **9/10**, the Autonomous Improvement Loop is triggered instantly.
+Unlike traditional agents, ARIA doesn't just improve its tools—it improves **itself**. 
+
+1. **Self-Modeling:** ARIA continually analyzes the performance traces of its tools to detect abstract, system-wide weaknesses and architectural bottlenecks, saving them to `self_model.json`.
+2. **Framework Modification:** The Meta-Improvement engine can propose rewrites to ARIA's own core code (e.g., prompt templates, candidate generation logic, weakness detection, UI, and schedulers).
+3. **Isolated Clones:** To prevent catastrophic failure, ARIA spins up a fully isolated Docker copy of itself (a "Clone") and injects the architectural change.
+4. **Arena Combat:** The Clone and the Current ARIA are pitted against each other in a benchmark evaluation. 
+5. **The Referee:** An objective Referee scores the combat report based on correctness, latency, robustness, and safety. The clone is immediately discarded if it does not mathematically beat the baseline ARIA.
+
+*Note: ARIA is strictly forbidden from modifying its own Gatekeeper, metrics schema, API keys, or the Meta-Loop itself (The Constitution).*
 
 ---
 
-## Tools
+## 🛡️ Safety Model
+
+ARIA executes untrusted, AI-generated code. It relies on a 7-layer defense system:
+
+1. **Rate Limiting** — Strict rate limits on both tool improvements (max 5/hour) and meta-improvements (max 1/day).
+2. **Groq Rate Limiter** — Sliding window prevents HTTP 429 errors.
+3. **Static AST Analysis** — Blocks forbidden imports (`os`, `sys`, `subprocess`) to prevent OS-level backdoors before code ever runs.
+4. **Docker Sandbox** — Isolated containers without network access (for math/code) or with strict timeouts (for web tools) that enforce a 100% test-pass rate.
+5. **Hallucination Protection** — The sandbox actively catches and rejects hallucinated arguments or non-deterministic test cases.
+6. **Fitness Gate** — New code is scored via a weighted fitness function (Pass Rate, Latency, Tokens, Memory). It must objectively outperform the old code.
+7. **Git Rollback** — Every single deployment is automatically committed to Git. If system health degrades, ARIA rolls back the code.
+
+---
+
+## 🛠️ Improvable Tools
 
 | Tool | Description | Improvable |
 |---|---|---|
@@ -102,86 +119,33 @@ Every time you run a tool via the Interactive Menu, ARIA uses an LLM to grade it
 
 ---
 
-## Safety Model
-
-```
-ARIA can ONLY modify: aria/tools/*.py
-ARIA CANNOT modify:   aria/core/, aria/gatekeeper/, aria/metrics/, .env
-```
-
-### Layered Safety Gates
-
-1. **Rate Limiting** — Max 5 improvement cycles/hour (configurable)
-2. **Groq Rate Limiter** — Sliding window prevents 429 errors
-3. **Static AST Analysis** — Blocks forbidden imports (`os`, `sys`, `subprocess`) to prevent OS-level backdoors.
-4. **Docker Sandbox** — Isolated container that enforces a strict 100% test-pass rate.
-5. **Hallucination Protection** — Sandbox explicitly catches and rejects hallucinated arguments or hallucinated test cases.
-6. **Performance Gate** — New code must not be >50% slower than current
-7. **Git Rollback** — Every change is committed; failures auto-rollback
-
----
-
-## Configuration (`.env`)
+## ⚙️ Configuration (`.env`)
 
 | Variable | Default | Description |
 |---|---|---|
 | `GROQ_API_KEY` | required | Your Groq API key |
 | `GROQ_MODEL` | `llama3-8b-8192` | Groq model to use |
+| `REQUIRE_HUMAN_REVIEW` | `true` | Gate meta-improvements behind human review |
 | `SUCCESS_RATE_THRESHOLD` | `0.70` | Flag tools below this success rate |
 | `LATENCY_THRESHOLD_SECONDS` | `5.0` | Flag tools above this p90 latency |
-| `MAX_IMPROVEMENT_CYCLES_PER_HOUR` | `5` | Safety cycle rate limit |
-| `SCHEDULER_INTERVAL_MINUTES` | `30` | Auto-check interval |
-| `SANDBOX_MEMORY_LIMIT` | `256m` | Docker container memory limit |
-| `GROQ_MIN_REQUEST_INTERVAL_SECONDS` | `3.0` | Min seconds between Groq calls |
+| `MAX_IMPROVEMENT_CYCLES_PER_HOUR`| `5` | Safety cycle rate limit |
+| `SANDBOX_TIMEOUT_SECONDS` | `120` | Docker container execution timeout |
+| `META_INTROSPECTION_INTERVAL` | `10` | Cycles between meta-introspection runs |
+| `FITNESS_THRESHOLD` | `0.5` | Minimum fitness score required |
 
 ---
 
-## Recursive Improvement Loop
-
-```
-Scheduler wakes (every 30 min)
-         │
-         ▼
-Introspection Engine scans metrics
-         │
-    ┌────┴────┐
-    │ Weak?   │
-    └────┬────┘
-    Yes  │
-         ▼
-Improvement Engine → Groq LLM
-         │
-         ▼
- ┌─────────────────────────┐
- │      GATEKEEPER         │
- │                         │
- │ 1. AST Static Analysis  │
- │ 2. Docker Sandbox Tests │
- │ 3. Performance Check    │
- └───────────┬─────────────┘
-        Pass │     Fail │
-             ▼          ▼
-          Deploy    Rollback + Log
-          + Git        + Notify
-          Commit
-             │
-             ▼
-     Return to start
-```
-
----
-
-## Project Structure
+## 📂 Project Structure
 
 ```
 ARIA/
 ├── aria/
-│   ├── core/           Agent Core, Scheduler, Rate Limiter
+│   ├── core/           Agent Core, Scheduler, Fitness Scoring
 │   ├── tools/          6 improvable tools + registry + base class
 │   ├── metrics/        SQLite DB schema + collector
-│   ├── introspection/  Weakness detection engine
+│   ├── introspection/  Clone Manager, Meta-Loop, Self-Model
 │   ├── improvement/    LLM prompt builder + improvement engine
-│   ├── gatekeeper/     Static validator + Docker sandbox
+│   ├── gatekeeper/     Static validator, Docker sandbox, Referee
 │   ├── versioning/     Git manager
 │   └── ui/             Interactive monochromatic CLI menu
 ├── .env.example        Configuration template
@@ -192,15 +156,6 @@ ARIA/
 
 ---
 
-## Limitations
-
-- Cannot modify its own LLM (Groq) or core reasoning
-- Cannot redesign its own architecture
-- Improvement quality depends on the Groq LLM response
-- Docker must be running for sandbox validation
-
----
-
-## License
+## 📄 License
 
 MIT — Educational and experimental use.
