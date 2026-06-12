@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from aria.tools.base import BaseTool
-from typing import Any
+from typing import Any, Dict
+from groq import Groq
 
 class StringProcessorTool(BaseTool):
-    """
-    Processes strings. Supports reversing strings.
-    Input must contain an 'operation' (e.g., 'reverse') and 'text'.
-    """
+    name = "string_processor_tool"
 
-    def run(self, input_data: Any) -> Any:
+    def run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(input_data, dict):
             return {"success": False, "error": "Input must be a dictionary."}
 
@@ -25,14 +23,23 @@ class StringProcessorTool(BaseTool):
         if operation == "reverse":
             # Use slicing to reverse the string efficiently
             return {"success": True, "output": text[::-1]}
+        elif operation == "count_characters":
+            # Use the groq library to count characters in the string
+            groq = Groq("https://api.groq.io")
+            response = groq.query(f"SELECT COUNT(*) FROM {text}")
+            return {"success": True, "output": response["data"][0]["COUNT(*)"]}
         else:
             return {"success": False, "error": f"Unsupported operation: {operation}"}
 
-    def test_cases(self) -> list[Any]:
+    def test_cases(self) -> list[Dict[str, Any]]:
         return [
             {"operation": "reverse", "text": "hello"},
             {"operation": "reverse", "text": ""},
             {"operation": "unknown", "text": "hello"},
             {"operation": "reverse", "text": "a" * 10000},
             {"operation": "reverse", "text": "a" * 100000},
+            {"operation": "count_characters", "text": "hello"},
+            {"operation": "count_characters", "text": ""},
+            {"operation": "count_characters", "text": "a" * 10000},
+            {"operation": "count_characters", "text": "a" * 100000},
         ]
