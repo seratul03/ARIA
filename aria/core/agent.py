@@ -145,6 +145,49 @@ class AgentCore:
                 break
         return events
 
+    def _check_monitoring_windows(self) -> None:
+        """
+        Phase 6.3: Post-Deployment Monitoring.
+        Checks all deployments within the monitoring window.
+        If a tool's performance drops below baseline, rollback.
+        """
+        from aria.metrics.db import get_connection, get_tool_stats
+        import time
+
+        now = time.time()
+        cutoff = now - settings.monitoring_window_seconds
+
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, tool_name, old_success_rate 
+                FROM improvement_history 
+                WHERE status = 'deployed' AND timestamp >= ?
+                ORDER BY timestamp ASC
+                """,
+                (cutoff,)
+            ).fetchall()
+
+        for row in rows:
+            tool_name = row["tool_name"]
+            old_rate = row["old_success_rate"]
+            if old_rate is None:
+                continue
+                
+            stats = get_tool_stats(tool_name)
+            if not stats:
+                continue
+                
+            # Allow a tiny bit of float leniency, but rollback if clearly degraded
+            if stats.success_rate < (old_rate - 0.01):
+                self._emit(
+                    EventType.ERROR,
+                    f"Regression detected in '{tool_name}'! (Success: {stats.success_rate:.0%} < {old_rate:.0%}). Auto-rolling back."
+                )
+                self._rollback(tool_name)
+                with get_connection() as conn:
+                    conn.execute("UPDATE improvement_history SET status = 'rolled_back' WHERE id = ?", (row["id"],))
+
     # ── Tool execution ─────────────────────────────────────────────────────────
 
     def run_tool(self, tool_name: str, input_data: dict) -> Any:
@@ -189,6 +232,9 @@ class AgentCore:
 
         Returns True if a tool was successfully deployed, False otherwise.
         """
+        # ── Post-Deployment Monitoring ─────────────────────────────────────────
+        self._check_monitoring_windows()
+
         # ── Rate limit check ───────────────────────────────────────────────────
         if not self._cycle_limiter.can_run():
             self._emit(
@@ -579,17 +625,37 @@ class AgentCore:
         """Write new source to the tool file and commit to Git."""
         from aria.metrics.db import insert_improvement
         from aria.versioning.git_manager import git_manager
+        import time
+
+        timestamp = int(time.time())
+        pre_tag = f"pre_meta_improvement_{timestamp}"
+        post_tag = f"post_meta_improvement_{timestamp}"
+
+        # 1. Tag current state BEFORE deployment
+        git_manager.tag_commit(pre_tag)
 
         tool_path = Path(__file__).parent.parent / "tools" / f"{tool_name}.py"
 
         try:
-            # Write improved code
+            # 2. Write improved code
             tool_path.write_text(new_source, encoding="utf-8")
 
-            # Hot-reload the tool in the registry
-            registry.reload_tool(tool_name)
+            # 3. Host Smoke Test (import and initialization check)
+            try:
+                registry.reload_tool(tool_name)
+            except Exception as e:
+                self._emit(
+                    EventType.ERROR,
+                    f"Host smoke test failed for '{tool_name}': {e}. Rolling back."
+                )
+                git_manager.rollback_to_tag(pre_tag)
+                try:
+                    registry.reload_tool(tool_name)
+                except Exception:
+                    pass
+                return False
 
-            # Git commit
+            # 4. Git commit
             commit_msg = (
                 f"Improve {tool_name} — "
                 f"success_rate: {report.success_rate:.0%} → expected ↑, "
@@ -597,7 +663,11 @@ class AgentCore:
             )
             commit_hash = git_manager.commit_tool(tool_name, commit_msg)
 
-            # Record in DB
+            # 5. Tag post deployment
+            if commit_hash:
+                git_manager.tag_commit(post_tag, commit_hash)
+
+            # 6. Record in DB
             insert_improvement(
                 tool_name=tool_name,
                 timestamp=time.time(),
@@ -618,7 +688,11 @@ class AgentCore:
 
         except Exception as exc:
             logger.error(f"[Agent] Deploy failed: {exc}")
-            self._rollback(tool_name)
+            git_manager.rollback_to_tag(pre_tag)
+            try:
+                registry.reload_tool(tool_name)
+            except Exception:
+                pass
             return False
 
     def _rollback(self, tool_name: str) -> None:

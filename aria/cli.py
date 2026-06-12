@@ -235,6 +235,31 @@ def cmd_rollback(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_meta_rollback(args: argparse.Namespace) -> None:
+    """Revert the entire repository to a specific tag."""
+    from rich.console import Console
+    import sys
+
+    console = Console()
+    tag_name = args.to
+
+    from aria.main import bootstrap
+    bootstrap()
+
+    from aria.versioning.git_manager import git_manager
+
+    console.print(f"[yellow]Executing meta-rollback to tag '{tag_name}'...[/yellow]")
+
+    success = git_manager.rollback_to_tag(tag_name)
+
+    if success:
+        console.print(f"[bold green]✓ Meta-rollback to '{tag_name}' completed successfully.[/bold green]")
+        console.print("[dim]Note: Run `python -m aria run` to start the dashboard with the restored state.[/dim]")
+    else:
+        console.print(f"[bold red]✗ Meta-rollback failed. Tag might not exist.[/bold red]")
+        sys.exit(1)
+
+
 def cmd_run_tool(args: argparse.Namespace) -> None:
     """Execute a specific tool with JSON input."""
     from rich.console import Console
@@ -504,6 +529,10 @@ def build_parser() -> argparse.ArgumentParser:
     rollback_p = sub.add_parser("rollback", help="Revert a tool to its last Git version")
     rollback_p.add_argument("--tool", required=True, metavar="<tool_name>")
 
+    # meta-rollback
+    meta_rollback_p = sub.add_parser("meta-rollback", help="Revert the entire state to a specific meta tag")
+    meta_rollback_p.add_argument("--to", required=True, metavar="<tag_name>", help="Tag to rollback to (e.g. pre_meta_improvement_123456)")
+
     # run-tool
     run_tool_p = sub.add_parser("run-tool", help="Execute a tool directly")
     run_tool_p.add_argument("--tool", required=True, metavar="<tool_name>")
@@ -541,6 +570,7 @@ def main() -> None:
         "improve": cmd_improve,
         "status": cmd_status,
         "rollback": cmd_rollback,
+        "meta-rollback": cmd_meta_rollback,
         "run-tool": cmd_run_tool,
         "history": cmd_history,
         "traces": cmd_traces,

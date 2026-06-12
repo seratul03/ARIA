@@ -210,6 +210,58 @@ class GitManager:
                 pass
             return False
 
+    def get_head_hash(self) -> str | None:
+        """Return the current HEAD commit hash."""
+        if self._repo is None:
+            return None
+        try:
+            return self._repo.head.commit.hexsha
+        except Exception:
+            return None
+
+    def tag_commit(self, tag_name: str, commit_hash: str | None = None) -> bool:
+        """Tag a specific commit (or HEAD)."""
+        if self._repo is None:
+            return False
+        try:
+            if commit_hash:
+                commit = self._repo.commit(commit_hash)
+                self._repo.create_tag(tag_name, ref=commit)
+            else:
+                self._repo.create_tag(tag_name)
+            logger.info(f"[GitManager] Created tag {tag_name}")
+            return True
+        except Exception as exc:
+            logger.error(f"[GitManager] Failed to create tag {tag_name}: {exc}")
+            return False
+
+    def rollback_to_tag(self, tag_name: str, tool_name: str | None = None) -> bool:
+        """
+        Revert the file state to the specified tag.
+        If tool_name is provided, only revert that tool's file.
+        Otherwise, revert the entire tracked tree.
+        """
+        if self._repo is None:
+            return False
+        try:
+            tag = self._repo.tags[tag_name]
+            
+            if tool_name:
+                tool_rel_path = f"aria/tools/{tool_name}.py"
+                tool_abs_path = self._root / tool_rel_path
+                blob = tag.commit.tree[tool_rel_path]
+                content = blob.data_stream.read().decode("utf-8")
+                tool_abs_path.write_text(content, encoding="utf-8")
+                logger.info(f"[GitManager] Rolled back '{tool_name}' to tag {tag_name}")
+            else:
+                self._repo.git.checkout(tag_name, "--", ".")
+                logger.info(f"[GitManager] Meta-rollback to tag {tag_name}")
+                
+            return True
+        except Exception as exc:
+            logger.error(f"[GitManager] Rollback to tag failed: {exc}")
+            return False
+
     def get_tool_history(self, tool_name: str, limit: int = 10) -> list[CommitInfo]:
         """Return the commit history for a specific tool file."""
         if self._repo is None:

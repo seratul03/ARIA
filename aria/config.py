@@ -60,6 +60,7 @@ class Settings:
     # ── Security ──────────────────────────────────────────────
     test_signing_key: str
     require_human_review: bool
+    monitoring_window_seconds: int
 
     # ── Introspection thresholds ───────────────────────────────
     success_rate_threshold: float       # e.g. 0.70
@@ -115,6 +116,7 @@ def _load_settings() -> Settings:
         groq_model=_get("GROQ_MODEL", "llama3-8b-8192"),
         test_signing_key=_get("TEST_SIGNING_KEY", "YOUR_16_CHAR_KEY"),
         require_human_review=_get("REQUIRE_HUMAN_REVIEW", "true").lower() == "true",
+        monitoring_window_seconds=_get_int("MONITORING_WINDOW_SECONDS", 7200),
 
         success_rate_threshold=_get_float("SUCCESS_RATE_THRESHOLD", 0.70),
         latency_threshold_seconds=_get_float("LATENCY_THRESHOLD_SECONDS", 5.0),
