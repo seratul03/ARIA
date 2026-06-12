@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 
 from aria.tools.base import BaseTool
-from typing import Any
+from typing import Any, Dict
+from groq import Groq
 import httpx
 
 class StringProcessorTool(BaseTool):
-    """
-    Processes strings. Supports reversing strings.
-    Input must contain an 'operation' (e.g., 'reverse') and 'text'.
-    """
+    name = "string_processor_tool"
 
-    def run(self, input_data: Any) -> Any:
+    def run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(input_data, dict):
             return {"success": False, "error": "Input must be a dictionary."}
 
@@ -26,35 +24,26 @@ class StringProcessorTool(BaseTool):
         if operation == "reverse":
             # Use slicing to reverse the string efficiently
             return {"success": True, "output": text[::-1]}
+        elif operation == "count_characters":
+            # Use the groq library to count characters in the string
+            groq = Groq("https://api.groq.io")
+            try:
+                response = groq.query(f"SELECT COUNT(*) FROM {text}")
+                return {"success": True, "output": response["data"][0]["COUNT(*)"]}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
         else:
             return {"success": False, "error": f"Unsupported operation: {operation}"}
 
-    def test_cases(self) -> list[Any]:
+    def test_cases(self) -> list[Dict[str, Any]]:
         return [
             {"operation": "reverse", "text": "hello"},
             {"operation": "reverse", "text": ""},
             {"operation": "unknown", "text": "hello"},
             {"operation": "reverse", "text": "a" * 10000},
             {"operation": "reverse", "text": "a" * 100000},
+            {"operation": "count_characters", "text": "hello"},
+            {"operation": "count_characters", "text": ""},
+            {"operation": "count_characters", "text": "a" * 10000},
+            {"operation": "count_characters", "text": "a" * 100000},
         ]
-
-    def validate_input(self, input_data: Any) -> bool:
-        try:
-            if not isinstance(input_data, dict):
-                return False
-            if "operation" not in input_data or "text" not in input_data:
-                return False
-            if not isinstance(input_data["operation"], str) or not isinstance(input_data["text"], str):
-                return False
-            return True
-        except Exception as e:
-            return False
-
-    def validate_operation(self, operation: str) -> bool:
-        return operation in ["reverse"]
-
-    def validate_text(self, text: str) -> bool:
-        return len(text) <= 100000
-
-    def validate(self, input_data: Any) -> bool:
-        return self.validate_input(input_data) and self.validate_operation(input_data["operation"]) and self.validate_text(input_data["text"])
