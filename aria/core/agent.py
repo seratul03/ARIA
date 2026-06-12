@@ -477,7 +477,7 @@ class AgentCore:
                     if is_ms:
                         val = f"{prefix}{delta:.0f}ms"
                     else:
-                        val = f"{prefix}{delta:.2f}"
+                        val = f"{prefix}{delta:.5f}"
                         
                     if abs(delta) < 0.001:
                         return f"{val} ➖"
@@ -493,15 +493,15 @@ class AgentCore:
                 l_delta = (c["latency_p90"] - b["latency_p90"]) * 1000
                 s_delta = c["overall_score"] - b["overall_score"]
                 
-                table.add_row("Correctness:", f"{b['correctness']:.2f}", f"{c['correctness']:.2f}", fmt_delta(c_delta))
+                table.add_row("Correctness:", f"{b['correctness']:.5f}", f"{c['correctness']:.5f}", fmt_delta(c_delta))
                 table.add_row("Latency P90 (ms):", f"{b['latency_p90']*1000:.0f}", f"{c['latency_p90']*1000:.0f}", fmt_delta(l_delta, is_ms=True))
-                table.add_row("Robustness:", f"{b['robustness']:.2f}", f"{c['robustness']:.2f}", fmt_delta(r_delta))
+                table.add_row("Robustness:", f"{b['robustness']:.5f}", f"{c['robustness']:.5f}", fmt_delta(r_delta))
                 
                 sg = combat_report.get("safety_gate", "PASS")
                 sg_fmt = "✅" if sg == "PASS" else "❌"
                 table.add_row("Safety Gate:", sg, sg, sg_fmt)
                 
-                table.add_row("Overall Score:", f"{b['overall_score']:.2f}", f"{c['overall_score']:.2f}", fmt_delta(s_delta))
+                table.add_row("Overall Score:", f"{b['overall_score']:.5f}", f"{c['overall_score']:.5f}", fmt_delta(s_delta))
                 
                 console.print(table)
                 

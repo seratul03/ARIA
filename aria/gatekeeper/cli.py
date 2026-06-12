@@ -89,8 +89,11 @@ def main():
     )
     
     if args.raw_results_only:
-        # sandbox_result is just a list of dicts or an error dict
-        print(json.dumps(sandbox_result))
+        import dataclasses
+        if dataclasses.is_dataclass(sandbox_result):
+            print(json.dumps(dataclasses.asdict(sandbox_result)))
+        else:
+            print(json.dumps(sandbox_result))
     else:
         output = {
             "approved": sandbox_result.approved,

@@ -71,7 +71,7 @@ def build_improvement_prompt(report: WeaknessReport) -> str:
     if report.recent_improvement_failures:
         rejected_history_text = "\nPAST IMPROVEMENT ATTEMPTS THAT FAILED:\n" + "\n".join(
             f"  - Rejected Reason: {f.get('reason', 'N/A')}"
-            for f in report.recent_improvement_failures
+            for f in report.recent_improvement_failures[:3]
         ) + "\nWARNING: Do NOT repeat these mistakes!\n"
 
     # Incorporate Self-Model patterns
