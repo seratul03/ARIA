@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import httpx
 import logging
+import random
 from aria.tools.base import BaseTool, TestCase, ToolResult
 from groq import Groq
 
@@ -139,6 +140,7 @@ class WeatherTool(BaseTool):
     def _retry_request(self) -> ToolResult:
         # Simple exponential backoff
         delay = random.uniform(1, 5)
+        import time
         time.sleep(delay)
 
         # Try again
