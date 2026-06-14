@@ -17,7 +17,7 @@ import operator
 from typing import Any
 
 from aria.tools.base import BaseTool, TestCase, ToolResult
-
+from groq import Groq
 
 # Whitelisted operators
 _OPERATORS: dict[type, Any] = {
@@ -56,7 +56,6 @@ _FUNCTIONS: dict[str, Any] = {
     "pi":    math.pi,
     "e":     math.e,
 }
-
 
 class _SafeEvaluator(ast.NodeVisitor):
     """AST visitor that safely evaluates mathematical expressions."""
@@ -125,6 +124,9 @@ class CalculatorTool(BaseTool):
     """
 
     name = "calculator_tool"
+
+    def __init__(self):
+        self.groq_client = Groq(api_key="YOUR_API_KEY")
 
     def run(self, input: dict) -> ToolResult:
         expression = str(input.get("expression", "")).strip()
