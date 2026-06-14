@@ -130,7 +130,8 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
         score_str = get_confidence_score(tool_name, user_input, res_str)
         print(f"Confidence Score: {score_str}/10\n")
         
-        from aria.metrics.db import get_tool_stats, get_improvement_history
+        from aria.metrics.db import get_tool_stats
+        from aria.memory.store import get_improvement_history
         stats = get_tool_stats(tool_name)
         if stats:
             fitness = (
@@ -144,7 +145,7 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
             print("Internal Fitness Score: N/A (Not enough data)")
             
         history = get_improvement_history(tool_name, limit=10000)
-        upgrades = sum(1 for h in history if h["status"] == "deployed")
+        upgrades = sum(1 for h in history if h["result"] == "deployed")
         print(f"Total Upgrades Implemented: {upgrades}\n")
         
         save_output(tool_name, res_str, score_str)
@@ -161,31 +162,49 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
         print(f"Tool execution failed: {result.error}\n")
 
 def run_menu():
-    """Main interactive menu loop."""
-    while True:
-        choice = questionary.select(
-            "ARIA Interactive Terminal",
-            choices=[
-                "Calculator Tool",
-                "Weather Tool",
-                "Summarizer Tool",
-                "Search Tool",
-                "Code Execution Tool",
-                "Exit"
-            ],
-            style=bw_style
-        ).ask()
+    """Main interactive menu."""
+    try:
+        from aria.memory.dashboard import worst_tool, most_common_failures
+        from aria.metrics.db import get_connection
+        wt = worst_tool()
+        fails = most_common_failures(limit=1)
+        with get_connection() as conn:
+            active_patterns = conn.execute("SELECT COUNT(*) as c FROM failure_patterns WHERE status = 'active'").fetchone()["c"]
+            resolved_patterns = conn.execute("SELECT COUNT(*) as c FROM failure_patterns WHERE status = 'resolved'").fetchone()["c"]
         
-        if choice == "Calculator Tool":
-            handle_tool("calculator_tool", "Enter expression: ", "expression")
-        elif choice == "Weather Tool":
-            handle_tool("weather_tool", "Enter city name: ", "city")
-        elif choice == "Summarizer Tool":
-            handle_tool("summarizer_tool", "Enter topic/text to summarize: ", "text")
-        elif choice == "Search Tool":
-            handle_tool("search_tool", "Enter search topic: ", "query")
-        elif choice == "Code Execution Tool":
-            handle_tool("code_executor_tool", "Enter coding topic/problem: ", "topic")
-        elif choice == "Exit" or choice is None:
-            print("Exiting ARIA...")
-            sys.exit(0)
+        print("\n=== ARIA MEMORY DASHBOARD ===")
+        print(f"Active Patterns: {active_patterns} | Resolved: {resolved_patterns}")
+        if fails and fails[0]['status'] == 'active':
+            print(f"Top Active Failure: {fails[0]['traceback_signature'][:8]} ({fails[0]['occurrence_count']} occurrences)")
+        if wt:
+            print(f"System Bottleneck:  {wt['tool_name']} (Pain Score: {wt['pain_score']:.2f})")
+        print("=============================\n")
+    except Exception:
+        pass
+        
+    choice = questionary.select(
+        "ARIA Interactive Terminal",
+        choices=[
+            "Calculator Tool",
+            "Weather Tool",
+            "Summarizer Tool",
+            "Search Tool",
+            "Code Execution Tool",
+            "Exit"
+        ],
+        style=bw_style
+    ).ask()
+    
+    if choice == "Calculator Tool":
+        handle_tool("calculator_tool", "Enter expression: ", "expression")
+    elif choice == "Weather Tool":
+        handle_tool("weather_tool", "Enter city name: ", "city")
+    elif choice == "Summarizer Tool":
+        handle_tool("summarizer_tool", "Enter topic/text to summarize: ", "text")
+    elif choice == "Search Tool":
+        handle_tool("search_tool", "Enter search topic: ", "query")
+    elif choice == "Code Execution Tool":
+        handle_tool("code_executor_tool", "Enter coding topic/problem: ", "topic")
+    elif choice == "Exit" or choice is None:
+        print("Exiting ARIA...")
+        sys.exit(0)

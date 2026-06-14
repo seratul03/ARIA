@@ -11,10 +11,23 @@ import hashlib
 import json
 import time
 import tracemalloc
+import traceback
 from contextlib import contextmanager
 from typing import Any, Callable, Generator
 
 from aria.metrics.db import insert_execution
+from aria.memory.store import record_failure
+
+def _redact_secrets(data: Any) -> Any:
+    """Recursively strip API keys from input snapshots."""
+    if isinstance(data, dict):
+        return {
+            k: ("***REDACTED***" if "api_key" in str(k).lower() or k in ("GROQ_API_KEY", "SYNTHESIS_GROQ_API_KEY") else _redact_secrets(v))
+            for k, v in data.items()
+        }
+    elif isinstance(data, list):
+        return [_redact_secrets(v) for v in data]
+    return data
 
 
 def _hash_input(input_data: Any) -> str:
@@ -76,6 +89,14 @@ def record(tool_name: str, input_data: Any) -> Generator[None, None, None]:
     except Exception as exc:
         ctx.error = str(exc)
         success = False
+        record_failure(
+            tool_name=tool_name,
+            source="production",
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+            stack_trace=traceback.format_exc(),
+            input_snapshot=_redact_secrets(input_data)
+        )
     finally:
         latency = time.monotonic() - start
         _, peak_mem = tracemalloc.get_traced_memory()
@@ -125,6 +146,14 @@ def execute(tool_name: str, run_fn: Callable[[], Any], input_data: Any = None) -
     except Exception as exc:
         error_message = str(exc)
         success = False
+        record_failure(
+            tool_name=tool_name,
+            source="production",
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+            stack_trace=traceback.format_exc(),
+            input_snapshot=_redact_secrets(input_data)
+        )
         raise
     finally:
         latency = time.monotonic() - start

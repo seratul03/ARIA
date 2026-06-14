@@ -85,6 +85,7 @@ class Settings:
     # ── Meta-Introspection ─────────────────────────────────────
     meta_introspection_interval: int    # e.g. 10
     meta_introspection_max_hours: float # e.g. 4.0
+    memory_recompute_interval: int      # e.g. 5
     clone_base_dir: Path
     clone_keep_on_failure: bool
 
@@ -137,6 +138,7 @@ def _load_settings() -> Settings:
 
         meta_introspection_interval=_get_int("META_INTROSPECTION_INTERVAL", 10),
         meta_introspection_max_hours=_get_float("META_INTROSPECTION_MAX_HOURS", 4.0),
+        memory_recompute_interval=_get_int("MEMORY_RECOMPUTE_INTERVAL", 5),
         clone_base_dir=Path(_get("CLONE_BASE_DIR", "/tmp/aria_clones")),
         clone_keep_on_failure=_get("CLONE_KEEP_ON_FAILURE", "true").lower() == "true",
 

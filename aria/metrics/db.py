@@ -47,22 +47,6 @@ CREATE TABLE IF NOT EXISTS review_queue (
     status              TEXT    DEFAULT 'pending'
 );
 
-CREATE TABLE IF NOT EXISTS improvement_history (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    tool_name       TEXT    NOT NULL,
-    timestamp       REAL    NOT NULL,
-    status          TEXT    NOT NULL,
-    reason          TEXT,
-    git_commit_hash TEXT,
-    old_success_rate REAL,
-    new_success_rate REAL,
-    old_latency_p90  REAL,
-    new_latency_p90  REAL,
-    old_memory_mb    REAL DEFAULT 0.0,
-    new_memory_mb    REAL DEFAULT 0.0,
-    old_tokens_used  INTEGER DEFAULT 0,
-    new_tokens_used  INTEGER DEFAULT 0
-);
 
 CREATE TABLE IF NOT EXISTS cycle_traces (
     cycle_id            TEXT PRIMARY KEY,
@@ -114,8 +98,6 @@ END;
 CREATE INDEX IF NOT EXISTS idx_executions_tool_time
     ON tool_executions(tool_name, timestamp);
 
-CREATE INDEX IF NOT EXISTS idx_improvement_tool
-    ON improvement_history(tool_name, timestamp);
 
 CREATE INDEX IF NOT EXISTS idx_cycle_traces_time
     ON cycle_traces(timestamp);
@@ -177,38 +159,6 @@ def insert_execution(
             ),
         )
 
-
-def insert_improvement(
-    *,
-    tool_name: str,
-    timestamp: float,
-    status: str,
-    reason: str | None = None,
-    git_commit_hash: str | None = None,
-    old_success_rate: float | None = None,
-    new_success_rate: float | None = None,
-    old_latency_p90: float | None = None,
-    new_latency_p90: float | None = None,
-    old_memory_mb: float | None = None,
-    new_memory_mb: float | None = None,
-    old_tokens_used: int | None = None,
-    new_tokens_used: int | None = None,
-) -> None:
-    with get_connection() as conn:
-        conn.execute(
-            """
-            INSERT INTO improvement_history
-                (tool_name, timestamp, status, reason, git_commit_hash,
-                 old_success_rate, new_success_rate, old_latency_p90, new_latency_p90,
-                 old_memory_mb, new_memory_mb, old_tokens_used, new_tokens_used)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                tool_name, timestamp, status, reason, git_commit_hash,
-                old_success_rate, new_success_rate, old_latency_p90, new_latency_p90,
-                old_memory_mb, new_memory_mb, old_tokens_used, new_tokens_used
-            ),
-        )
 
 
 def insert_review_queue(
@@ -406,16 +356,3 @@ def get_recent_failures(tool_name: str, limit: int = 5) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def get_improvement_history(tool_name: str | None = None, limit: int = 20) -> list[dict]:
-    with get_connection() as conn:
-        if tool_name:
-            rows = conn.execute(
-                "SELECT * FROM improvement_history WHERE tool_name = ? ORDER BY timestamp DESC LIMIT ?",
-                (tool_name, limit),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM improvement_history ORDER BY timestamp DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
-    return [dict(r) for r in rows]

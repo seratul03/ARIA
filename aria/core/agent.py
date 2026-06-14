@@ -117,6 +117,7 @@ class AgentCore:
             settings.max_improvement_cycles_per_hour
         )
         self._total_cycles = 0
+        self._cycles_since_recompute = 0
         self._running = False
         self._last_meta_introspection_time = time.time()
 
@@ -163,9 +164,9 @@ class AgentCore:
         with get_connection() as conn:
             rows = conn.execute(
                 """
-                SELECT id, tool_name, old_success_rate 
+                SELECT id, tool_name, baseline_fitness as old_success_rate 
                 FROM improvement_history 
-                WHERE status = 'deployed' AND timestamp >= ?
+                WHERE result = 'deployed' AND timestamp >= ?
                 ORDER BY timestamp ASC
                 """,
                 (cutoff,)
@@ -183,13 +184,30 @@ class AgentCore:
                 
             # Allow a tiny bit of float leniency, but rollback if clearly degraded
             if stats.success_rate < (old_rate - 0.01):
-                self._emit(
-                    EventType.ERROR,
-                    f"Regression detected in '{tool_name}'! (Success: {stats.success_rate:.0%} < {old_rate:.0%}). Auto-rolling back."
+                err_msg = f"Regression detected in '{tool_name}'! (Success: {stats.success_rate:.0%} < {old_rate:.0%}). Auto-rolling back."
+                self._emit(EventType.ERROR, err_msg)
+                
+                from aria.memory.store import record_improvement, record_failure
+                
+                failure_id = record_failure(
+                    tool_name=tool_name,
+                    source="post_deploy_monitor",
+                    error_type="PerformanceRegression",
+                    error_message=err_msg,
+                    stack_trace=""
                 )
+                
+                record_improvement(
+                    improvement_type='tool',
+                    fix_summary=f"Rolled back {tool_name} due to performance regression.",
+                    result='rolled_back',
+                    tool_name=tool_name,
+                    baseline_fitness=old_rate,
+                    candidate_fitness=stats.success_rate,
+                    triggering_failure_id=failure_id,
+                )
+                
                 self._rollback(tool_name)
-                with get_connection() as conn:
-                    conn.execute("UPDATE improvement_history SET status = 'rolled_back' WHERE id = ?", (row["id"],))
 
         # Check meta improvements health
         from aria.versioning.git_manager import git_manager
@@ -308,6 +326,16 @@ class AgentCore:
                 tool_path.unlink(missing_ok=True)
                 return False
                 
+            from aria.memory.store import record_improvement
+            record_improvement(
+                improvement_type='synthesis',
+                tool_name=tool_name,
+                problem_description=specification,
+                fix_summary=f"Synthesized new tool: {tool_name}",
+                result='deployed',
+                git_commit_hash=commit_hash,
+            )
+            
             self._emit(
                 EventType.SYNTHESIS_SUCCESS,
                 f"✓ Successfully synthesized and deployed '{tool_name}' (commit: {commit_hash})",
@@ -698,6 +726,16 @@ class AgentCore:
             )
             return deployed
         finally:
+            # ── Memory Ranking Recomputation ───────────────────────────────────────
+            self._cycles_since_recompute += 1
+            if self._cycles_since_recompute >= settings.memory_recompute_interval:
+                try:
+                    from aria.memory.ranking import recompute_all_scores
+                    recompute_all_scores()
+                except Exception as e:
+                    logger.error(f"[Agent] Memory ranking recompute failed: {e}")
+                self._cycles_since_recompute = 0
+
             # ── Meta-Introspection ─────────────────────────────────────────────────
             time_since_meta = (time.time() - self._last_meta_introspection_time) / 3600.0
             if (
@@ -721,7 +759,6 @@ class AgentCore:
 
     def _deploy(self, tool_name: str, new_source: str, report, sandbox_result) -> bool:
         """Write new source to the tool file and commit to Git."""
-        from aria.metrics.db import insert_improvement
         from aria.versioning.git_manager import git_manager
         import time
 
@@ -766,14 +803,16 @@ class AgentCore:
                 git_manager.tag_commit(post_tag, commit_hash)
 
             # 6. Record in DB
-            insert_improvement(
+            from aria.memory.store import record_improvement
+            c_fitness = sandbox_result.get("combat_report", {}).get("clone", {}).get("overall_score")
+            record_improvement(
+                improvement_type='tool',
                 tool_name=tool_name,
-                timestamp=time.time(),
-                status="deployed",
-                reason=commit_msg,
+                fix_summary=commit_msg,
+                result='deployed',
                 git_commit_hash=commit_hash,
-                old_success_rate=report.success_rate,
-                old_latency_p90=report.p90_latency,
+                baseline_fitness=report.success_rate,
+                candidate_fitness=c_fitness,
             )
 
             self._emit(
@@ -821,14 +860,15 @@ class AgentCore:
         old_success_rate: float | None = None,
     ) -> None:
         """Record a rejection in the improvement history."""
-        from aria.metrics.db import insert_improvement
+        from aria.memory.store import record_improvement
 
-        insert_improvement(
+        record_improvement(
+            improvement_type='tool',
             tool_name=tool_name,
-            timestamp=time.time(),
-            status="rejected",
-            reason=reason,
-            old_success_rate=old_success_rate,
+            result="rejected",
+            rejection_reason=reason,
+            fix_summary=reason,
+            baseline_fitness=old_success_rate,
         )
         self._emit(
             EventType.REJECTED,

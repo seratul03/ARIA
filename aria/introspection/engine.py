@@ -23,8 +23,8 @@ from aria.metrics.db import (
     get_all_tool_stats,
     get_recent_failures,
     get_tool_stats,
-    get_improvement_history,
 )
+from aria.memory.store import get_improvement_history
 from aria.introspection.self_model import self_model
 
 
@@ -42,6 +42,9 @@ class WeaknessReport:
     reasons: list[str]                          # Human-readable reasons for flagging
     recent_failures: list[dict]                 # Last N failure records for LLM context
     source_code: str                            # Current tool source code
+    similar_failures: list[dict] = field(default_factory=list) # Similar past failures
+    successful_fixes: list[dict] = field(default_factory=list) # Previously deployed fixes
+    failed_fixes: list[dict] = field(default_factory=list)     # Previously rejected/rolled_back fixes
     recent_improvement_failures: list[dict] = field(default_factory=list) # Past rejection reasons
     timestamp: float = field(default_factory=time.time)
 
@@ -113,6 +116,41 @@ def _is_weak(stats: ToolStats) -> tuple[bool, list[str], float]:
     return len(reasons) > 0, reasons, fitness
 
 
+def _get_similar_failures(tool_name: str) -> list[dict]:
+    try:
+        from aria.metrics.db import get_connection
+        from aria.memory.retrieval import find_similar_failures
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT error_type, error_message, stack_trace FROM failure_history WHERE tool_name = ? ORDER BY timestamp DESC LIMIT 1",
+                (tool_name,)
+            ).fetchone()
+        
+        if row:
+            error_type, error_message, stack_trace = row
+            return find_similar_failures(tool_name, error_type, error_message, stack_trace)
+    except Exception:
+        pass
+    return []
+
+
+def _get_historical_fixes(tool_name: str) -> tuple[list[dict], list[dict]]:
+    try:
+        from aria.metrics.db import get_connection
+        from aria.memory.retrieval import find_successful_fixes, find_failed_fixes
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT traceback_signature FROM failure_history WHERE tool_name = ? ORDER BY timestamp DESC LIMIT 1",
+                (tool_name,)
+            ).fetchone()
+            
+        sig = row[0] if row else None
+        return find_successful_fixes(tool_name, sig), find_failed_fixes(tool_name, sig)
+    except Exception:
+        pass
+    return [], []
+
+
 class IntrospectionEngine:
     """
     Analyzes SQLite metrics to identify weak tools.
@@ -135,7 +173,9 @@ class IntrospectionEngine:
             source = _load_source(stats.tool_name)
             
             history = get_improvement_history(stats.tool_name, limit=5)
-            rejected_history = [h for h in history if h["status"] == "rejected"]
+            rejected_history = [h for h in history if h["result"] == "rejected"]
+            
+            successful_fixes, failed_fixes = _get_historical_fixes(stats.tool_name)
 
             report = WeaknessReport(
                 tool_name=stats.tool_name,
@@ -146,8 +186,11 @@ class IntrospectionEngine:
                 fitness_score=fitness,
                 reasons=reasons,
                 recent_failures=failures,
-                recent_improvement_failures=rejected_history,
                 source_code=source,
+                similar_failures=_get_similar_failures(stats.tool_name),
+                successful_fixes=successful_fixes,
+                failed_fixes=failed_fixes,
+                recent_improvement_failures=rejected_history,
             )
             
             try:
@@ -182,7 +225,9 @@ class IntrospectionEngine:
         source = _load_source(tool_name)
         
         history = get_improvement_history(tool_name, limit=5)
-        rejected_history = [h for h in history if h["status"] == "rejected"]
+        rejected_history = [h for h in history if h["result"] == "rejected"]
+        
+        successful_fixes, failed_fixes = _get_historical_fixes(tool_name)
 
         try:
             from aria.core.tracer import emit_trace
@@ -201,8 +246,11 @@ class IntrospectionEngine:
             fitness_score=fitness,
             reasons=reasons,
             recent_failures=failures,
-            recent_improvement_failures=rejected_history,
             source_code=source,
+            similar_failures=_get_similar_failures(tool_name),
+            successful_fixes=successful_fixes,
+            failed_fixes=failed_fixes,
+            recent_improvement_failures=rejected_history,
         )
 
     def get_health_summary(self) -> dict[str, dict]:

@@ -206,7 +206,8 @@ def cmd_status(args: argparse.Namespace) -> None:
     table.add_column("Status", justify="center")
 
     from aria.config import settings
-    from aria.metrics.db import get_tool_stats, get_improvement_history
+    from aria.metrics.db import get_tool_stats
+    from aria.memory.store import get_improvement_history
 
     try:
         "\u2713".encode(sys.stdout.encoding or 'ascii')
@@ -248,7 +249,7 @@ def cmd_status(args: argparse.Namespace) -> None:
         )
         
         history = get_improvement_history(name, limit=10000)
-        upgrades = sum(1 for h in history if h["status"] == "deployed")
+        upgrades = sum(1 for h in history if h["result"] == "deployed")
 
         table.add_row(
             name,
@@ -364,7 +365,7 @@ def cmd_history(args: argparse.Namespace) -> None:
     from aria.main import bootstrap
     bootstrap()
 
-    from aria.metrics.db import get_improvement_history
+    from aria.memory.store import get_improvement_history
 
     console = Console()
     history = get_improvement_history(tool_name=getattr(args, "tool", None), limit=30)
@@ -386,7 +387,7 @@ def cmd_history(args: argparse.Namespace) -> None:
 
     for entry in history:
         ts = datetime.fromtimestamp(entry["timestamp"]).strftime("%Y-%m-%d %H:%M")
-        status = entry["status"]
+        status = entry["result"]
         color = "green" if status == "deployed" else "red" if status == "rejected" else "yellow"
         commit = entry.get("git_commit_hash") or "—"
         reason = (entry.get("reason") or "")[:60]
@@ -587,6 +588,116 @@ def cmd_review(args: argparse.Namespace) -> None:
             update_review_status(review['id'], "rejected")
             console.print(f"[red]Review {review['id']} rejected.[/red]")
 
+def cmd_memory(args: argparse.Namespace) -> None:
+    """Show ARIA Memory Dashboard."""
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from aria.main import bootstrap
+    
+    # Initialize the database and migrations before querying
+    bootstrap()
+    
+    from aria.memory.dashboard import most_common_failures, most_successful_fixes, worst_tool, fix_reliability_report
+    import json
+    
+    console = Console()
+    
+    # 1. Failures
+    if args.failures:
+        fails = most_common_failures()
+        table = Table(title="[bold]Most Common Failure Patterns[/bold]", border_style="cyan")
+        table.add_column("Signature", justify="left")
+        table.add_column("Tools", justify="left")
+        table.add_column("Count", justify="right")
+        table.add_column("Status", justify="center")
+        
+        for f in fails:
+            status_str = f"[green]resolved[/green]" if f["status"] == "resolved" else f"[yellow]active[/yellow]"
+            try:
+                tools = ", ".join(json.loads(f["tool_names"]))
+            except Exception:
+                tools = str(f["tool_names"])
+            table.add_row(f["traceback_signature"][:8], tools, str(f["occurrence_count"]), status_str)
+            
+        console.print(table)
+        return
+        
+    # 2. Fixes
+    if args.fixes:
+        fixes = most_successful_fixes()
+        table = Table(title="[bold]Most Successful Fixes[/bold]", border_style="cyan")
+        table.add_column("Tool", justify="left")
+        table.add_column("Fix Summary", justify="left")
+        table.add_column("Fitness Delta", justify="right")
+        table.add_column("Memory Score", justify="right")
+        
+        for f in fixes:
+            f_delta = f['fitness_delta'] if f['fitness_delta'] is not None else 0.0
+            m_score = f['memory_score'] if f['memory_score'] is not None else 0.0
+            table.add_row(f["tool_name"], f["fix_summary"][:50], f"{f_delta:.4f}", f"{m_score:.4f}")
+            
+        console.print(table)
+        return
+        
+    # 3. Worst Tool
+    if args.worst_tool:
+        wt = worst_tool()
+        if not wt:
+            console.print("[dim]No memory data available to calculate worst tool.[/dim]")
+            return
+            
+        console.print(
+            Panel(
+                f"[bold red]Tool:[/] {wt['tool_name']}\n"
+                f"[bold]Pain Score:[/] {wt['pain_score']:.2f}\n\n"
+                f"[dim]Breakdown:[/dim]\n"
+                f"  Failure Count: {wt['failure_count']}\n"
+                f"  Avg Fix Reliability: {wt['avg_fix_reliability']:.2f}",
+                title="[bold]Worst Tool Analytics[/bold]",
+                border_style="red",
+            )
+        )
+        return
+        
+    # 4. Reliability
+    if args.reliability:
+        rel = fix_reliability_report()
+        table = Table(title="[bold]Fix Reliability Report[/bold]", border_style="cyan")
+        table.add_column("Tool", justify="left")
+        table.add_column("Fix Summary", justify="left")
+        table.add_column("Survival %", justify="right")
+        table.add_column("Reuses", justify="right")
+        
+        for r in rel:
+            survival_str = f"[green]{r['survival_percentage']:.1f}%[/green]" if r['survival_percentage'] > 80 else f"[yellow]{r['survival_percentage']:.1f}%[/yellow]"
+            table.add_row(r["tool_name"], r["fix_summary"][:50], survival_str, f"{r['reuse_success_count']}/{r['reuse_count']}")
+            
+        console.print(table)
+        return
+
+    # 5. Default Summary
+    console.print(Panel("[bold cyan]ARIA Memory Dashboard[/bold cyan]\nUse --failures, --fixes, --worst-tool, or --reliability for details."))
+    wt = worst_tool()
+    if wt:
+        console.print(f"[bold red]System Bottleneck:[/] {wt['tool_name']} (Pain Score: {wt['pain_score']:.2f})")
+    console.print("")
+    
+    fails = most_common_failures(limit=3)
+    if fails:
+        table = Table(title="[bold]Top Active Failures[/bold]", border_style="yellow")
+        table.add_column("Signature")
+        table.add_column("Tools")
+        table.add_column("Count")
+        for f in fails:
+            if f["status"] == "active":
+                try:
+                    tools = ", ".join(json.loads(f["tool_names"]))
+                except Exception:
+                    tools = str(f["tool_names"])
+                table.add_row(f["traceback_signature"][:8], tools, str(f["occurrence_count"]))
+        console.print(table)
+
 # ── Argument parser ───────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
@@ -644,6 +755,13 @@ def build_parser() -> argparse.ArgumentParser:
     # review
     sub.add_parser("review", help="Review and approve pending deployments")
 
+    # memory
+    memory_p = sub.add_parser("memory", help="Show Memory Dashboard")
+    memory_p.add_argument("--failures", action="store_true", help="Show most common failure patterns")
+    memory_p.add_argument("--fixes", action="store_true", help="Show most successful fixes")
+    memory_p.add_argument("--worst-tool", action="store_true", help="Show the worst performing tool based on pain score")
+    memory_p.add_argument("--reliability", action="store_true", help="Show fix reliability report")
+
     return parser
 
 
@@ -666,11 +784,29 @@ def main() -> None:
         "history": cmd_history,
         "traces": cmd_traces,
         "review": cmd_review,
+        "memory": cmd_memory,
     }
 
     handler = dispatch.get(args.command)
     if handler:
-        handler(args)
+        from rich.console import Console
+        console = Console()
+        try:
+            handler(args)
+            console.print("\n[bold green]No error detected, Aria is fine.[/bold green]")
+        except SystemExit as e:
+            if e.code == 0 or e.code is None:
+                console.print("\n[bold green]No error detected, Aria is fine.[/bold green]")
+            else:
+                console.print(f"\n[bold red]error detected: Exited with code {e.code}[/bold red]")
+            sys.exit(e.code)
+        except Exception as e:
+            console.print(f"\n[bold red]error detected: {e}[/bold red]")
+            sys.exit(1)
+        except KeyboardInterrupt:
+            # Handle Ctrl+C as an intentional user abort, not a system error
+            console.print("\n[dim]Process interrupted by user.[/dim]")
+            sys.exit(0)
     else:
         parser.print_help()
         sys.exit(1)

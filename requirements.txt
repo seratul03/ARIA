@@ -19,6 +19,9 @@ httpx>=0.27.0
 # HTML parsing (search tool fallback)
 beautifulsoup4>=4.12.3
 
+# Fuzzy matching for retrieval
+rapidfuzz>=3.0.0
+
 # Docker SDK
 docker>=7.1.0
 

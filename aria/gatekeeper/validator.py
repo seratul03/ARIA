@@ -38,6 +38,12 @@ FORBIDDEN_BUILTINS: set[str] = {
 
 MAX_LINES = 300
 
+PROTECTED_PATHS = [
+    "aria/memory/schema.py",
+    "aria/memory/migrations/",
+    "aria/memory/store.py",   # write path must stay append-only
+]
+
 
 # ── Result types ──────────────────────────────────────────────────────────────
 

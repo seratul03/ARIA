@@ -203,6 +203,8 @@ for tc in test_cases:
             "passed": False,
             "latency": latency,
             "error": str(e),
+            "error_type": type(e).__name__,
+            "stack_trace": traceback.format_exc(),
             "memory_mb": 0.0,
             "tokens_used": 0,
         })
@@ -446,6 +448,22 @@ class DockerSandbox:
                 emit_trace("gatekeeper", "test_result", {"tool": tool_name, "test_name": tc_name, "passed": tc_passed, "error": tc_error})
             except ImportError:
                 pass
+
+            if not tc_passed and tc_error:
+                try:
+                    from aria.memory.store import record_failure
+                    source = "sandbox_baseline" if raw_results_only else "sandbox_candidate"
+                    tc_error_type = r.get("error_type", "SandboxTestError")
+                    tc_stack_trace = r.get("stack_trace", tc_error)
+                    record_failure(
+                        tool_name=tool_name,
+                        source=source,
+                        error_type=tc_error_type,
+                        error_message=tc_error,
+                        stack_trace=tc_stack_trace,
+                    )
+                except Exception:
+                    pass
 
         total = len(results)
         latencies = [r["latency"] for r in results if "latency" in r]

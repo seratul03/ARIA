@@ -454,7 +454,7 @@ class ARIADashboard(App):
 
     def action_toggle_history(self) -> None:
         """H — show improvement history in the log panel."""
-        from aria.metrics.db import get_improvement_history
+        from aria.memory.store import get_improvement_history
         from datetime import datetime
 
         history = get_improvement_history(limit=20)
@@ -467,7 +467,7 @@ class ARIADashboard(App):
 
         for entry in history:
             ts = datetime.fromtimestamp(entry["timestamp"]).strftime("%Y-%m-%d %H:%M")
-            status = entry["status"]
+            status = entry["result"]
             color = "green" if status == "deployed" else "red" if status == "rejected" else "yellow"
             log.write(
                 f"[dim]{ts}[/dim] [{color}]{status.upper()}[/{color}] "

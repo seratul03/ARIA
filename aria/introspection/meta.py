@@ -45,11 +45,19 @@ Return structured JSON exactly matching this schema:
       "recent_failure_patterns": []
     }}
   }},
+  "memory_summary": {{
+    "active_patterns": 0,
+    "resolved_patterns": 0,
+    "top_recurring": []
+  }},
   "system_wide_patterns": ["list of strings"]
 }}
 
 Only include components where you have identified actual weaknesses or patterns.
 Output ONLY valid JSON.
+
+Memory Summary (Current DB State):
+{memory_summary_json}
 
 Traces:
 {traces_json}
@@ -82,6 +90,44 @@ Output ONLY valid JSON.
 def run_meta_introspection(n_cycles: int) -> None:
     """Run meta-introspection over the last N cycles and update the self-model."""
     
+    # 0. Compress Memory
+    try:
+        from aria.memory.compression import compress_failure_history
+        from aria.metrics.db import get_connection
+        
+        compress_failure_history()
+        
+        # Build memory summary
+        with get_connection() as conn:
+            active_patterns = conn.execute("SELECT COUNT(*) as c FROM failure_patterns WHERE status = 'active'").fetchone()["c"]
+            resolved_patterns = conn.execute("SELECT COUNT(*) as c FROM failure_patterns WHERE status = 'resolved'").fetchone()["c"]
+            top_recurring_rows = conn.execute("SELECT traceback_signature, tool_names, occurrence_count, status FROM failure_patterns WHERE status = 'active' ORDER BY occurrence_count DESC LIMIT 5").fetchall()
+            
+            top_recurring = []
+            for r in top_recurring_rows:
+                # Get the first tool name for simplicity or parse json
+                try:
+                    tools = json.loads(r["tool_names"])
+                    tool_str = tools[0] if tools else "unknown"
+                except Exception:
+                    tool_str = r["tool_names"]
+                    
+                top_recurring.append({
+                    "signature": r["traceback_signature"][:8],
+                    "tool": tool_str,
+                    "count": r["occurrence_count"],
+                    "status": r["status"]
+                })
+                
+        memory_summary = {
+            "active_patterns": active_patterns,
+            "resolved_patterns": resolved_patterns,
+            "top_recurring": top_recurring
+        }
+    except Exception as e:
+        logger.error(f"[MetaIntrospection] Failed to compress memory: {e}")
+        memory_summary = {}
+        
     # 1. Gather traces and update self-model
     try:
         traces = query_cycle_traces(limit=n_cycles)
@@ -98,8 +144,11 @@ def run_meta_introspection(n_cycles: int) -> None:
                 "candidates_rejected": t.get("candidates_rejected"),
             })
 
-        traces_json = json.dumps(simplified_traces, indent=2)
-        prompt = META_PROMPT.format(n=n_cycles, traces_json=traces_json)
+        prompt = META_PROMPT.format(
+            n=n_cycles, 
+            traces_json=json.dumps(simplified_traces, indent=2),
+            memory_summary_json=json.dumps(memory_summary, indent=2)
+        )
 
         groq_limiter.acquire()
         
@@ -142,6 +191,10 @@ def run_meta_introspection(n_cycles: int) -> None:
         for p in parsed.get("system_wide_patterns", []):
             self_model.add_system_pattern(p)
             
+        if memory_summary:
+            self_model.introspection_data["memory_summary"] = memory_summary
+            
+        self_model.save()
         logger.info("[MetaIntrospection] Self-model updated successfully.")
     
     except Exception as exc:
@@ -353,8 +406,20 @@ sys.exit(1)
                 if commit_hash:
                     git_manager.tag_commit(f"post_meta_deployment_{int(time.time())}", commit_hash)
                 
+                from aria.memory.store import record_improvement
+                record_improvement(
+                    improvement_type='meta',
+                    component_name=target_file,
+                    problem_description=reasoning,
+                    fix_summary=commit_msg,
+                    result='deployed',
+                    git_commit_hash=commit_hash,
+                    baseline_fitness=baseline_score,
+                    candidate_fitness=clone_score,
+                )
+                
                 logger.info("[MetaImprovement] Deployment successful!")
-                from aria.metrics.db import update_review_status
+                from aria.metrics.db import update_review_status, get_pending_reviews
                 # Auto approve the review
                 reviews = get_pending_reviews()
                 for r in reviews:
@@ -368,6 +433,18 @@ sys.exit(1)
     except Exception as exc:
         logger.error(f"[MetaImprovement] Failed during clone lifecycle: {exc}")
         clone_manager.active_clones[clone_id]["status"] = "failed"
+        try:
+            from aria.memory.store import record_failure
+            import traceback
+            record_failure(
+                tool_name="meta",
+                source="meta_clone",
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+                stack_trace=traceback.format_exc(),
+            )
+        except Exception:
+            pass
     finally:
         # 7. Clone container destroyed
         clone_manager.destroy_clone(clone_id, keep_on_failure=settings.clone_keep_on_failure)

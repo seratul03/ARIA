@@ -68,14 +68,48 @@ def build_improvement_prompt(report: WeaknessReport) -> str:
     else:
         failures_text = "  (no failure records available)"
 
+    # Measured Token Overhead (Phase 1 Memory Sections):
+    # - similar_failures_text: ~150-200 tokens max (up to 5 items, ~150 chars each)
+    # - history_text (fixes): ~200-250 tokens max (up to 10 items, ~80 chars each)
+    # Total phase 1 memory budget: ~450 tokens.
+    
+    similar_failures_text = ""
+    if getattr(report, "similar_failures", None):
+        similar_failures_text = "SIMILAR PAST FAILURES (most recent first):\n"
+        for i, f in enumerate(report.similar_failures, 1):
+            err_msg = f.get("error_message", "")
+            if len(err_msg) > 120:
+                err_msg = err_msg[:117] + "..."
+            
+            ts = f.get("timestamp", "")
+            ts_str = str(ts)[:10] if ts else "Unknown"
+            source = f.get("source", "Unknown")
+            err_type = f.get("error_type", "Error")
+            sig = f.get("traceback_signature", "unknown")
+            
+            similar_failures_text += f"{i}. [{ts_str}, {source}] {err_type} — signature {sig}\n   \"{err_msg}\"\n"
+        similar_failures_text += "\n"
+
     reasons_text = "\n".join(f"  - {r}" for r in report.reasons)
     
-    rejected_history_text = ""
-    if report.recent_improvement_failures:
-        rejected_history_text = "\nPAST IMPROVEMENT ATTEMPTS THAT FAILED:\n" + "\n".join(
-            f"  - Rejected Reason: {f.get('reason', 'N/A')}"
-            for f in report.recent_improvement_failures[:3]
-        ) + "\nWARNING: Do NOT repeat these mistakes!\n"
+    history_text = ""
+    if getattr(report, "successful_fixes", None):
+        history_text += "PREVIOUSLY SUCCESSFUL FIXES FOR THIS PATTERN:\n"
+        for i, fix in enumerate(report.successful_fixes, 1):
+            fit_delta = fix.get("fitness_delta", 0.0)
+            summary = fix.get("fix_summary", "").replace("\n", " ").strip()
+            history_text += f"{i}. [fitness +{fit_delta:.2f}] \"{summary}\"\n"
+        history_text += "\n"
+
+    if getattr(report, "failed_fixes", None):
+        history_text += "APPROACHES ALREADY TRIED AND REJECTED/ROLLED BACK — DO NOT REPEAT:\n"
+        for i, fix in enumerate(report.failed_fixes, 1):
+            res = fix.get("result", "rejected")
+            summary = fix.get("fix_summary", "").replace("\n", " ").strip()
+            reason = fix.get("reason", "").replace("\n", " ").strip()
+            suffix = f" — {reason}" if reason else ""
+            history_text += f"{i}. [{res}] \"{summary}\"{suffix}\n"
+        history_text += "\n"
 
     # Incorporate Self-Model patterns
     model_data = self_model.get_model()
@@ -106,9 +140,9 @@ Failures:         {report.failure_count}
 DETECTED WEAKNESSES:
 {reasons_text}
 
-RECENT FAILURE SAMPLES:
+{similar_failures_text}{history_text}RECENT FAILURE SAMPLES:
 {failures_text}
-{rejected_history_text}
+
 CURRENT SOURCE CODE (improve this):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {report.source_code}

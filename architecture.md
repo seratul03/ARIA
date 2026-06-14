@@ -161,6 +161,40 @@ Tools carry their own self-validating `test_cases()`. This forces the LLM to wri
 
 ---
 
-## 6. Summary
+---
 
-ARIA represents a paradigm shift in agent design. By treating the agent framework itself as a fluid, optimizable construct, and surrounding that mutability with extreme, mathematically grounded safety constraints (Gatekeeper, Docker Sandboxing, Git Rollbacks), ARIA achieves safe, persistent, autonomous self-evolution.
+## 6. The Memory Subsystem (Long-Term Retention & Analytics)
+
+ARIA possesses a highly sophisticated memory architecture (`aria/memory`) designed to retain knowledge across agent restarts and thousands of improvement cycles. Instead of starting from scratch every run, ARIA recalls past mistakes and proven fixes to accelerate learning.
+
+### 6.1 Failure History & Improvement Tracking
+- **`failure_history`**: Every time a tool fails, ARIA logs the traceback, error message, and context.
+- **`improvement_history`**: Logs every generated fix, whether it succeeded or failed, and its "Fitness Delta".
+
+### 6.2 Intelligent Retrieval (Semantic & Execution Context)
+When an improvement cycle begins, ARIA queries its memory using:
+1. **Traceback Signatures**: Exact matches to identical stack traces.
+2. **Semantic Similarity**: Fuzzy matching of error messages using rapid NLP techniques.
+3. **Cross-Pollination**: If `weather_tool` fails with a `KeyError`, ARIA can recall a successful fix for a `KeyError` in `calculator_tool` and apply the same logic.
+
+### 6.3 Memory Compression & Clustering
+To prevent the database from growing unbounded with duplicate errors:
+- **`failure_patterns`**: A background compression engine (`compression.py`) continually scans the database, clustering identical failure signatures into unified "patterns".
+- **Temporal Regression Detection**: If ARIA deploys a fix for a pattern, it is marked as `resolved`. If the exact error occurs again *after* the deployment timestamp, ARIA detects the regression and automatically degrades the pattern back to `active`.
+
+### 6.4 Memory Ranking
+Not all memories are equally valuable. ARIA dynamically ranks historical context using a weighted scoring algorithm (`memory_score`):
+- **Reliability (40%)**: How many subsequent improvement cycles successfully reused this fix?
+- **Frequency (30%)**: How often does this error actually happen in production? (Logarithmic scaling).
+- **Recency (30%)**: Is this memory from yesterday, or three months ago? (Exponential decay half-life).
+
+### 6.5 Memory Dashboard & Analytics
+The CLI and TUI provide real-time analytics into ARIA's brain:
+- **Pain Score**: ARIA mathematically computes the "worst tool" in the system by multiplying its failure count by an unreliability penalty (tools whose fixes don't survive get penalized).
+- **Commands**: Accessible via `python -m aria memory`, including `--failures`, `--fixes`, `--worst-tool`, and `--reliability`.
+
+---
+
+## 7. Summary
+
+ARIA represents a paradigm shift in agent design. By treating the agent framework itself as a fluid, optimizable construct, and surrounding that mutability with extreme, mathematically grounded safety constraints (Gatekeeper, Docker Sandboxing, Git Rollbacks, and Long-Term Memory Compression), ARIA achieves safe, persistent, autonomous self-evolution.

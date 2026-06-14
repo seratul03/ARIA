@@ -2,7 +2,22 @@ import json
 
 class SelfModel:
     def __init__(self):
+        from aria.config import settings
+        import os
+        self.path = settings.self_model_path
         self.introspection_data = {}
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, 'r') as f:
+                    self.introspection_data = json.load(f)
+            except Exception:
+                pass
+
+    def save(self):
+        import datetime
+        self.introspection_data["last_updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with open(self.path, 'w') as f:
+            json.dump(self.introspection_data, f, indent=2)
 
     def add_introspection_data(self, key, value):
         self.introspection_data[key] = value

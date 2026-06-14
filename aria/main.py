@@ -58,9 +58,11 @@ def _init_database() -> None:
     """Initialize SQLite database schema."""
     from aria.config import settings
     from aria.metrics.db import init_db
+    from aria.memory.schema import run_migrations
 
     db_path = settings.db_path
     init_db(db_path)
+    run_migrations(db_path)
     logger.info(f"[Bootstrap] Database ready: {db_path}")
 
 
