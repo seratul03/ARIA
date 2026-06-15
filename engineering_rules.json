@@ -1,21 +1,36 @@
 {
-  "version": 9,
-  "generated_at": "2026-06-15T12:50:45.162682+00:00",
+  "version": 10,
+  "generated_at": "2026-06-15T12:50:45.263619+00:00",
   "rules": [
+    {
+      "id": 2,
+      "initial_confidence": 0.8,
+      "confidence": 0.4,
+      "success_count": 0,
+      "applications_count": 5,
+      "status": "active",
+      "deprecation_reason": null,
+      "category": "Logic",
+      "rule_text": "Proactive rule generated completely",
+      "scope": null,
+      "source_type": "architectural_pattern",
+      "source_id": 1,
+      "superseded_by": null
+    },
     {
       "id": 1,
       "initial_confidence": 0.25,
       "confidence": 0.25,
       "success_count": 0,
       "applications_count": 0,
-      "status": "candidate",
+      "status": "merged",
       "deprecation_reason": null,
       "category": "Logic",
       "rule_text": "Proactive rule generated",
       "scope": "Anytime",
       "source_type": "architectural_pattern",
       "source_id": 1,
-      "superseded_by": null
+      "superseded_by": 2
     }
   ]
 }
