@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS review_queue (
     timestamp           REAL    NOT NULL,
     combat_report       TEXT    NOT NULL,
     generated_code      TEXT    NOT NULL,
-    status              TEXT    DEFAULT 'pending'
+    status              TEXT    DEFAULT 'pending',
+    cycle_id            TEXT
 );
 
 
@@ -169,15 +170,16 @@ def insert_review_queue(
     combat_report: str,
     generated_code: str,
     status: str = "pending",
+    cycle_id: str | None = None,
 ) -> int:
     with get_connection() as conn:
         cursor = conn.execute(
             """
             INSERT INTO review_queue
-                (session_id, tool_name, timestamp, combat_report, generated_code, status)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (session_id, tool_name, timestamp, combat_report, generated_code, status, cycle_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (session_id, tool_name, timestamp, combat_report, generated_code, status),
+            (session_id, tool_name, timestamp, combat_report, generated_code, status, cycle_id),
         )
         return cursor.lastrowid
 

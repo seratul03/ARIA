@@ -435,7 +435,7 @@ class AgentCore:
             from aria.improvement.engine import ImprovementEngine
     
             imp_engine = ImprovementEngine()
-            improvement = imp_engine.generate_improvement(report)
+            improvement = imp_engine.generate_improvement(report, trace.cycle_id)
     
             trace.record_llm_usage(prompt_tokens=0, response_tokens=improvement.tokens_used)
     
@@ -667,11 +667,14 @@ class AgentCore:
                 if is_safety_violation:
                     self_model.add_failure_pattern("improvement_engine", "AST Static Validation Failure")
                     
-                self._record_rejection(
+                imp_id = self._record_rejection(
                     tool_name=report.tool_name,
                     reason=reason,
                     old_success_rate=report.success_rate,
                 )
+                from aria.knowledge.applications import resolve_rule_applications
+                resolve_rule_applications(improvement.pending_rule_app_ids, imp_id, "failure", str(settings.db_path))
+                
                 trace.record_candidate_rejected("candidate_1", reason)
                 trace.finalize("NO_IMPROVEMENT")
                 trace.save()
@@ -691,7 +694,8 @@ class AgentCore:
                     timestamp=time.time(),
                     combat_report=json.dumps(combat_report),
                     generated_code=improvement.generated_code,
-                    status="pending"
+                    status="pending",
+                    cycle_id=trace.cycle_id,
                 )
                 
                 if settings.require_human_review:
@@ -710,14 +714,17 @@ class AgentCore:
                     update_review_status(queue_id, "auto_approved")
     
             # ── Step 6: Deploy ─────────────────────────────────────────────────────
-            deployed = self._deploy(
+            deployed_imp_id = self._deploy(
                 tool_name=report.tool_name,
                 new_source=improvement.generated_code,
                 report=report,
                 sandbox_result=sandbox_result,
             )
+            deployed = deployed_imp_id is not None
     
             if deployed:
+                from aria.knowledge.applications import resolve_rule_applications
+                resolve_rule_applications(improvement.pending_rule_app_ids, deployed_imp_id, "success", str(settings.db_path))
                 self_model.record_cycle("improvement_engine", success=True)
                 trace.record_candidate_deployed()
                 trace.finalize("DEPLOYED")
@@ -766,8 +773,8 @@ class AgentCore:
                     "Meta-Introspection pass complete. self_model.json updated."
                 )
 
-    def _deploy(self, tool_name: str, new_source: str, report, sandbox_result) -> bool:
-        """Write new source to the tool file and commit to Git."""
+    def _deploy(self, tool_name: str, new_source: str, report, sandbox_result) -> int | None:
+        """Write new source to the tool file and commit to Git. Returns improvement_id or None."""
         from aria.versioning.git_manager import git_manager
         import time
 
@@ -797,7 +804,7 @@ class AgentCore:
                     registry.reload_tool(tool_name)
                 except Exception:
                     pass
-                return False
+                return None
 
             # 4. Git commit
             commit_msg = (
@@ -835,7 +842,7 @@ class AgentCore:
                 {"tool": tool_name, "commit": commit_hash},
             )
             log_audit_event("DEPLOYMENT", {"tool": tool_name, "commit": commit_hash})
-            return True
+            return improvement_id
 
         except Exception as exc:
             logger.error(f"[Agent] Deploy failed: {exc}")
@@ -844,7 +851,7 @@ class AgentCore:
                 registry.reload_tool(tool_name)
             except Exception:
                 pass
-            return False
+            return None
 
     def _rollback(self, tool_name: str) -> None:
         """Roll back a tool to its last known good version."""
@@ -872,11 +879,11 @@ class AgentCore:
         tool_name: str,
         reason: str,
         old_success_rate: float | None = None,
-    ) -> None:
+    ) -> int:
         """Record a rejection in the improvement history."""
         from aria.memory.store import record_improvement
 
-        record_improvement(
+        imp_id = record_improvement(
             improvement_type='tool',
             tool_name=tool_name,
             result="rejected",
@@ -890,6 +897,7 @@ class AgentCore:
             {"tool": tool_name, "reason": reason},
         )
         log_audit_event("REJECTION", {"tool": tool_name, "reason": reason})
+        return imp_id
 
     # ── Status ─────────────────────────────────────────────────────────────────
 

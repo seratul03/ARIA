@@ -222,6 +222,29 @@ ARIA synthesizes all layers of the root cause module—from basic category break
 
 ---
 
-## 8. Summary
+## 8. The Knowledge Subsystem (Phase 3)
 
-ARIA represents a paradigm shift in agent design. By treating the agent framework itself as a fluid, optimizable construct, and surrounding that mutability with extreme, mathematically grounded safety constraints (Gatekeeper, Docker Sandboxing, Git Rollbacks, and Long-Term Memory Compression), ARIA achieves safe, persistent, autonomous self-evolution.
+ARIA's Knowledge Subsystem (`aria/knowledge`) elevates isolated fixes into generalized, system-wide engineering principles. It allows ARIA to formulate its own programming constitution dynamically over time based on actual deployment outcomes.
+
+### 8.1 Extraction & Confidence Scoring
+- **Rule Extraction**: Analyzes durable fixes from the `improvement_history` to deduce underlying principles (e.g., "Always use parameter bindings instead of string formatting for SQL").
+- **Initial Confidence**: Extracted rules are initialized with a mathematically bounded confidence score reflecting the density of evidence.
+- **Dynamic Confidence Updates**: As a rule is injected into subsequent LLM prompts, ARIA tracks if the resulting improvements succeed or fail. The rule's confidence is dynamically updated based on these real-world outcomes.
+
+### 8.2 Consolidation Mechanics
+As ARIA extracts knowledge independently across hundreds of cycles, redundancies are managed autonomously:
+- **Pruning**: Candidate rules that fail repeatedly or remain stagnant without successful applications are pruned (marked as `deprecated`).
+- **Semantic Merging**: A background process scans for duplicated concepts using TF-IDF and fuzzy string matching. Equivalent rules are clustered into disjoint sets (Union-Find) and collapsed into a single, highly confident "winner".
+- **Rule Refinement**: Rules that exhibit mixed outcomes (e.g., ~50% success rate) are not discarded. Instead, an LLM analyzes the differing contexts and refines the rule by narrowing its scope (e.g., from "Cache all queries" to "Cache only idempotent queries").
+
+### 8.3 Proactive Knowledge Generation
+Instead of strictly waiting for a bug to be patched before forming a rule, ARIA analyzes overarching architectural patterns extracted during Phase 2. If a systemic flaw is identified across the platform, ARIA proactively generates preemptive rules to stop the pattern from appearing in future tools.
+
+### 8.4 Integration with the Improvement Engine
+The `active` rules are serialized deterministically to `engineering_rules.json` (and committed to Git) and are injected directly into the system prompts of the Improvement Engine (`prompts.py`). This guarantees that ARIA adheres to its hard-earned principles whenever generating new tool implementations.
+
+---
+
+## 9. Summary
+
+ARIA represents a paradigm shift in agent design. By treating the agent framework itself as a fluid, optimizable construct, and surrounding that mutability with extreme, mathematically grounded safety constraints (Gatekeeper, Docker Sandboxing, Git Rollbacks, Long-Term Memory Compression, and the Knowledge Subsystem), ARIA achieves safe, persistent, autonomous self-evolution.

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aria.config import settings
 from aria.core.rate_limiter import groq_limiter
@@ -39,6 +39,7 @@ class ImprovementResult:
     error: str | None = None
     tokens_used: int = 0
     elapsed_seconds: float = 0.0
+    pending_rule_app_ids: list[int] = field(default_factory=list)
 
 
 import textwrap
@@ -81,7 +82,7 @@ class ImprovementEngine:
     Calls Groq LLM to generate improved tool source code.
     """
 
-    def generate_improvement(self, report: WeaknessReport) -> ImprovementResult:
+    def generate_improvement(self, report: WeaknessReport, cycle_id: str | None = None) -> ImprovementResult:
         """
         Generate an improved version of the tool described in `report`.
 
@@ -103,7 +104,11 @@ class ImprovementEngine:
                 error="Groq package not installed. Run: pip install groq",
             )
 
-        user_prompt = build_improvement_prompt(report)
+        user_prompt, rule_ids = build_improvement_prompt(report)
+        
+        from aria.knowledge.applications import log_rule_applications
+        pending_rule_app_ids = log_rule_applications(rule_ids, cycle_id, str(settings.db_path))
+        
         try:
             from aria.core.tracer import emit_trace
             emit_trace("improvement", "prompt_constructed", {"tool": report.tool_name, "prompt_length": len(user_prompt)})
@@ -153,6 +158,7 @@ class ImprovementEngine:
                     ),
                     tokens_used=tokens_used,
                     elapsed_seconds=elapsed,
+                    pending_rule_app_ids=pending_rule_app_ids,
                 )
 
             try:
@@ -167,6 +173,7 @@ class ImprovementEngine:
                 success=True,
                 tokens_used=tokens_used,
                 elapsed_seconds=elapsed,
+                pending_rule_app_ids=pending_rule_app_ids,
             )
 
         except Exception as exc:

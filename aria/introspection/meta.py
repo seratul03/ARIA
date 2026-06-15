@@ -114,7 +114,20 @@ def run_meta_introspection(n_cycles: int) -> None:
         pattern_summary = extract_architectural_patterns(str(settings.db_path))
         
         from aria.knowledge.extraction import extract_rules_from_durable_fixes
-        knowledge_summary = extract_rules_from_durable_fixes(str(settings.db_path), settings.max_knowledge_llm_calls_per_cycle)
+        knowledge_summary_durable = extract_rules_from_durable_fixes(str(settings.db_path), max_llm_calls=3)
+        
+        from aria.knowledge.generation import generate_proactive_rules
+        knowledge_summary_proactive = generate_proactive_rules(str(settings.db_path), max_llm_calls=2)
+        
+        from aria.knowledge.pruning import prune_rules
+        pruning_summary = prune_rules(str(settings.db_path))
+        
+        from aria.knowledge.merging import merge_duplicate_rules
+        merging_summary = merge_duplicate_rules(str(settings.db_path))
+        
+        from aria.knowledge.refinement import apply_refinements, evaluate_refinement_effectiveness
+        refinement_summary = apply_refinements(str(settings.db_path), max_llm_calls=3)
+        effectiveness_summary = evaluate_refinement_effectiveness(str(settings.db_path))
         
         # Build memory summary
         with get_connection() as conn:
@@ -149,9 +162,49 @@ def run_meta_introspection(n_cycles: int) -> None:
             "root_cause_summary": root_cause_summary,
             "clustering_summary": clustering_summary,
             "extraction_summary": pattern_summary,
-            "knowledge_summary": knowledge_summary,
+            "knowledge_summary": knowledge_summary_durable,
             "root_cause_report": root_cause_report
         }
+        
+        # Build engineering knowledge summary
+        with get_connection() as conn:
+            active_rules = conn.execute("SELECT COUNT(*) as c FROM engineering_rules WHERE status = 'active'").fetchone()["c"]
+            candidate_rules = conn.execute("SELECT COUNT(*) as c FROM engineering_rules WHERE status = 'candidate'").fetchone()["c"]
+            deprecated_rules = conn.execute("SELECT COUNT(*) as c FROM engineering_rules WHERE status = 'deprecated'").fetchone()["c"]
+            
+            top_active_rules = []
+            for r in conn.execute("SELECT id, category, rule_text, scope, confidence FROM engineering_rules WHERE status = 'active' ORDER BY confidence DESC LIMIT 5").fetchall():
+                top_active_rules.append(dict(r))
+                
+            chains = []
+            endpoints = conn.execute("SELECT id, source_id, status FROM engineering_rules WHERE source_type = 'refinement' AND status != 'superseded'").fetchall()
+            for ep in endpoints:
+                curr_id = ep["id"]
+                root_id = ep["source_id"]
+                length = 2
+                while True:
+                    parent = conn.execute("SELECT source_type, source_id FROM engineering_rules WHERE id = ?", (root_id,)).fetchone()
+                    if parent and parent["source_type"] == "refinement":
+                        root_id = parent["source_id"]
+                        length += 1
+                    else:
+                        break
+                chains.append({
+                    "root_rule_id": root_id,
+                    "current_rule_id": curr_id,
+                    "chain_length": length,
+                    "status": ep["status"]
+                })
+                
+            engineering_knowledge_summary = {
+                "active_rules": active_rules,
+                "candidate_rules": candidate_rules,
+                "deprecated_rules": deprecated_rules,
+                "refinement_chains": chains,
+                "top_active_rules": top_active_rules
+            }
+            
+            self_model.introspection_data["engineering_knowledge_summary"] = engineering_knowledge_summary
         
         # Build architectural patterns for payload
         with get_connection() as conn:

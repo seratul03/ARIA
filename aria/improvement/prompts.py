@@ -53,9 +53,12 @@ The first line of your response must be a Python comment or import statement.
 """
 
 
-def build_improvement_prompt(report: WeaknessReport) -> str:
+from aria.config import settings
+
+def build_improvement_prompt(report: WeaknessReport) -> tuple[str, list[int]]:
     """
     Build the user-turn prompt for the improvement request.
+    Returns (prompt_string, pending_rule_ids)
     """
     # Format recent failures as readable JSON
     failures_text = ""
@@ -128,14 +131,28 @@ def build_improvement_prompt(report: WeaknessReport) -> str:
         self_model_text += "\n"
         
     directive_text = ""
+    category = None
     if getattr(report, "hypothesis", None):
         hyp = report.hypothesis
+        category = hyp.get("category")
         directive_text = (
             "## DIRECTIVE (from Root Cause Analysis)\n"
             f"Root cause: {hyp.get('root_cause_summary')}\n"
             f"Proposed fix: {hyp.get('proposed_fix_summary')}\n"
             f"Target this tool specifically: {report.tool_name}\n\n"
         )
+        
+    from aria.knowledge.applications import select_rules_for_prompt
+    rules = select_rules_for_prompt(category, str(settings.db_path))
+    
+    rules_text = ""
+    rule_ids = []
+    if rules:
+        rules_text = "## Engineering Principles (apply where relevant)\n"
+        for i, rule in enumerate(rules, 1):
+            rules_text += f"{i}. [confidence {rule['confidence']:.2f}, {rule['category']}] {rule['rule_text']}\n"
+            rule_ids.append(rule['id'])
+        rules_text += "\n"
 
     prompt = f"""{self_model_text}IMPROVEMENT REQUEST
 ═══════════════════
@@ -159,11 +176,11 @@ CURRENT SOURCE CODE (improve this):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INSTRUCTIONS:
-{directive_text}- Analyze the weaknesses above.
+{directive_text}{rules_text}- Analyze the weaknesses above.
 - Identify the root cause of failures, high latency, or high resource usage.
 - Write an improved version of this tool that addresses those weaknesses to maximize the Fitness Score.
 - Make the code more robust, efficient, and cost-effective.
 - Do NOT change the tool's name or its input/output contract.
 - Return ONLY the improved Python source code. No markdown, no explanation.
 """
-    return prompt
+    return prompt, rule_ids

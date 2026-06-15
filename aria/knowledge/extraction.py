@@ -18,84 +18,123 @@ from aria.knowledge.confidence import initial_confidence
 
 logger = logging.getLogger(__name__)
 
-def find_unconverted_durable_sources(db_path: str) -> List[Dict[str, Any]]:
+def find_unconverted_sources(db_path: str, status_filter: str, min_evidence: int = 6) -> List[Dict[str, Any]]:
     """
-    Returns sources from Phase 2 that:
-      - are durable (architectural_patterns WHERE status='resolved' OR
-        hypotheses WHERE status='implemented' AND durable=True)
-      - have no existing engineering_rules row with this (source_type, source_id).
+    Returns sources from Phase 2 that have no existing engineering_rules row.
+    If status_filter == 'resolved', finds durable fixes (Day 16).
+    If status_filter == 'active', finds unresolved patterns with high evidence (Day 21).
     """
     sources = []
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         
-        # 1. Architectural patterns
-        arch_query = """
-            SELECT id as source_id, 
-                   pattern_name as root_cause_summary, 
-                   affected_tools as target_tools,
-                   'architectural_pattern' as source_type,
-                   'Logic' as category
-            FROM architectural_patterns
-            WHERE status = 'resolved'
-            AND NOT EXISTS (
-                SELECT 1 FROM engineering_rules 
-                WHERE source_type = 'architectural_pattern' AND source_id = architectural_patterns.id
-            )
-            ORDER BY id ASC
-        """
-        try:
-            arch_rows = conn.execute(arch_query).fetchall()
-            for r in arch_rows:
-                sources.append(dict(r))
-        except sqlite3.OperationalError:
-            pass
+        if status_filter == 'resolved':
+            # Day 16: Architectural patterns
+            arch_query = """
+                SELECT id as source_id, 
+                       pattern_name as root_cause_summary, 
+                       affected_tools as target_tools,
+                       'architectural_pattern' as source_type,
+                       'Logic' as category
+                FROM architectural_patterns
+                WHERE status = 'resolved'
+                AND NOT EXISTS (
+                    SELECT 1 FROM engineering_rules 
+                    WHERE source_type = 'architectural_pattern' AND source_id = architectural_patterns.id
+                )
+                ORDER BY id ASC
+            """
+            try:
+                arch_rows = conn.execute(arch_query).fetchall()
+                for r in arch_rows:
+                    sources.append(dict(r))
+            except sqlite3.OperationalError:
+                pass
 
-        # 2. Hypotheses
-        hyp_query = """
-            SELECT h.id as source_id,
-                   h.root_cause_summary,
-                   h.target_tools,
-                   'hypothesis' as source_type,
-                   COALESCE(c.root_cause_category, 'Logic') as category,
-                   h.resolved_improvement_id
-            FROM hypotheses h
-            LEFT JOIN root_cause_clusters c ON h.source_id = c.id AND h.source_type = 'cluster'
-            WHERE h.status = 'implemented'
-            AND NOT EXISTS (
-                SELECT 1 FROM engineering_rules
-                WHERE source_type = 'hypothesis' AND source_id = h.id
-            )
-            ORDER BY h.id ASC
-        """
-        try:
-            hyp_rows = conn.execute(hyp_query).fetchall()
-            for r in hyp_rows:
-                imp_id = r["resolved_improvement_id"]
-                if not imp_id:
-                    continue
-                    
-                imp_row = conn.execute("SELECT tool_name, timestamp, fix_summary FROM improvement_history WHERE id = ?", (imp_id,)).fetchone()
-                if not imp_row:
-                    continue
-                    
-                tool_name = imp_row["tool_name"]
-                ts = imp_row["timestamp"]
+            # Day 16: Hypotheses
+            hyp_query = """
+                SELECT h.id as source_id,
+                       h.root_cause_summary,
+                       h.target_tools,
+                       'hypothesis' as source_type,
+                       COALESCE(c.root_cause_category, 'Logic') as category,
+                       h.resolved_improvement_id
+                FROM hypotheses h
+                LEFT JOIN root_cause_clusters c ON h.source_id = c.id AND h.source_type = 'cluster'
+                WHERE h.status = 'implemented'
+                AND NOT EXISTS (
+                    SELECT 1 FROM engineering_rules
+                    WHERE source_type = 'hypothesis' AND source_id = h.id
+                )
+                ORDER BY h.id ASC
+            """
+            try:
+                hyp_rows = conn.execute(hyp_query).fetchall()
+                for r in hyp_rows:
+                    imp_id = r["resolved_improvement_id"]
+                    if not imp_id: continue
+                    imp_row = conn.execute("SELECT tool_name, timestamp, fix_summary FROM improvement_history WHERE id = ?", (imp_id,)).fetchone()
+                    if not imp_row: continue
+                    tool_name = imp_row["tool_name"]
+                    ts = imp_row["timestamp"]
+                    rollback_count = conn.execute("SELECT COUNT(*) as c FROM improvement_history WHERE tool_name = ? AND result = 'rolled_back' AND timestamp >= ?", (tool_name, ts)).fetchone()["c"]
+                    if rollback_count == 0:
+                        row_dict = dict(r)
+                        row_dict["fix_summary"] = imp_row["fix_summary"]
+                        sources.append(row_dict)
+            except sqlite3.OperationalError:
+                pass
+
+        elif status_filter == 'active':
+            # Day 21: Architectural patterns
+            arch_query = f"""
+                SELECT id as source_id, 
+                       pattern_name as root_cause_summary, 
+                       affected_tools as target_tools,
+                       'architectural_pattern' as source_type,
+                       'Logic' as category
+                FROM architectural_patterns
+                WHERE status = 'active' AND evidence_count >= {min_evidence}
+                AND NOT EXISTS (
+                    SELECT 1 FROM engineering_rules 
+                    WHERE source_type = 'architectural_pattern' AND source_id = architectural_patterns.id
+                )
+                ORDER BY id ASC
+            """
+            try:
+                arch_rows = conn.execute(arch_query).fetchall()
+                for r in arch_rows:
+                    sources.append(dict(r))
+            except sqlite3.OperationalError:
+                pass
+
+            # Day 21: Root cause clusters (single tool)
+            cluster_query = f"""
+                SELECT id as source_id,
+                       cluster_summary as root_cause_summary,
+                       target_tools,
+                       'cluster' as source_type,
+                       root_cause_category as category
+                FROM root_cause_clusters
+                WHERE status = 'active' AND total_occurrences >= {min_evidence}
+                AND NOT EXISTS (
+                    SELECT 1 FROM engineering_rules
+                    WHERE source_type = 'cluster' AND source_id = root_cause_clusters.id
+                )
+                ORDER BY id ASC
+            """
+            try:
+                cluster_rows = conn.execute(cluster_query).fetchall()
+                for r in cluster_rows:
+                    # check if single tool
+                    tools = json.loads(r["target_tools"])
+                    if len(tools) == 1:
+                        sources.append(dict(r))
+            except sqlite3.OperationalError:
+                pass
                 
-                rollback_count = conn.execute("""
-                    SELECT COUNT(*) as c FROM improvement_history 
-                    WHERE tool_name = ? AND result = 'rolled_back' AND timestamp >= ?
-                """, (tool_name, ts)).fetchone()["c"]
-                
-                if rollback_count == 0:
-                    row_dict = dict(r)
-                    row_dict["fix_summary"] = imp_row["fix_summary"]
-                    sources.append(row_dict)
-                    
-        except sqlite3.OperationalError:
-            pass
-            
     return sources
+
 
 
 def extract_rule_from_source(source: Dict[str, Any], db_path: str) -> Dict[str, Any] | None:
@@ -186,7 +225,7 @@ Return EXACTLY this JSON structure:
     return None
 
 def extract_rules_from_durable_fixes(db_path: str, max_llm_calls: int = 5) -> Dict[str, Any]:
-    sources = find_unconverted_durable_sources(db_path)
+    sources = find_unconverted_sources(db_path, 'resolved')
     if not sources:
         return {"extracted": 0, "skipped": 0, "remaining": 0}
         

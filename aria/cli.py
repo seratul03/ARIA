@@ -579,13 +579,25 @@ def cmd_review(args: argparse.Namespace) -> None:
                     "tests_total": c.get("tests_total", 0)
                 }
                 
-                success = agent._deploy(review['tool_name'], review['generated_code'], MockReport(), sandbox_result)
-                if success:
+                success_imp_id = agent._deploy(review['tool_name'], review['generated_code'], MockReport(), sandbox_result)
+                if success_imp_id is not None:
                     update_review_status(review['id'], "approved")
+                    cycle_id = review.get('cycle_id')
+                    if cycle_id:
+                        from aria.knowledge.applications import resolve_rule_applications_by_cycle
+                        from aria.config import settings
+                        resolve_rule_applications_by_cycle(cycle_id, success_imp_id, "success", str(settings.db_path))
                 else:
                     console.print("[red]Deployment failed.[/red]")
         else:
             update_review_status(review['id'], "rejected")
+            # For a rejection via CLI review, we record a rejection
+            imp_id = agent._record_rejection(review['tool_name'], "Rejected by human review", None)
+            cycle_id = review.get('cycle_id')
+            if cycle_id:
+                from aria.knowledge.applications import resolve_rule_applications_by_cycle
+                from aria.config import settings
+                resolve_rule_applications_by_cycle(cycle_id, imp_id, "failure", str(settings.db_path))
             console.print(f"[red]Review {review['id']} rejected.[/red]")
 
 def cmd_memory(args: argparse.Namespace) -> None:
