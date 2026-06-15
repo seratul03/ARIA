@@ -113,6 +113,9 @@ def run_meta_introspection(n_cycles: int) -> None:
         from aria.rootcause.pattern_extraction import extract_architectural_patterns
         pattern_summary = extract_architectural_patterns(str(settings.db_path))
         
+        from aria.knowledge.extraction import extract_rules_from_durable_fixes
+        knowledge_summary = extract_rules_from_durable_fixes(str(settings.db_path), settings.max_knowledge_llm_calls_per_cycle)
+        
         # Build memory summary
         with get_connection() as conn:
             active_patterns = conn.execute("SELECT COUNT(*) as c FROM failure_patterns WHERE status = 'active'").fetchone()["c"]
@@ -146,6 +149,7 @@ def run_meta_introspection(n_cycles: int) -> None:
             "root_cause_summary": root_cause_summary,
             "clustering_summary": clustering_summary,
             "extraction_summary": pattern_summary,
+            "knowledge_summary": knowledge_summary,
             "root_cause_report": root_cause_report
         }
         

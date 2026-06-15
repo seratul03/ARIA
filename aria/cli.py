@@ -887,6 +887,90 @@ def cmd_rootcause(args: argparse.Namespace) -> None:
             table.add_row(c, f"{occ_val:.1%}", f"{pat_val:.1%}")
             
         console.print(table)
+def cmd_knowledge(args: argparse.Namespace) -> None:
+    """Interact with the Knowledge Subsystem."""
+    from rich.console import Console
+    from rich.table import Table
+    from aria.main import bootstrap
+    
+    bootstrap()
+    from aria.config import settings
+    import sqlite3
+    
+    console = Console()
+    db_path = settings.db_path if hasattr(settings, "db_path") else "aria.db"
+    
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        
+        try:
+            # Check if table exists
+            conn.execute("SELECT 1 FROM engineering_rules LIMIT 1")
+        except sqlite3.OperationalError:
+            console.print("[dim]No rules yet. Engineering rules table is empty or missing.[/dim]")
+            return
+
+        if getattr(args, "export", False):
+            from aria.knowledge.export import export_rules_json
+            from pathlib import Path
+            output_path = Path("aria") / "knowledge" / "engineering_rules.json"
+            console.print("[yellow]Forcing re-export of engineering_rules.json...[/yellow]")
+            export_rules_json(db_path, str(output_path))
+            console.print("[bold green]✓ Export complete.[/bold green]")
+            return
+            
+        if getattr(args, "rules", False):
+            rules = conn.execute("SELECT * FROM engineering_rules WHERE status = 'active' ORDER BY category, confidence DESC").fetchall()
+            title = "[bold]Active Engineering Rules[/bold]"
+        elif getattr(args, "candidates", False):
+            rules = conn.execute("SELECT * FROM engineering_rules WHERE status = 'candidate' ORDER BY category, confidence DESC").fetchall()
+            title = "[bold]Candidate Engineering Rules[/bold]"
+        elif getattr(args, "deprecated", False):
+            rules = conn.execute("SELECT * FROM engineering_rules WHERE status = 'deprecated' ORDER BY category").fetchall()
+            title = "[bold]Deprecated Engineering Rules[/bold]"
+        else:
+            # Summary
+            counts = conn.execute("SELECT status, COUNT(*) as count FROM engineering_rules GROUP BY status").fetchall()
+            if not counts:
+                console.print("[dim]No rules yet.[/dim]")
+                return
+            
+            c_table = Table(title="[bold]Rules by Status[/bold]", border_style="cyan")
+            c_table.add_column("Status")
+            c_table.add_column("Count", justify="right")
+            for row in counts:
+                c_table.add_row(row["status"], str(row["count"]))
+            console.print(c_table)
+            
+            console.print("\n[bold]Top Active Rules per Category:[/bold]")
+            cats = conn.execute("SELECT DISTINCT category FROM engineering_rules WHERE status='active'").fetchall()
+            for cat_row in cats:
+                cat = cat_row["category"]
+                top_rule = conn.execute("SELECT rule_text FROM engineering_rules WHERE status='active' AND category=? ORDER BY confidence DESC LIMIT 1", (cat,)).fetchone()
+                if top_rule:
+                    console.print(f"  [cyan]{cat}[/cyan]: {top_rule['rule_text']}")
+            return
+
+        if not rules:
+            console.print("[dim]No rules found for this filter.[/dim]")
+            return
+            
+        table = Table(title=title, border_style="cyan")
+        table.add_column("ID", justify="right")
+        table.add_column("Category", style="bold")
+        table.add_column("Rule")
+        table.add_column("Confidence", justify="right")
+        if getattr(args, "deprecated", False):
+            table.add_column("Reason")
+            
+        for r in rules:
+            row = [str(r["id"]), r["category"], r["rule_text"], f"{r['confidence']:.2f}"]
+            if getattr(args, "deprecated", False):
+                row.append(r["deprecation_reason"] or "")
+            table.add_row(*row)
+            
+        console.print(table)
+
 
 # ── Argument parser ───────────────────────────────────────────────────────────
 
@@ -945,6 +1029,13 @@ def build_parser() -> argparse.ArgumentParser:
     # review
     sub.add_parser("review", help="Review and approve pending deployments")
 
+    # knowledge
+    knowledge_p = sub.add_parser("knowledge", help="Show Knowledge Rules Subsystem")
+    knowledge_p.add_argument("--rules", action="store_true", help="Full active rule list")
+    knowledge_p.add_argument("--candidates", action="store_true", help="Candidates awaiting promotion")
+    knowledge_p.add_argument("--deprecated", action="store_true", help="Deprecated rules + reasons")
+    knowledge_p.add_argument("--export", action="store_true", help="Force re-export + git commit")
+
     # memory
     memory_p = sub.add_parser("memory", help="Show Memory Dashboard")
     memory_p.add_argument("--failures", action="store_true", help="Show most common failure patterns")
@@ -985,6 +1076,7 @@ def main() -> None:
         "history": cmd_history,
         "traces": cmd_traces,
         "review": cmd_review,
+        "knowledge": cmd_knowledge,
         "memory": cmd_memory,
         "why": cmd_why,
         "rootcause": cmd_rootcause,
