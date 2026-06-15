@@ -195,6 +195,33 @@ The CLI and TUI provide real-time analytics into ARIA's brain:
 
 ---
 
-## 7. Summary
+## 7. The Root Cause Analysis Subsystem (Phase 2)
+
+Built on top of the Memory Subsystem, the Root Cause Analysis module (`aria/rootcause`) aggregates raw stack traces and isolated tool metrics into high-level systemic diagnoses.
+
+### 7.1 Taxonomy and Classification
+Instead of treating every exception as a unique event, ARIA maps failures into a fixed taxonomy (e.g., `Network`, `Authentication`, `Logic Error`, `Timeout`).
+- **Heuristic Classification**: Fast, regex-based matching for common exceptions (e.g., matching `TimeoutError` to `Timeout`).
+- **LLM Classification**: Complex or ambiguous tracebacks are sent to Groq for classification, bounded by a strict rate limit (`MAX_ROOTCAUSE_LLM_CALLS_PER_CYCLE`) to prevent runaway API costs on unclassified traces.
+
+### 7.2 Failure Clustering & Pattern Extraction
+ARIA continuously scans classified failure patterns to find overlapping vectors:
+- **`root_cause_clusters`**: Groups identical failure categories that occur close together or exhibit high frequency.
+- **`architectural_patterns`**: The LLM analyzes the raw error context of a cluster and synthesizes human-readable systemic flaws (e.g., "The weather tool and search tool both lack timeout retries, leading to systemic brittleness").
+
+### 7.3 The Hypothesis Pipeline
+When an architectural pattern is extracted, ARIA generates a **Hypothesis** (`aria.rootcause.hypotheses.generate_hypotheses`).
+- A hypothesis is an actionable proposal to fix the systemic flaw.
+- **Hijacking the Scheduler**: If a hypothesis scores a high enough confidence, the `select_next_target()` logic bypasses the default "worst-performing tool" selection and instead triggers an improvement cycle targeting the tools involved in the hypothesis.
+- **The `## DIRECTIVE`**: The Introspection Engine explicitly injects the proposed hypothesis into the Groq improvement prompt, commanding the LLM to implement the specific architectural fix.
+
+### 7.4 Root Cause Synthesis (The `why` Command)
+ARIA synthesizes all layers of the root cause module—from basic category breakdowns to active architectural patterns and hypothesis attempt counts—into a unified data structure.
+- Accessible via the CLI (`python -m aria why`).
+- Injected natively into the Meta-Introspection loop (`self_model.json`), allowing ARIA to explicitly state its own systemic flaws when analyzing its internal health.
+
+---
+
+## 8. Summary
 
 ARIA represents a paradigm shift in agent design. By treating the agent framework itself as a fluid, optimizable construct, and surrounding that mutability with extreme, mathematically grounded safety constraints (Gatekeeper, Docker Sandboxing, Git Rollbacks, and Long-Term Memory Compression), ARIA achieves safe, persistent, autonomous self-evolution.
