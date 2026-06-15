@@ -68,6 +68,7 @@ class Settings:
     latency_threshold_seconds: float    # e.g. 5.0
     min_executions_for_analysis: int    # e.g. 10
     confidence_score_threshold: float   # e.g. 9.0
+    hypothesis_confidence_threshold: float # e.g. 0.60
     
     # ── Fitness Score Weights ──────────────────────────────────
     fitness_threshold: float            # e.g. 0.5
@@ -86,6 +87,7 @@ class Settings:
     meta_introspection_interval: int    # e.g. 10
     meta_introspection_max_hours: float # e.g. 4.0
     memory_recompute_interval: int      # e.g. 5
+    max_rootcause_llm_calls_per_cycle: int # e.g. 10
     clone_base_dir: Path
     clone_keep_on_failure: bool
 
@@ -125,6 +127,7 @@ def _load_settings() -> Settings:
         latency_threshold_seconds=_get_float("LATENCY_THRESHOLD_SECONDS", 5.0),
         min_executions_for_analysis=_get_int("MIN_EXECUTIONS_FOR_ANALYSIS", 10),
         confidence_score_threshold=_get_float("CONFIDENCE_SCORE_THRESHOLD", 9.0),
+        hypothesis_confidence_threshold=_get_float("HYPOTHESIS_CONFIDENCE_THRESHOLD", 0.60),
 
         fitness_threshold=_get_float("FITNESS_THRESHOLD", 0.5),
         weight_pass_rate=_get_float("WEIGHT_PASS_RATE", 1.0),
@@ -139,6 +142,7 @@ def _load_settings() -> Settings:
         meta_introspection_interval=_get_int("META_INTROSPECTION_INTERVAL", 10),
         meta_introspection_max_hours=_get_float("META_INTROSPECTION_MAX_HOURS", 4.0),
         memory_recompute_interval=_get_int("MEMORY_RECOMPUTE_INTERVAL", 5),
+        max_rootcause_llm_calls_per_cycle=_get_int("MAX_ROOTCAUSE_LLM_CALLS_PER_CYCLE", 10),
         clone_base_dir=Path(_get("CLONE_BASE_DIR", "/tmp/aria_clones")),
         clone_keep_on_failure=_get("CLONE_KEEP_ON_FAILURE", "true").lower() == "true",
 

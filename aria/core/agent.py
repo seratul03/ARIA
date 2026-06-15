@@ -402,9 +402,11 @@ class AgentCore:
                     trace.save()
                     return False
                 trace.record_trigger(f"manual_trigger on {target_tool}")
+                hypothesis_id = None
             else:
-                reports = engine.analyze_all()
-                if not reports:
+                target_data = engine.select_next_target()
+                mode = target_data.get("mode")
+                if mode == "none" or target_data.get("report") is None:
                     self._emit(
                         EventType.CYCLE_SKIPPED,
                         "All tools are healthy. No improvement needed.",
@@ -413,8 +415,9 @@ class AgentCore:
                     trace.finalize("NO_WEAKNESS_FOUND")
                     trace.save()
                     return False
-                report = reports[0]  # Worst-performing tool
-                trace.record_trigger(f"low_success_rate on {report.tool_name}")
+                report = target_data["report"]
+                hypothesis_id = target_data.get("hypothesis_id")
+                trace.record_trigger(f"auto_trigger on {report.tool_name} (mode={mode})")
     
             self._emit(
                 EventType.WEAKNESS_FOUND,
@@ -448,6 +451,9 @@ class AgentCore:
                 
                 self_model.record_cycle("improvement_engine", success=False)
                 self_model.add_failure_pattern("improvement_engine", "LLM generation failed")
+                if hypothesis_id is not None:
+                    from aria.rootcause.hypotheses import mark_hypothesis_outcome
+                    mark_hypothesis_outcome(hypothesis_id, None, False)
                 return False
                 
             trace.record_candidate_generated()
@@ -669,6 +675,9 @@ class AgentCore:
                 trace.record_candidate_rejected("candidate_1", reason)
                 trace.finalize("NO_IMPROVEMENT")
                 trace.save()
+                if hypothesis_id is not None:
+                    from aria.rootcause.hypotheses import mark_hypothesis_outcome
+                    mark_hypothesis_outcome(hypothesis_id, None, False)
                 return False
 
             # ── Step 5: Human Review Gate ──────────────────────────────────────────
@@ -805,7 +814,7 @@ class AgentCore:
             # 6. Record in DB
             from aria.memory.store import record_improvement
             c_fitness = sandbox_result.get("combat_report", {}).get("clone", {}).get("overall_score")
-            record_improvement(
+            improvement_id = record_improvement(
                 improvement_type='tool',
                 tool_name=tool_name,
                 fix_summary=commit_msg,
@@ -814,6 +823,11 @@ class AgentCore:
                 baseline_fitness=report.success_rate,
                 candidate_fitness=c_fitness,
             )
+            
+            hypothesis_id = getattr(report, "hypothesis", {}).get("id") if getattr(report, "hypothesis", None) else None
+            if hypothesis_id is not None:
+                from aria.rootcause.hypotheses import mark_hypothesis_outcome
+                mark_hypothesis_outcome(hypothesis_id, improvement_id, True)
 
             self._emit(
                 EventType.DEPLOYED,

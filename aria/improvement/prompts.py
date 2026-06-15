@@ -126,6 +126,16 @@ def build_improvement_prompt(report: WeaknessReport) -> str:
         for p in system_patterns:
             self_model_text += f"  - [System-wide Pattern] {p}\n"
         self_model_text += "\n"
+        
+    directive_text = ""
+    if getattr(report, "hypothesis", None):
+        hyp = report.hypothesis
+        directive_text = (
+            "## DIRECTIVE (from Root Cause Analysis)\n"
+            f"Root cause: {hyp.get('root_cause_summary')}\n"
+            f"Proposed fix: {hyp.get('proposed_fix_summary')}\n"
+            f"Target this tool specifically: {report.tool_name}\n\n"
+        )
 
     prompt = f"""{self_model_text}IMPROVEMENT REQUEST
 ═══════════════════
@@ -149,7 +159,7 @@ CURRENT SOURCE CODE (improve this):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INSTRUCTIONS:
-- Analyze the weaknesses above.
+{directive_text}- Analyze the weaknesses above.
 - Identify the root cause of failures, high latency, or high resource usage.
 - Write an improved version of this tool that addresses those weaknesses to maximize the Fitness Score.
 - Make the code more robust, efficient, and cost-effective.

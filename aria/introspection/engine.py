@@ -14,6 +14,7 @@ Tools with fewer than MIN_EXECUTIONS_FOR_ANALYSIS are skipped.
 from __future__ import annotations
 
 import time
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -46,6 +47,7 @@ class WeaknessReport:
     successful_fixes: list[dict] = field(default_factory=list) # Previously deployed fixes
     failed_fixes: list[dict] = field(default_factory=list)     # Previously rejected/rolled_back fixes
     recent_improvement_failures: list[dict] = field(default_factory=list) # Past rejection reasons
+    hypothesis: dict | None = None                              # Associated hypothesis if triggered by one
     timestamp: float = field(default_factory=time.time)
 
     @property
@@ -252,6 +254,43 @@ class IntrospectionEngine:
             failed_fixes=failed_fixes,
             recent_improvement_failures=rejected_history,
         )
+
+    def select_next_target(self) -> dict:
+        """
+        Selects the next tool to improve. 
+        Prioritizes hypotheses with high confidence over general weakness analysis.
+        Returns a dict: {"mode": str, "report": WeaknessReport, "hypothesis_id": int | None}
+        """
+        from aria.metrics.db import get_connection
+        
+        with get_connection() as conn:
+            # Source A: Active proposed hypotheses
+            row = conn.execute("""
+                SELECT h.*, rcc.total_occurrences
+                FROM hypotheses h
+                LEFT JOIN architectural_patterns ap ON h.source_id = ap.id AND h.source_type = 'architectural_pattern'
+                LEFT JOIN root_cause_clusters rcc ON ap.cluster_id = rcc.id
+                WHERE h.status = 'proposed'
+                ORDER BY h.confidence DESC, rcc.total_occurrences DESC
+                LIMIT 1
+            """).fetchone()
+            
+            if row and row["confidence"] >= settings.hypothesis_confidence_threshold:
+                hypothesis = dict(row)
+                target_tools = json.loads(hypothesis["target_tools"])
+                if target_tools:
+                    target_tool = target_tools[0]
+                    report = self.analyze_tool(target_tool)
+                    if report:
+                        report.hypothesis = hypothesis
+                        return {"mode": "hypothesis", "report": report, "hypothesis_id": hypothesis["id"]}
+        
+        # Fallback to worst-performing tool
+        reports = self.analyze_all()
+        if reports:
+            return {"mode": "weakness", "report": reports[0], "hypothesis_id": None}
+            
+        return {"mode": "none", "report": None, "hypothesis_id": None}
 
     def get_health_summary(self) -> dict[str, dict]:
         """

@@ -42,6 +42,7 @@ PROTECTED_PATHS = [
     "aria/memory/schema.py",
     "aria/memory/migrations/",
     "aria/memory/store.py",   # write path must stay append-only
+    "aria/rootcause/categories.py",
 ]
 
 
@@ -139,7 +140,14 @@ class StaticValidator:
     def validate(self, source_code: str, tool_name: str) -> ValidationResult:
         result = ValidationResult(passed=True)
 
-        # 1. Length check
+        # 1. Protected Paths Check
+        normalized_tool_name = tool_name.replace("\\", "/")
+        for protected_path in PROTECTED_PATHS:
+            if protected_path in normalized_tool_name:
+                result.add_issue(f"Target '{tool_name}' is protected and cannot be modified by ARIA.")
+                return result
+
+        # 2. Length check
         lines = source_code.splitlines()
         if len(lines) > MAX_LINES:
             result.add_issue(

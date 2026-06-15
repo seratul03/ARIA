@@ -697,6 +697,196 @@ def cmd_memory(args: argparse.Namespace) -> None:
                     tools = str(f["tool_names"])
                 table.add_row(f["traceback_signature"][:8], tools, str(f["occurrence_count"]))
         console.print(table)
+def cmd_why(args: argparse.Namespace) -> None:
+    """Answers 'Why am I failing?' with a synthesized Root Cause Report."""
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.markdown import Markdown
+    from aria.main import bootstrap
+    
+    bootstrap()
+    from aria.rootcause.report import generate_root_cause_report
+    
+    console = Console()
+    with console.status("[bold cyan]Synthesizing Root Cause Report...[/bold cyan]"):
+        report = generate_root_cause_report(llm_narrative=not args.no_narrative)
+        
+    console.print(Panel("[bold magenta]Root Cause Report[/bold magenta] — 'Why am I failing?'", expand=False))
+    
+    # 1. Breakdown
+    if report["root_cause_breakdown"]:
+        b_table = Table(title="Root Cause Breakdown (by Occurrence)", border_style="cyan")
+        b_table.add_column("Category", style="bold")
+        b_table.add_column("Share", justify="right")
+        for cat, share in report["root_cause_breakdown"].items():
+            b_table.add_row(cat, f"{share:.1%}")
+        console.print(b_table)
+        
+    # 2. Clusters & Patterns
+    if report["architectural_patterns"]:
+        p_table = Table(title="Active Architectural Patterns", border_style="yellow")
+        p_table.add_column("Pattern")
+        p_table.add_column("Tools")
+        for p in report["architectural_patterns"]:
+            p_table.add_row(p["pattern_name"], ", ".join(p["affected_tools"]))
+        console.print(p_table)
+        
+    # 3. Hypotheses
+    hyp = report["hypotheses"]
+    if hyp["proposed"] or hyp["implemented_recent"]:
+        h_table = Table(title="Hypotheses Pipeline", border_style="green")
+        h_table.add_column("Status")
+        h_table.add_column("Proposed Fix")
+        h_table.add_column("Targets")
+        for h in hyp["proposed"]:
+            h_table.add_row("[yellow]Proposed[/yellow]", h["proposed_fix_summary"], ", ".join(h["target_tools"]))
+        for h in hyp["implemented_recent"]:
+            h_table.add_row("[green]Implemented[/green]", h["proposed_fix_summary"], ", ".join(h["target_tools"]))
+        console.print(h_table)
+        
+    # 4. Durability
+    dur = report["fix_durability"]
+    total = dur["held"] + dur["rolled_back"]
+    if total > 0:
+        held_pct = dur["held"] / total
+        console.print(f"[bold]Fix Durability:[/bold] {dur['held']}/{total} ({held_pct:.0%}) fixes held up without rollback.")
+        
+    # 5. Narrative
+    if report.get("narrative"):
+        console.print(Panel(Markdown(report["narrative"]), title="[bold]ARIA's Synthesis[/bold]", border_style="blue"))
+
+
+def cmd_rootcause(args: argparse.Namespace) -> None:
+    """Show Root Cause Statistics."""
+    from rich.console import Console
+    from rich.table import Table
+    from aria.main import bootstrap
+    
+    bootstrap()
+    from aria.rootcause.statistics import root_cause_breakdown, root_cause_breakdown_by_tool, root_cause_trend
+    
+    console = Console()
+    
+    if args.report:
+        # Alias for `aria why --no-narrative` or `aria why`
+        # We will map it to `cmd_why` basically
+        args.no_narrative = False
+        cmd_why(args)
+        return
+        
+    if args.trend:
+        trend = root_cause_trend(window_days=30)
+        if not trend:
+            console.print("[dim]No classified patterns found for trend.[/dim]")
+            return
+            
+        # Get all distinct bucket dates
+        all_dates = set()
+        for cat_data in trend.values():
+            for entry in cat_data:
+                all_dates.add(entry[0])
+        dates = sorted(list(all_dates))
+        
+        table = Table(title="[bold]Root Cause Trend (30 Days)[/bold]", border_style="cyan")
+        table.add_column("Category", style="bold")
+        for d in dates:
+            table.add_column(d, justify="right")
+            
+        for cat, data in trend.items():
+            date_map = {d: val for d, val in data}
+            row = [cat]
+            for d in dates:
+                val = date_map.get(d, 0.0)
+                row.append(f"{val:.1%}")
+            table.add_row(*row)
+            
+        console.print(table)
+        
+    elif args.clusters:
+        from aria.metrics.db import get_connection
+        
+        with get_connection() as conn:
+            clusters = conn.execute("SELECT * FROM root_cause_clusters ORDER BY total_occurrences DESC").fetchall()
+            
+        if not clusters:
+            console.print("[dim]No root cause clusters found.[/dim]")
+            return
+            
+        table = Table(title="[bold]Root Cause Clusters[/bold]", border_style="cyan")
+        table.add_column("ID", justify="right")
+        table.add_column("Category", style="bold")
+        table.add_column("Patterns", justify="right")
+        table.add_column("Tools")
+        table.add_column("Total Occurrences", justify="right")
+        
+        for c in clusters:
+            import json
+            try:
+                p_count = len(json.loads(c["pattern_ids"]))
+                tools = ", ".join(json.loads(c["tool_names"]))
+            except Exception:
+                p_count = 0
+                tools = str(c["tool_names"])
+                
+            table.add_row(
+                str(c["id"]),
+                c["root_cause_category"],
+                str(p_count),
+                tools,
+                str(c["total_occurrences"])
+            )
+            
+        console.print(table)
+        
+    elif args.by_tool:
+        breakdown = root_cause_breakdown_by_tool()
+        if not breakdown:
+            console.print("[dim]No classified patterns found per tool.[/dim]")
+            return
+            
+        # Get all categories
+        all_cats = set()
+        for tool_data in breakdown.values():
+            all_cats.update(tool_data.keys())
+        cats = sorted(list(all_cats))
+        
+        table = Table(title="[bold]Root Cause Breakdown by Tool[/bold]", border_style="cyan")
+        table.add_column("Tool", style="bold")
+        for c in cats:
+            table.add_column(c, justify="right")
+            
+        for t, cat_data in breakdown.items():
+            row = [t]
+            for c in cats:
+                val = cat_data.get(c, 0.0)
+                row.append(f"{val:.1%}")
+            table.add_row(*row)
+            
+        console.print(table)
+        
+    else:
+        # Global stats (default)
+        occ_breakdown = root_cause_breakdown(weight_by="occurrence_count")
+        pat_breakdown = root_cause_breakdown(weight_by="pattern_count")
+        
+        if not occ_breakdown:
+            console.print("[dim]No classified patterns found.[/dim]")
+            return
+            
+        all_cats = sorted(list(set(occ_breakdown.keys()) | set(pat_breakdown.keys())))
+        
+        table = Table(title="[bold]Global Root Cause Statistics[/bold]", border_style="cyan")
+        table.add_column("Category", style="bold")
+        table.add_column("By Occurrence (Pain)", justify="right")
+        table.add_column("By Pattern Count (Variety)", justify="right")
+        
+        for c in all_cats:
+            occ_val = occ_breakdown.get(c, 0.0)
+            pat_val = pat_breakdown.get(c, 0.0)
+            table.add_row(c, f"{occ_val:.1%}", f"{pat_val:.1%}")
+            
+        console.print(table)
 
 # ── Argument parser ───────────────────────────────────────────────────────────
 
@@ -761,6 +951,17 @@ def build_parser() -> argparse.ArgumentParser:
     memory_p.add_argument("--fixes", action="store_true", help="Show most successful fixes")
     memory_p.add_argument("--worst-tool", action="store_true", help="Show the worst performing tool based on pain score")
     memory_p.add_argument("--reliability", action="store_true", help="Show fix reliability report")
+    # why
+    why_p = sub.add_parser("why", help="Generate Root Cause Report with LLM narrative")
+    why_p.add_argument("--no-narrative", action="store_true", help="Generate structured data only without LLM narrative")
+
+    # rootcause
+    rc_p = sub.add_parser("rootcause", help="Show Root Cause Statistics")
+    rc_p.add_argument("--report", action="store_true", help="Alias for 'why' command")
+    rc_p.add_argument("--stats", action="store_true", help="Global breakdown")
+    rc_p.add_argument("--by-tool", action="store_true", help="Per-tool breakdown")
+    rc_p.add_argument("--trend", action="store_true", help="30-day trend")
+    rc_p.add_argument("--clusters", action="store_true", help="Show failure pattern clusters")
 
     return parser
 
@@ -785,6 +986,8 @@ def main() -> None:
         "traces": cmd_traces,
         "review": cmd_review,
         "memory": cmd_memory,
+        "why": cmd_why,
+        "rootcause": cmd_rootcause,
     }
 
     handler = dispatch.get(args.command)

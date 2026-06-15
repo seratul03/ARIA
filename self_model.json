@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-14T21:11:05.547925+00:00",
+  "last_updated": "2026-06-15T01:14:00.275787+00:00",
   "components": {
     "introspection_engine": {
       "known_weaknesses": [],
@@ -175,21 +175,40 @@
     "Gatekeeper failed: Referee communication failed"
   ],
   "memory_summary": {
-    "active_patterns": 2,
+    "active_patterns": 0,
     "resolved_patterns": 0,
-    "top_recurring": [
-      {
-        "signature": "8e988ff7",
-        "tool": "weather_tool",
-        "count": 21,
-        "status": "active"
-      },
-      {
-        "signature": "5f29ee7d",
-        "tool": "weather_tool",
-        "count": 2,
-        "status": "active"
-      }
-    ]
-  }
+    "top_recurring": [],
+    "classification_summary": {
+      "heuristic": 0,
+      "llm": 0,
+      "skipped": 0,
+      "fallback": 0
+    },
+    "root_cause_summary": {
+      "by_occurrence": {},
+      "by_pattern_count": {},
+      "trend_30d": {}
+    },
+    "clustering_summary": {
+      "clusters_created": 0,
+      "clusters_updated": 0,
+      "lonely_patterns": 0
+    },
+    "extraction_summary": {
+      "patterns_created": 0,
+      "patterns_updated": 0,
+      "patterns_resolved": 0
+    }
+  },
+  "architectural_patterns": [
+    {
+      "pattern_name": "Missing Circuit Breaker Pattern",
+      "affected_tools": [
+        "t1",
+        "t2"
+      ],
+      "evidence_count": 4,
+      "status": "active"
+    }
+  ]
 }

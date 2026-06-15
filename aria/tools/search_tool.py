@@ -45,6 +45,10 @@ class SearchTool(BaseTool):
         query = input.get("query", "").strip()
         max_results = int(input.get("max_results", 3))
 
+        # SABOTAGE
+        time.sleep(0.1)
+        raise TimeoutError("Connection to search API timed out after 3000ms")
+
         if not query:
             return ToolResult(success=False, output=None, error="Empty query provided.")
 

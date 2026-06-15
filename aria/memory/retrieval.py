@@ -54,7 +54,7 @@ def find_similar_failures(
     
     return (exact + scored)[:top_k]
 
-def find_successful_fixes(tool_name: str, traceback_signature: str | None = None, top_k: int = 3) -> list[dict]:
+def find_successful_fixes(tool_name: str, traceback_signature: str | None = None, root_cause_category: str | None = None, top_k: int = 3) -> list[dict]:
     with get_connection() as conn:
         if traceback_signature:
             # Direct lineage: fixes whose triggering_failure had this signature
@@ -67,13 +67,27 @@ def find_successful_fixes(tool_name: str, traceback_signature: str | None = None
             if rows:
                 return [dict(r) for r in rows]
 
-        # Fallback: best historical fixes for this tool generally
+        # Tier 2: Fallback: best historical fixes for this tool generally
         rows = conn.execute("""
             SELECT * FROM improvement_history
             WHERE tool_name = ? AND result = 'deployed'
             ORDER BY memory_score DESC, fitness_delta DESC, timestamp DESC LIMIT ?
         """, (tool_name, top_k)).fetchall()
-        return [dict(r) for r in rows]
+        
+        if rows:
+            return [dict(r) for r in rows]
+            
+        # Tier 3: Same root_cause_category, any tool, result='deployed'
+        if root_cause_category:
+            rows = conn.execute("""
+                SELECT * FROM improvement_history
+                WHERE weakness_category = ? AND weakness_category IS NOT NULL AND result = 'deployed'
+                ORDER BY fitness_delta DESC, timestamp DESC LIMIT ?
+            """, (root_cause_category, top_k)).fetchall()
+            if rows:
+                return [dict(r) for r in rows]
+                
+        return []
 
 def find_failed_fixes(tool_name: str, traceback_signature: str | None = None, top_k: int = 3) -> list[dict]:
     with get_connection() as conn:

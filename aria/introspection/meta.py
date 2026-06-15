@@ -97,6 +97,22 @@ def run_meta_introspection(n_cycles: int) -> None:
         
         compress_failure_history()
         
+        from aria.rootcause.classifier import classify_unclassified_patterns
+        classification_summary = classify_unclassified_patterns(max_llm_calls=settings.max_rootcause_llm_calls_per_cycle)
+        
+        from aria.rootcause.statistics import root_cause_breakdown, root_cause_trend
+        root_cause_summary = {
+            "by_occurrence": root_cause_breakdown(weight_by="occurrence_count"),
+            "by_pattern_count": root_cause_breakdown(weight_by="pattern_count"),
+            "trend_30d": root_cause_trend(window_days=30)
+        }
+        
+        from aria.rootcause.clustering import cluster_all_categories
+        clustering_summary = cluster_all_categories(str(settings.db_path))
+        
+        from aria.rootcause.pattern_extraction import extract_architectural_patterns
+        pattern_summary = extract_architectural_patterns(str(settings.db_path))
+        
         # Build memory summary
         with get_connection() as conn:
             active_patterns = conn.execute("SELECT COUNT(*) as c FROM failure_patterns WHERE status = 'active'").fetchone()["c"]
@@ -119,11 +135,38 @@ def run_meta_introspection(n_cycles: int) -> None:
                     "status": r["status"]
                 })
                 
+        from aria.rootcause.report import generate_root_cause_report
+        root_cause_report = generate_root_cause_report(llm_narrative=False)
+        
         memory_summary = {
             "active_patterns": active_patterns,
             "resolved_patterns": resolved_patterns,
-            "top_recurring": top_recurring
+            "top_recurring": top_recurring,
+            "classification_summary": classification_summary,
+            "root_cause_summary": root_cause_summary,
+            "clustering_summary": clustering_summary,
+            "extraction_summary": pattern_summary,
+            "root_cause_report": root_cause_report
         }
+        
+        # Build architectural patterns for payload
+        with get_connection() as conn:
+            arch_rows = conn.execute("SELECT * FROM architectural_patterns WHERE status = 'active'").fetchall()
+            architectural_patterns = []
+            for r in arch_rows:
+                try:
+                    tools = json.loads(r["affected_tools"])
+                except Exception:
+                    tools = []
+                architectural_patterns.append({
+                    "pattern_name": r["pattern_name"],
+                    "affected_tools": tools,
+                    "evidence_count": r["evidence_count"],
+                    "status": r["status"]
+                })
+                
+        self_model.introspection_data["architectural_patterns"] = architectural_patterns
+        
     except Exception as e:
         logger.error(f"[MetaIntrospection] Failed to compress memory: {e}")
         memory_summary = {}
@@ -131,8 +174,13 @@ def run_meta_introspection(n_cycles: int) -> None:
     # 1. Gather traces and update self-model
     try:
         traces = query_cycle_traces(limit=n_cycles)
+        
+        if memory_summary:
+            self_model.introspection_data["memory_summary"] = memory_summary
+            self_model.save()
+            
         if not traces:
-            logger.info("[MetaIntrospection] No traces available. Skipping.")
+            logger.info("[MetaIntrospection] No traces available. Skipping LLM analysis.")
             return
 
         simplified_traces = []
@@ -193,6 +241,7 @@ def run_meta_introspection(n_cycles: int) -> None:
             
         if memory_summary:
             self_model.introspection_data["memory_summary"] = memory_summary
+            self_model.introspection_data["root_cause_report"] = root_cause_report
             
         self_model.save()
         logger.info("[MetaIntrospection] Self-model updated successfully.")
