@@ -845,7 +845,7 @@ class AgentCore:
             return improvement_id
 
         except Exception as exc:
-            logger.error(f"[Agent] Deploy failed: {exc}")
+            logger.exception(f"[Agent] Deploy failed: {exc}")
             git_manager.rollback_to_tag(pre_tag)
             try:
                 registry.reload_tool(tool_name)

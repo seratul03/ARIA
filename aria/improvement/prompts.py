@@ -99,7 +99,9 @@ def build_improvement_prompt(report: WeaknessReport) -> tuple[str, list[int]]:
     if getattr(report, "successful_fixes", None):
         history_text += "PREVIOUSLY SUCCESSFUL FIXES FOR THIS PATTERN:\n"
         for i, fix in enumerate(report.successful_fixes, 1):
-            fit_delta = fix.get("fitness_delta", 0.0)
+            fit_delta = fix.get("fitness_delta")
+            if fit_delta is None:
+                fit_delta = 0.0
             summary = fix.get("fix_summary", "").replace("\n", " ").strip()
             history_text += f"{i}. [fitness +{fit_delta:.2f}] \"{summary}\"\n"
         history_text += "\n"

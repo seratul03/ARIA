@@ -21,9 +21,10 @@ graph TD
     end
 
     subgraph Safe Execution
-        IM --> GK[Gatekeeper: Tool Sandbox]
+        IM --> EV[Evolutionary Pool]
+        EV --> GK[Gatekeeper: Tool Sandbox]
         MI --> CM[Clone Manager]
-        CM --> AC2[Arena Combat: Clone vs Baseline]
+        CM --> AC2[Parallel Arena Combat: Candidates vs Baseline]
         AC2 --> REF[Referee Service]
     end
 
@@ -86,8 +87,8 @@ Unlike traditional agents, ARIA doesn't just improve its tools—it improves **i
 1. **Self-Modeling:** ARIA continually analyzes the performance traces of its tools to detect abstract, system-wide weaknesses and architectural bottlenecks, saving them to `self_model.json`.
 2. **Framework Modification:** The Meta-Improvement engine can propose rewrites to ARIA's own core code (e.g., prompt templates, candidate generation logic, weakness detection, UI, and schedulers).
 3. **Isolated Clones:** To prevent catastrophic failure, ARIA spins up a fully isolated Docker copy of itself (a "Clone") and injects the architectural change.
-4. **Arena Combat:** The Clone and the Current ARIA are pitted against each other in a benchmark evaluation. 
-5. **The Referee:** An objective Referee scores the combat report based on correctness, latency, robustness, and safety. The clone is immediately discarded if it does not mathematically beat the baseline ARIA.
+4. **Arena Combat:** The Clone and the Current ARIA are pitted against each other in a benchmark evaluation. In Phase 4, this was upgraded to a **Parallel Candidate Arena** where multiple generation strategies (Mutation, Breeding, Zero-Shot) race to beat the Baseline.
+5. **The Referee:** An objective Referee scores the combat report based on correctness, latency, robustness, and safety. The best candidate is selected; if it doesn't mathematically beat the baseline ARIA, it is discarded.
 
 *Note: ARIA is strictly forbidden from modifying its own Gatekeeper, metrics schema, API keys, or the Meta-Loop itself (The Constitution).*
 ARIA may not modify aria/memory/schema.py, its migrations, or store.py. These define ARIA's permanent record and are part of the Constitution.
@@ -100,8 +101,8 @@ ARIA executes untrusted, AI-generated code. It relies on a 7-layer defense syste
 
 1. **Rate Limiting** — Strict rate limits on both tool improvements (max 5/hour) and meta-improvements (max 1/day).
 2. **Groq Rate Limiter** — Sliding window prevents HTTP 429 errors.
-3. **Static AST Analysis** — Blocks forbidden imports (`os`, `sys`, `subprocess`) to prevent OS-level backdoors before code ever runs.
-4. **Docker Sandbox** — Isolated containers without network access (for math/code) or with strict timeouts (for web tools) that enforce a 100% test-pass rate.
+3. **Static AST Analysis** — Blocks forbidden imports (`os`, `sys`, `subprocess`) to prevent OS-level backdoors before code ever runs. Also used for deep memory compression to guide evolution.
+4. **Evolutionary Docker Sandbox** — Multiple concurrent candidates are evaluated inside isolated containers without network access. Strict timeouts enforce a 100% test-pass rate across adversarial tests.
 5. **Hallucination Protection** — The sandbox actively catches and rejects hallucinated arguments or non-deterministic test cases.
 6. **Fitness Gate** — New code is scored via a weighted fitness function (Pass Rate, Latency, Tokens, Memory). It must objectively outperform the old code.
 7. **Git Rollback** — Every single deployment is automatically committed to Git. If system health degrades, ARIA rolls back the code.

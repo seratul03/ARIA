@@ -351,7 +351,7 @@ def run_meta_introspection(n_cycles: int) -> None:
                 {"role": "user", "content": proposal_prompt},
             ],
             response_format={"type": "json_object"},
-            max_tokens=4000,
+            max_tokens=2000,
             temperature=0.2,
         )
         
