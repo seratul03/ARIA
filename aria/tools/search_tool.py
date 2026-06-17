@@ -10,7 +10,6 @@ This tool is intentionally improvable by ARIA's Improvement Engine.
 
 from __future__ import annotations
 
-import time
 import logging
 from typing import Dict, List
 
@@ -18,7 +17,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from aria.tools.base import BaseTool, TestCase, ToolResult
-
+from groq import Groq
 
 class SearchTool(BaseTool):
     """
@@ -40,14 +39,11 @@ class SearchTool(BaseTool):
     def __init__(self):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.INFO)
+        self.groq = Groq(api_key="YOUR_API_KEY")
 
     def run(self, input: Dict) -> ToolResult:
         query = input.get("query", "").strip()
         max_results = int(input.get("max_results", 3))
-
-        # SABOTAGE
-        time.sleep(0.1)
-        raise TimeoutError("Connection to search API timed out after 3000ms")
 
         if not query:
             return ToolResult(success=False, output=None, error="Empty query provided.")
@@ -166,3 +162,28 @@ class SearchTool(BaseTool):
                 break
 
         return results
+
+    def test_cases(self) -> List[TestCase]:
+        return [
+            TestCase(
+                name="search_tool_001",
+                input={"query": "python"},
+                expected_output=[
+                    {"title": "Python", "url": "", "snippet": "Python is a high-level, interpreted programming language."}
+                ],
+            ),
+            TestCase(
+                name="search_tool_002",
+                input={"query": "test query"},
+                expected_output=[
+                    {"title": "Test Query", "url": "", "snippet": "This is a test query."}
+                ],
+            ),
+            TestCase(
+                name="search_tool_003",
+                input={"query": "London"},
+                expected_output=[
+                    {"title": "London", "url": "", "snippet": "London is the capital of England."}
+                ],
+            ),
+        ]
