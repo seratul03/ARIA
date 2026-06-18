@@ -89,6 +89,7 @@ class Settings:
     memory_recompute_interval: int      # e.g. 5
     max_rootcause_llm_calls_per_cycle: int # e.g. 10
     max_knowledge_llm_calls_per_cycle: int # e.g. 5
+    predictor_retrain_interval_cycles: int # e.g. 25
     clone_base_dir: Path
     clone_keep_on_failure: bool
 
@@ -145,6 +146,7 @@ def _load_settings() -> Settings:
         memory_recompute_interval=_get_int("MEMORY_RECOMPUTE_INTERVAL", 5),
         max_rootcause_llm_calls_per_cycle=_get_int("MAX_ROOTCAUSE_LLM_CALLS_PER_CYCLE", 10),
         max_knowledge_llm_calls_per_cycle=_get_int("MAX_KNOWLEDGE_LLM_CALLS_PER_CYCLE", 5),
+        predictor_retrain_interval_cycles=_get_int("PREDICTOR_RETRAIN_INTERVAL_CYCLES", 25),
         clone_base_dir=Path(_get("CLONE_BASE_DIR", "/tmp/aria_clones")),
         clone_keep_on_failure=_get("CLONE_KEEP_ON_FAILURE", "true").lower() == "true",
 

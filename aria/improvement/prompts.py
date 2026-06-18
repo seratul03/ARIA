@@ -55,7 +55,7 @@ The first line of your response must be a Python comment or import statement.
 
 from aria.config import settings
 
-def build_improvement_prompt(report: WeaknessReport) -> tuple[str, list[int]]:
+def build_improvement_prompt(report: WeaknessReport, strategy: str = "zero-shot") -> tuple[str, list[int]]:
     """
     Build the user-turn prompt for the improvement request.
     Returns (prompt_string, pending_rule_ids)
@@ -156,6 +156,16 @@ def build_improvement_prompt(report: WeaknessReport) -> tuple[str, list[int]]:
             rule_ids.append(rule['id'])
         rules_text += "\n"
 
+    strategy_text = ""
+    if strategy == "mutation":
+        strategy_text = "\nSTRATEGY: Mutation\nInstead of a full rewrite, apply a small, targeted mutation to the logic or error handling to fix the weakness.\n"
+    elif strategy == "breeding":
+        strategy_text = "\nSTRATEGY: Breeding\nCombine the best aspects of the current code with defensive patterns and robust error handling.\n"
+    elif strategy == "structural":
+        strategy_text = "\nSTRATEGY: Structural\nRefactor the overall structure of the tool into smaller, more modular helper functions within the class.\n"
+    elif strategy == "zero-shot":
+        strategy_text = "\nSTRATEGY: Zero-Shot\nPerform a complete, robust rewrite of the tool from scratch to eliminate the weaknesses.\n"
+
     prompt = f"""{self_model_text}IMPROVEMENT REQUEST
 ═══════════════════
 Tool Name:        {report.tool_name}
@@ -171,7 +181,7 @@ DETECTED WEAKNESSES:
 
 {similar_failures_text}{history_text}RECENT FAILURE SAMPLES:
 {failures_text}
-
+{strategy_text}
 CURRENT SOURCE CODE (improve this):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {report.source_code}

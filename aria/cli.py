@@ -798,6 +798,136 @@ def cmd_rootcause(args: argparse.Namespace) -> None:
         for cat_data in trend.values():
             for entry in cat_data:
                 all_dates.add(entry[0])
+
+def cmd_predictors(args: argparse.Namespace) -> None:
+    """Manage ARIA ML Predictors."""
+    from rich.console import Console
+    from rich.table import Table
+    from aria.main import bootstrap
+    bootstrap()
+    from aria.config import settings
+    
+    console = Console()
+    db_path = str(settings.db_path)
+    
+    if args.promote is not None:
+        import sqlite3
+        from aria.predictors.registry import promote_predictor
+        from rich.prompt import Confirm
+        import json
+        
+        # Display stats before prompting
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM predictor_registry WHERE id=?", (args.promote,)).fetchone()
+        conn.close()
+        
+        if not row:
+            console.print(f"[bold red]Predictor ID {args.promote} not found.[/bold red]")
+            return
+            
+        console.print(f"\n[bold cyan]Promoting Predictor ID: {row['id']}[/bold cyan]")
+        console.print(f"Type: {row['predictor_type']}, Version: {row['version']}")
+        console.print(f"Test AUC: {row['test_auc']}, Test Accuracy: {row['test_accuracy']}")
+        try:
+            notes = json.loads(row['notes'])
+            console.print(f"Class Balance (1:0): {notes.get('training_samples', 'unknown')} samples, {notes.get('baseline_accuracy', 'unknown'):.2%} baseline")
+        except Exception:
+            pass
+            
+        do_promote = Confirm.ask(f"\n[bold yellow]Promote predictor {args.promote} to ACTIVE?[/bold yellow]")
+        if do_promote:
+            promote_predictor(args.promote, db_path)
+            console.print("[bold green]✓ Promoted successfully.[/bold green]")
+        else:
+            console.print("[yellow]Promotion cancelled.[/yellow]")
+        return
+        
+    if args.rollback is not None:
+        from aria.predictors.registry import rollback_predictor
+        rollback_predictor(args.rollback, db_path)
+        console.print(f"[bold green]✓ {args.rollback} predictor rolled back.[/bold green]")
+        return
+        
+    if args.history is not None:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM predictor_registry WHERE predictor_type=? ORDER BY version DESC", (args.history,)).fetchall()
+        conn.close()
+        
+        table = Table(title=f"Predictor History: {args.history}", border_style="cyan")
+        table.add_column("ID")
+        table.add_column("Version")
+        table.add_column("Status")
+        table.add_column("Test AUC")
+        table.add_column("Test Acc")
+        table.add_column("Created")
+        
+        for r in rows:
+            color = "green" if r["status"] == "active" else "dim"
+            table.add_row(str(r["id"]), str(r["version"]), f"[{color}]{r['status']}[/]", f"{r['test_auc']:.3f}", f"{r['test_accuracy']:.3f}", r["trained_at"])
+            
+        console.print(table)
+        return
+        
+    if args.importances is not None:
+        from aria.predictors.registry import get_active_predictor
+        import numpy as np
+        res = get_active_predictor(args.importances, db_path)
+        if not res:
+            console.print(f"[red]No active predictor found for type '{args.importances}'[/red]")
+            return
+            
+        model, pid = res
+        try:
+            rf = model.named_steps["rf"]
+            importances = rf.feature_importances_
+            
+            # Need feature names
+            if args.importances == "success":
+                from aria.predictors.features import ALL_FEATURES as feats
+            elif args.importances == "failure":
+                from aria.predictors.features import FAILURE_FEATURES as feats
+            else:
+                from aria.predictors.features import RISK_FEATURES as feats
+                
+            indices = np.argsort(importances)[::-1]
+            console.print(f"\n[bold]Top Feature Importances ({args.importances} v{pid}):[/bold]")
+            for i in indices[:15]:
+                console.print(f"  {feats[i]:<35}: {importances[i]:.4f}")
+        except Exception as e:
+            console.print(f"[red]Could not extract feature importances: {e}[/red]")
+        return
+        
+    # Default / --health
+    from aria.predictors.inference import predictor_health_report
+    health = predictor_health_report(db_path)
+    
+    if not health:
+        console.print("[dim]No active predictors found. Empty registry.[/dim]")
+        return
+        
+    table = Table(title="ARIA Predictors Health Report", border_style="green")
+    table.add_column("Type")
+    table.add_column("Version")
+    table.add_column("Test AUC", justify="right")
+    table.add_column("Act. Acc", justify="right")
+    table.add_column("Act. AUC", justify="right")
+    table.add_column("Calib. Error", justify="right")
+    table.add_column("Alert", style="red bold")
+    
+    for ptype, metrics in health.items():
+        act_acc = f"{metrics['actual_accuracy']:.2f}" if metrics['actual_accuracy'] is not None else "—"
+        act_auc = f"{metrics['actual_auc']:.2f}" if metrics['actual_auc'] is not None else "—"
+        ece = f"{metrics['calibration_error']:.3f}" if metrics['calibration_error'] is not None else "—"
+        alert = metrics['alert'] or "—"
+        
+        table.add_row(ptype, str(metrics['version']), f"{metrics['test_auc']:.2f}", act_acc, act_auc, ece, alert)
+        
+    console.print(table)
+    if args.health:
+        console.print("\n[dim]Note: Drift and calibration alerts are triggered automatically. Use --rollback if necessary.[/dim]")
         dates = sorted(list(all_dates))
         
         table = Table(title="[bold]Root Cause Trend (30 Days)[/bold]", border_style="cyan")
@@ -1066,6 +1196,14 @@ def build_parser() -> argparse.ArgumentParser:
     rc_p.add_argument("--trend", action="store_true", help="30-day trend")
     rc_p.add_argument("--clusters", action="store_true", help="Show failure pattern clusters")
 
+    # predictors
+    pred_p = sub.add_parser("predictors", help="Manage Machine Learning Predictors")
+    pred_p.add_argument("--health", action="store_true", help="Show full health report for active predictors")
+    pred_p.add_argument("--promote", type=int, help="Promote a candidate predictor by ID to active status")
+    pred_p.add_argument("--rollback", type=str, help="Rollback the active predictor for a given type (success, failure, risk)")
+    pred_p.add_argument("--history", type=str, help="Show the version history for a given predictor type")
+    pred_p.add_argument("--importances", type=str, help="Show feature importances for active predictor of a given type")
+
     return parser
 
 
@@ -1092,6 +1230,7 @@ def main() -> None:
         "memory": cmd_memory,
         "why": cmd_why,
         "rootcause": cmd_rootcause,
+        "predictors": cmd_predictors,
     }
 
     handler = dispatch.get(args.command)

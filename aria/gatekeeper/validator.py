@@ -43,6 +43,7 @@ PROTECTED_PATHS = [
     "aria/memory/migrations/",
     "aria/memory/store.py",   # write path must stay append-only
     "aria/rootcause/categories.py",
+    "aria/predictors/",       # Constitution-protected ML predictors
 ]
 
 

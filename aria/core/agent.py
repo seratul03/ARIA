@@ -429,294 +429,164 @@ class AgentCore:
                 },
             )
     
-            # ── Step 2: Generate improvement ───────────────────────────────────────
-            self._emit(EventType.GENERATING, f"Calling Groq LLM to improve '{report.tool_name}'...")
-    
-            from aria.improvement.engine import ImprovementEngine
-    
-            imp_engine = ImprovementEngine()
-            improvement = imp_engine.generate_improvement(report, trace.cycle_id)
-    
-            trace.record_llm_usage(prompt_tokens=0, response_tokens=improvement.tokens_used)
-    
-            if not improvement.success:
-                self._emit(
-                    EventType.ERROR,
-                    f"LLM generation failed: {improvement.error}",
-                    {"tool": report.tool_name},
+            # ── Step 2: Gate 1 - Cycle Viability ───────────────────────────────────
+            self._emit(EventType.GENERATING, f"Checking cycle viability for '{report.tool_name}'...")
+            
+            from aria.predictors.inference import predict_cycle_viability, predict_candidate_success, predict_deployment_risk
+            from aria.metrics.db import get_connection
+            import time
+            
+            run_context = {
+                "tool_name": report.tool_name,
+                "hypothesis_id": hypothesis_id,
+                "root_cause_category": report.root_cause_category if hasattr(report, 'root_cause_category') else None,
+                "trigger_is_hypothesis": 1.0 if hypothesis_id else 0.0,
+                "hypothesis_confidence": 0.5,
+            }
+            
+            viability = predict_cycle_viability(report.tool_name, run_context, str(settings.db_path))
+            
+            with get_connection() as conn:
+                cur = conn.execute(
+                    "INSERT INTO evolution_runs (tool_name, run_status, started_at, trigger_type, hypothesis_id) VALUES (?, ?, ?, ?, ?)",
+                    (report.tool_name, 'skipped_low_viability' if viability['skip'] else 'running', time.time(), 'auto' if hypothesis_id else 'manual', hypothesis_id)
                 )
-                log_audit_event("IMPROVEMENT_ATTEMPT", {"tool": report.tool_name, "success": False, "error": improvement.error})
+                evolution_run_id = cur.lastrowid
+                
+            if viability['skip']:
+                self._emit(EventType.CYCLE_SKIPPED, f"Skipping cycle. Predicted success prob: {viability['predicted_success_prob']:.2f}")
+                trace.finalize("SKIPPED_LOW_VIABILITY")
+                trace.save()
+                return False
+                
+            # ── Step 3: Generate improvement ───────────────────────────────────────
+            self._emit(EventType.GENERATING, f"Generating candidates via Evolution Engine for '{report.tool_name}'...")
+            from aria.evolution.generator import generate_candidates, STRATEGY_ORDER
+            
+            weakness_context = {"report": report}
+            all_candidates = generate_candidates(evolution_run_id, report.tool_name, weakness_context, hypothesis_id, str(settings.db_path), STRATEGY_ORDER)
+            
+            if not all_candidates:
+                self._emit(EventType.ERROR, "Failed to generate any candidates.")
+                with get_connection() as conn:
+                    conn.execute("UPDATE evolution_runs SET run_status='failed_generation' WHERE id=?", (evolution_run_id,))
                 trace.finalize("GENERATION_FAILED")
                 trace.save()
-                
-                self_model.record_cycle("improvement_engine", success=False)
-                self_model.add_failure_pattern("improvement_engine", "LLM generation failed")
-                if hypothesis_id is not None:
-                    from aria.rootcause.hypotheses import mark_hypothesis_outcome
-                    mark_hypothesis_outcome(hypothesis_id, None, False)
                 return False
                 
             trace.record_candidate_generated()
-            log_audit_event("IMPROVEMENT_ATTEMPT", {"tool": report.tool_name, "success": True, "tokens_used": improvement.tokens_used})
-    
-            # ── Step 3: Arena Combat Protocol ──────────────────────────────────────
-            import subprocess
-            import tempfile
-            import json
-            import sys
-            from aria.improvement.adversarial import AdversarialGenerator
             
-            self._emit(EventType.STATIC_VALIDATION, f"Generating Tier 3 adversarial tests...")
-            adv_gen = AdversarialGenerator()
-            session_tests, session_token = adv_gen.generate_session_tests(report.tool_name)
-    
-            self._emit(EventType.STATIC_VALIDATION, f"Running isolated Gatekeeper on baseline...")
-    
-            # We need to run baseline with the current source
-            from aria.tools.registry import registry
-            tool_path = Path(__file__).parent.parent / "tools" / f"{report.tool_name}.py"
-            try:
-                current_source = tool_path.read_text(encoding="utf-8")
-            except Exception as e:
-                self._emit(EventType.ERROR, f"Failed to read baseline source: {e}")
-                trace.finalize("BASELINE_READ_ERROR")
+            # ── Step 4: Gate 2 - Candidate Filter ──────────────────────────────────
+            self._emit(EventType.STATIC_VALIDATION, f"Filtering {len(all_candidates)} candidates based on predicted success...")
+            filtered_candidates = predict_candidate_success(all_candidates, run_context, str(settings.db_path))
+            
+            if not filtered_candidates:
+                self._emit(EventType.ERROR, "All candidates filtered out.")
+                with get_connection() as conn:
+                    conn.execute("UPDATE evolution_runs SET run_status='failed_generation' WHERE id=?", (evolution_run_id,))
+                trace.finalize("GENERATION_FAILED")
                 trace.save()
                 return False
-
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as temp_file_clone, \
-                 tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as temp_file_base, \
-                 tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as temp_session_tests, \
-                 tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as temp_baseline_res:
                 
-                temp_file_clone.write(improvement.generated_code)
-                clone_path = temp_file_clone.name
-                
-                temp_file_base.write(current_source)
-                base_path = temp_file_base.name
-                
-                json.dump(session_tests, temp_session_tests)
-                session_tests_path = temp_session_tests.name
-                
-                baseline_res_path = temp_baseline_res.name
-
-            try:
-                # Sandbox Run 1: Baseline
-                res_base = subprocess.run(
-                    [
-                        sys.executable, "-m", "aria.gatekeeper.cli", 
-                        "--tool", report.tool_name, 
-                        "--source", base_path, 
-                        "--raw-results-only",
-                        "--session-tests-file", session_tests_path
-                    ],
-                    capture_output=True, text=True, check=False
-                )
-                
-                baseline_output = None
-                for line in reversed(res_base.stdout.strip().splitlines()):
-                    if line.startswith("[") or line.startswith("{"):
-                        baseline_output = line
-                        break
-                        
-                if not baseline_output:
-                    raise ValueError(f"Baseline run failed to return JSON: {res_base.stderr or res_base.stdout}")
-                    
-                baseline_results = json.loads(baseline_output)
-                if isinstance(baseline_results, dict) and not baseline_results.get("approved", True):
-                    # It failed static validation or something
-                    raise ValueError(f"Baseline failed static validation: {baseline_results.get('rejection_reason')}")
-                    
-                # Save baseline results to file
-                with open(baseline_res_path, "w", encoding="utf-8") as f:
-                    json.dump(baseline_results, f)
-
-                self._emit(EventType.SANDBOX_VALIDATION, f"Running isolated Gatekeeper on clone...")
-
-                # Sandbox Run 2: Clone
-                res_clone = subprocess.run(
-                    [
-                        sys.executable, "-m", "aria.gatekeeper.cli", 
-                        "--tool", report.tool_name, 
-                        "--source", clone_path,
-                        "--session-tests-file", session_tests_path,
-                        "--session-token", session_token,
-                        "--baseline-results-file", baseline_res_path
-                    ],
-                    capture_output=True, text=True, check=False
-                )
-                
-                gatekeeper_output = None
-                for line in reversed(res_clone.stdout.strip().splitlines()):
-                    if line.startswith("{"):
-                        gatekeeper_output = line
-                        break
-                        
-                if not gatekeeper_output:
-                    err_msg = res_clone.stderr.strip() if res_clone.stderr else res_clone.stdout.strip()
-                    if not err_msg:
-                        err_msg = "Gatekeeper output was empty."
-                    sandbox_result = {"approved": False, "rejection_reason": f"Gatekeeper failed to return JSON: {err_msg}"}
-                else:
-                    sandbox_result = json.loads(gatekeeper_output)
-                    
-            except Exception as exc:
-                sandbox_result = {"approved": False, "rejection_reason": f"Gatekeeper subprocess crashed: {exc}"}
-            finally:
-                Path(clone_path).unlink(missing_ok=True)
-                Path(base_path).unlink(missing_ok=True)
-                Path(session_tests_path).unlink(missing_ok=True)
-                Path(baseline_res_path).unlink(missing_ok=True)
-    
-            self._emit(
-                EventType.SANDBOX_VALIDATION,
-                f"Gatekeeper Result: Approved={sandbox_result.get('approved', False)}",
-                sandbox_result
+            # ── Step 5: Arena Combat Protocol ──────────────────────────────────────
+            self._emit(EventType.SANDBOX_VALIDATION, f"Running parallel sandbox for {len(filtered_candidates)} candidates...")
+            from aria.evolution.arena import run_parallel_sandbox
+            
+            evaluated = run_parallel_sandbox(
+                filtered_candidates, 
+                evolution_run_id, 
+                report.tool_name, 
+                str(settings.db_path), 
+                emit_func=lambda t, m: self._emit(EventType.SANDBOX_VALIDATION, m)
             )
             
-            combat_report = sandbox_result.get("combat_report")
-            if combat_report:
-                import uuid
-                from datetime import datetime
-                from rich.console import Console
-                from rich.table import Table
-                
-                console = Console()
-                session_id = uuid.uuid4().hex
-                date_iso = datetime.utcnow().isoformat() + "Z"
-                
-                console.print(f"\n[bold]Combat Session:[/bold] {session_id}")
-                console.print(f"[bold]Date:[/bold] {date_iso}")
-                console.print(f"[bold]Proposed Change:[/bold] \"Improved {report.tool_name}\"\n")
-                
-                table = Table(show_header=True, header_style="bold")
-                table.add_column("")
-                table.add_column("Current ARIA", justify="center")
-                table.add_column("Clone", justify="center")
-                table.add_column("Delta", justify="right")
-                
-                b = combat_report["baseline"]
-                c = combat_report["clone"]
-                
-                def fmt_delta(delta: float, is_ms=False) -> str:
-                    # Floating point comparisons can be tricky
-                    if abs(delta) < 0.001:
-                        prefix = ""
-                        is_positive = False
-                    else:
-                        prefix = "+" if delta > 0 else ""
-                        is_positive = delta > 0
-                        
-                    if is_ms:
-                        val = f"{prefix}{delta:.0f}ms"
-                    else:
-                        val = f"{prefix}{delta:.5f}"
-                        
-                    if abs(delta) < 0.001:
-                        return f"{val} ➖"
-                    elif is_positive and not is_ms:
-                        return f"[green]{val}[/green] ✅"
-                    elif not is_positive and is_ms:
-                        return f"[green]{val}[/green] ✅"
-                    else:
-                        return f"[red]{val}[/red] ❌"
-                        
-                c_delta = c["correctness"] - b["correctness"]
-                r_delta = c["robustness"] - b["robustness"]
-                l_delta = (c["latency_p90"] - b["latency_p90"]) * 1000
-                s_delta = c["overall_score"] - b["overall_score"]
-                
-                table.add_row("Correctness:", f"{b['correctness']:.5f}", f"{c['correctness']:.5f}", fmt_delta(c_delta))
-                table.add_row("Latency P90 (ms):", f"{b['latency_p90']*1000:.0f}", f"{c['latency_p90']*1000:.0f}", fmt_delta(l_delta, is_ms=True))
-                table.add_row("Robustness:", f"{b['robustness']:.5f}", f"{c['robustness']:.5f}", fmt_delta(r_delta))
-                
-                sg = combat_report.get("safety_gate", "PASS")
-                sg_fmt = "✅" if sg == "PASS" else "❌"
-                table.add_row("Safety Gate:", sg, sg, sg_fmt)
-                
-                table.add_row("Overall Score:", f"{b['overall_score']:.5f}", f"{c['overall_score']:.5f}", fmt_delta(s_delta))
-                
-                console.print(table)
-                
-                verdict = combat_report.get("verdict", "ARIA_WINS")
-                if verdict == "CLONE_WINS":
-                    console.print("\n[bold green]Verdict: CLONE WINS[/bold green]\n")
-                else:
-                    console.print("\n[bold red]Verdict: ARIA WINS — discarding clone[/bold red]\n")
-                    
-            log_audit_event("VALIDATION_RESULT", {"tool": report.tool_name, "sandbox_result": sandbox_result})
-    
-            # Check Gatekeeper health
-            rejection_reason = sandbox_result.get("rejection_reason") or ""
-            if any(err in rejection_reason for err in [
-                "Gatekeeper failed to return JSON", 
-                "Gatekeeper subprocess crashed", 
-                "Gatekeeper DB error", 
-                "Failed to read source file"
-            ]):
-                self_model.record_cycle("gatekeeper", success=False)
-            elif "Gatekeeper signature verification failed" in rejection_reason:
-                self_model.record_cycle("gatekeeper", success=False, safety_violation=True)
-            else:
-                self_model.record_cycle("gatekeeper", success=True)
-    
-            if not sandbox_result.get("approved", False):
-                reason = f"Gatekeeper failed: {rejection_reason or 'Unknown'}"
-                
-                is_safety_violation = "Static validation failed" in reason
-                self_model.record_cycle("improvement_engine", success=False, safety_violation=is_safety_violation)
-                if is_safety_violation:
-                    self_model.add_failure_pattern("improvement_engine", "AST Static Validation Failure")
-                    
-                imp_id = self._record_rejection(
-                    tool_name=report.tool_name,
-                    reason=reason,
-                    old_success_rate=report.success_rate,
-                )
-                from aria.knowledge.applications import resolve_rule_applications
-                resolve_rule_applications(improvement.pending_rule_app_ids, imp_id, "failure", str(settings.db_path))
-                
-                trace.record_candidate_rejected("candidate_1", reason)
-                trace.finalize("NO_IMPROVEMENT")
+            from aria.evolution.ranking import rank_candidates
+            ranked = rank_candidates(evaluated, evolution_run_id, str(settings.db_path))
+            
+            if not ranked:
+                self._emit(EventType.ERROR, "No candidates survived ranking.")
+                with get_connection() as conn:
+                    conn.execute("UPDATE evolution_runs SET run_status='failed_sandbox' WHERE id=?", (evolution_run_id,))
+                trace.finalize("SANDBOX_FAILED")
                 trace.save()
-                if hypothesis_id is not None:
-                    from aria.rootcause.hypotheses import mark_hypothesis_outcome
-                    mark_hypothesis_outcome(hypothesis_id, None, False)
                 return False
-
-            # ── Step 5: Human Review Gate ──────────────────────────────────────────
-            if combat_report and combat_report.get("verdict") == "CLONE_WINS":
-                from aria.metrics.db import insert_review_queue
                 
-                # Insert the queue item
+            winner = ranked[0]
+            sandbox_result = winner.get("sandbox_result", {})
+            combat_report = winner.get("combat_report", {})
+            improvement_code = winner.get("source_code")
+            pending_rules = winner.get("pending_rule_app_ids", [])
+            
+            if winner.get("sandbox_passed", 0) == 0:
+                self._emit(EventType.ERROR, f"Winner failed sandbox validation: {winner.get('disqualification_reason')}")
+                with get_connection() as conn:
+                    conn.execute("UPDATE evolution_runs SET run_status='failed_sandbox' WHERE id=?", (evolution_run_id,))
+                trace.finalize("SANDBOX_FAILED")
+                trace.save()
+                return False
+                
+            with get_connection() as conn:
+                conn.execute("UPDATE evolution_runs SET winner_candidate_id=? WHERE id=?", (winner["id"], evolution_run_id))
+                
+            # ── Step 6: Gate 3 - Deployment Risk ───────────────────────────────────
+            self._emit(EventType.STATIC_VALIDATION, f"Predicting deployment risk for winner (ID: {winner.get('id')})...")
+            risk = predict_deployment_risk(winner, run_context, str(settings.db_path))
+            
+            import uuid
+            import json
+            session_id = uuid.uuid4().hex
+            
+            from aria.metrics.db import insert_review_queue
+            
+            if risk['high_risk']:
+                self._emit(EventType.DEPLOYMENT, f"Winner flagged as high risk (Prob: {risk['rollback_prob']:.2f}). Redirecting to review queue.")
+                
                 queue_id = insert_review_queue(
-                    session_id=session_id if 'session_id' in locals() else 'unknown',
+                    session_id=session_id,
                     tool_name=report.tool_name,
                     timestamp=time.time(),
                     combat_report=json.dumps(combat_report),
-                    generated_code=improvement.generated_code,
+                    generated_code=improvement_code,
+                    status="pending",
+                    cycle_id=trace.cycle_id
+                )
+                
+                with get_connection() as conn:
+                    conn.execute("UPDATE evolution_runs SET run_status='review_queued' WHERE id=?", (evolution_run_id,))
+                trace.finalize("REVIEW_QUEUED")
+                trace.save()
+                
+                if settings.require_human_review:
+                    self._emit(EventType.CYCLE_COMPLETE, f"Cycle #{cycle_num} complete. [bold yellow]Pending human review.[/bold yellow]", {"cycle": cycle_num, "status": "pending_review"})
+                    return False
+                else:
+                    from aria.metrics.db import update_review_status
+                    update_review_status(queue_id, "auto_approved")
+                    
+            elif combat_report and combat_report.get("verdict") == "CLONE_WINS":
+                queue_id = insert_review_queue(
+                    session_id=session_id,
+                    tool_name=report.tool_name,
+                    timestamp=time.time(),
+                    combat_report=json.dumps(combat_report),
+                    generated_code=improvement_code,
                     status="pending",
                     cycle_id=trace.cycle_id,
                 )
                 
                 if settings.require_human_review:
-                    # TUI is running, so we shouldn't prompt interactively here.
-                    # Exit gracefully and let user review it later via the CLI.
-                    self._emit(
-                        EventType.CYCLE_COMPLETE,
-                        f"Cycle #{cycle_num} complete. [bold yellow]Pending human review.[/bold yellow] Run `aria review` to deploy.",
-                        {"cycle": cycle_num, "status": "pending_review"}
-                    )
+                    self._emit(EventType.CYCLE_COMPLETE, f"Cycle #{cycle_num} complete. [bold yellow]Pending human review.[/bold yellow]", {"cycle": cycle_num, "status": "pending_review"})
                     trace.finalize("PENDING_REVIEW")
                     trace.save()
                     return False
                 else:
                     from aria.metrics.db import update_review_status
                     update_review_status(queue_id, "auto_approved")
-    
-            # ── Step 6: Deploy ─────────────────────────────────────────────────────
+                    
+            # ── Step 7: Deploy ─────────────────────────────────────────────────────
             deployed_imp_id = self._deploy(
                 tool_name=report.tool_name,
-                new_source=improvement.generated_code,
+                new_source=improvement_code,
                 report=report,
                 sandbox_result=sandbox_result,
             )
@@ -724,14 +594,18 @@ class AgentCore:
     
             if deployed:
                 from aria.knowledge.applications import resolve_rule_applications
-                resolve_rule_applications(improvement.pending_rule_app_ids, deployed_imp_id, "success", str(settings.db_path))
+                resolve_rule_applications(pending_rules, deployed_imp_id, "success", str(settings.db_path))
                 self_model.record_cycle("improvement_engine", success=True)
                 trace.record_candidate_deployed()
                 trace.finalize("DEPLOYED")
+                with get_connection() as conn:
+                    conn.execute("UPDATE evolution_runs SET run_status='completed' WHERE id=?", (evolution_run_id,))
             else:
                 self_model.record_cycle("improvement_engine", success=False)
                 trace.record_candidate_rejected("candidate_1", "DEPLOY_FAILED")
                 trace.finalize("DEPLOY_FAILED")
+                with get_connection() as conn:
+                    conn.execute("UPDATE evolution_runs SET run_status='failed_deployment' WHERE id=?", (evolution_run_id,))
                 
             trace.save()
     
@@ -752,6 +626,22 @@ class AgentCore:
                     logger.error(f"[Agent] Memory ranking recompute failed: {e}")
                 self._cycles_since_recompute = 0
 
+            # ── Predictor Retraining ───────────────────────────────────────────────
+            if self._total_cycles % settings.predictor_retrain_interval_cycles == 0:
+                self._emit(
+                    EventType.SYSTEM,
+                    "Triggering Predictor Retraining pass over Phase 4 data..."
+                )
+                try:
+                    from aria.predictors.trainer import retrain_all
+                    results = retrain_all(str(settings.db_path))
+                    self._emit(
+                        EventType.SYSTEM,
+                        f"Predictor Retraining complete. Status: {results}"
+                    )
+                except Exception as e:
+                    logger.error(f"[Agent] Predictor retraining failed: {e}")
+                    
             # ── Meta-Introspection ─────────────────────────────────────────────────
             time_since_meta = (time.time() - self._last_meta_introspection_time) / 3600.0
             if (

@@ -82,7 +82,7 @@ class ImprovementEngine:
     Calls Groq LLM to generate improved tool source code.
     """
 
-    def generate_improvement(self, report: WeaknessReport, cycle_id: str | None = None) -> ImprovementResult:
+    def generate_improvement(self, report: WeaknessReport, cycle_id: str | None = None, strategy: str = "zero-shot") -> ImprovementResult:
         """
         Generate an improved version of the tool described in `report`.
 
@@ -104,7 +104,7 @@ class ImprovementEngine:
                 error="Groq package not installed. Run: pip install groq",
             )
 
-        user_prompt, rule_ids = build_improvement_prompt(report)
+        user_prompt, rule_ids = build_improvement_prompt(report, strategy)
         
         from aria.knowledge.applications import log_rule_applications
         pending_rule_app_ids = log_rule_applications(rule_ids, cycle_id, str(settings.db_path))

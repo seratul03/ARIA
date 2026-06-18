@@ -90,6 +90,21 @@ Output ONLY valid JSON.
 def run_meta_introspection(n_cycles: int) -> None:
     """Run meta-introspection over the last N cycles and update the self-model."""
     
+    # -1. Resolve Predictions & Health
+    try:
+        from aria.predictors.inference import resolve_prediction_outcomes, predictor_health_report
+        res_counts = resolve_prediction_outcomes(str(settings.db_path))
+        logger.info(f"[MetaIntrospection] Prediction outcomes resolved: {res_counts}")
+        
+        health = predictor_health_report(str(settings.db_path))
+        for ptype, metrics in health.items():
+            if metrics.get('alert'):
+                logger.warning(f"Predictor health alert [{ptype}]: {metrics['alert']}")
+                
+        self_model.introspection_data["predictor_summary"] = health
+    except Exception as e:
+        logger.error(f"[MetaIntrospection] Failed to resolve predictors: {e}")
+        
     # 0. Compress Memory
     try:
         from aria.memory.compression import compress_failure_history

@@ -248,8 +248,37 @@ Instead of strictly waiting for a bug to be patched before forming a rule, ARIA 
 ### 8.4 Integration with the Improvement Engine
 The `active` rules are serialized deterministically to `engineering_rules.json` (and committed to Git) and are injected directly into the system prompts of the Improvement Engine (`prompts.py`). This guarantees that ARIA adheres to its hard-earned principles whenever generating new tool implementations.
 
+## 9. The Prediction & Meta-Evaluation Subsystem (Phase 5)
+
+As ARIA scales, relying purely on heuristics and sandbox test passes is insufficient. The Prediction Subsystem (`aria/predictors`) introduces machine learning models to probabilistically estimate outcomes before spending expensive compute or deploying risky code.
+
+### 9.1 Predictive Gates
+ARIA employs three specialized ML models that act as intelligent firewalls throughout the improvement cycle:
+- **Viability Predictor (`failure`)**: Evaluates a generated hypothesis (Phase 2) alongside historical tool data to predict if attempting a cycle will just lead to an immediate failure/abort. If predicted probability of failure is too high, the cycle is aborted early to save compute.
+- **Success Predictor (`success`)**: Evaluates the generated candidate code (AST metrics, rule compliance score, complexity) to predict if it will ultimately succeed in production. Candidates with low predicted success are filtered out before entering the expensive Docker sandbox phase.
+- **Risk Predictor (`risk`)**: Evaluates the winning candidate just before Git deployment. If it predicts a high probability of causing a post-deployment rollback, ARIA emits a loud warning in the UI (but currently relies on human-in-the-loop for the final veto).
+
+### 9.2 Feature Engineering & Datasets
+The prediction layer relies on rich, domain-specific features extracted from ARIA's SQL databases:
+- **Cycle Features**: Tool failure rates, consecutive failed cycles, days since last deployment.
+- **Candidate Features**: Source lines of code, cyclomatic complexity, AST-derived metrics (retry logic, exception scopes).
+- **Meta Features**: Rule compliance scores from Phase 3, hypothesis confidence from Phase 2.
+Datasets are generated deterministically (`build_candidate_dataset`, `build_failure_dataset`) by mapping historical metrics to ground-truth outcomes (e.g., `sandbox_passed AND ih.result == 'deployed'`).
+
+### 9.3 Training and Promotion Lifecycle
+ARIA autonomously trains predictors using `scikit-learn` pipelines (e.g., GradientBoosting, LogisticRegression):
+- Models are evaluated using Stratified K-Fold Cross Validation.
+- Only models that clear strict `MIN_TEST_AUC` (0.65) and `MIN_TEST_ACCURACY` (0.60) thresholds are registered as `candidate` versions.
+- Candidates must be explicitly promoted to `active` via the CLI (`python -m aria predictors --promote <id>`).
+
+### 9.4 The Meta-Evaluation Loop
+Models in production are continuously monitored for degradation:
+- Every prediction made during a cycle is logged to `prediction_log` with `outcome='pending'`.
+- Once the cycle concludes and real-world outcomes are known, the logs are updated via `resolve_prediction_outcomes()`.
+- The `predictor_health_report` calculates actual production accuracy and calibration error (ECE). If a model's real-world accuracy drifts below its test baseline, an `accuracy_drift` alert is fired and logged directly into ARIA's `self_model.json`.
+
 ---
 
-## 9. Summary
+## 10. Summary
 
 ARIA represents a paradigm shift in agent design. By treating the agent framework itself as a fluid, optimizable construct, and surrounding that mutability with extreme, mathematically grounded safety constraints (Gatekeeper, Docker Sandboxing, Git Rollbacks, Long-Term Memory Compression, and the Knowledge Subsystem), ARIA achieves safe, persistent, autonomous self-evolution.
