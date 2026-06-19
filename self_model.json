@@ -1,52 +1,45 @@
 {
-  "last_updated": "2026-06-19T15:35:18.028574+00:00",
   "components": {
-    "introspection_engine": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-10T03:02:03.758433+00:00",
+    "gatekeeper": {
       "health_score": 1.0,
+      "known_weaknesses": [],
+      "last_successful_improvement": "2026-06-10T03:02:42.540425+00:00",
       "recent_cycles": [
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:36:56.226340+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:37:07.046165+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:03.205331+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:41:11.742882+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:42:51.616546+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:43:00.886117+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:46:27.901267+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:47:00.552098+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:22.726930+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:57:58.429551+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:03.758394+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T03:02:42.540395+00:00"
         }
-      ]
-    },
-    "scheduler": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": null,
-      "health_score": 1.0,
-      "recent_cycles": []
+      ],
+      "recent_failure_patterns": []
     },
     "improvement_engine": {
+      "health_score": 0.0,
       "known_weaknesses": [
         "inadequate mocking of external APIs",
         "Inconsistent test results due to unmocked external APIs",
@@ -79,7 +72,42 @@
         "Referee communication failed: [WinError 10061] No connection could be made because the target machine actively refused it",
         "manual_trigger on search_tool causing GENERATION_FAILED",
         "manual_trigger on calculator_tool causing NO_HISTORY",
-        "manual_trigger on math_tool causing NO_HISTORY"
+        "manual_trigger on math_tool causing NO_HISTORY",
+        "Insufficient data for generation",
+        "Failed to generate improvements"
+      ],
+      "last_successful_improvement": null,
+      "recent_cycles": [
+        {
+          "safety_violation": false,
+          "success": false,
+          "timestamp": "2026-06-10T02:37:07.047387+00:00"
+        },
+        {
+          "safety_violation": false,
+          "success": false,
+          "timestamp": "2026-06-10T02:41:11.744771+00:00"
+        },
+        {
+          "safety_violation": true,
+          "success": false,
+          "timestamp": "2026-06-10T02:43:00.886994+00:00"
+        },
+        {
+          "safety_violation": false,
+          "success": false,
+          "timestamp": "2026-06-10T02:47:00.552992+00:00"
+        },
+        {
+          "safety_violation": false,
+          "success": false,
+          "timestamp": "2026-06-10T02:57:58.430599+00:00"
+        },
+        {
+          "safety_violation": false,
+          "success": false,
+          "timestamp": "2026-06-10T03:02:42.541359+00:00"
+        }
       ],
       "recent_failure_patterns": [
         "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)",
@@ -92,81 +120,92 @@
         "manual_trigger on search_tool causing PENDING_REVIEW",
         "manual_trigger on search_tool causing GENERATION_FAILED",
         "manual_trigger on calculator_tool causing NO_HISTORY",
-        "manual_trigger on math_tool causing NO_HISTORY"
-      ],
-      "last_successful_improvement": null,
-      "health_score": 0.0,
-      "recent_cycles": [
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:37:07.047387+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:11.744771+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": true,
-          "timestamp": "2026-06-10T02:43:00.886994+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:47:00.552992+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:58.430599+00:00"
-        },
-        {
-          "success": false,
-          "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:42.541359+00:00"
-        }
+        "manual_trigger on math_tool causing NO_HISTORY",
+        "Manual trigger on search_tool failed to generate improvements",
+        "Manual trigger on calculator_tool failed to generate improvements",
+        "Manual trigger on math_tool failed to generate improvements"
       ]
     },
-    "gatekeeper": {
-      "known_weaknesses": [],
-      "recent_failure_patterns": [],
-      "last_successful_improvement": "2026-06-10T03:02:42.540425+00:00",
+    "introspection_engine": {
       "health_score": 1.0,
+      "known_weaknesses": [],
+      "last_successful_improvement": "2026-06-10T03:02:03.758433+00:00",
       "recent_cycles": [
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:37:07.046165+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:36:56.226340+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:41:11.742882+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:41:03.205331+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:43:00.886117+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:42:51.616546+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:47:00.552098+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:46:27.901267+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T02:57:58.429551+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T02:57:22.726930+00:00"
         },
         {
-          "success": true,
           "safety_violation": false,
-          "timestamp": "2026-06-10T03:02:42.540395+00:00"
+          "success": true,
+          "timestamp": "2026-06-10T03:02:03.758394+00:00"
         }
-      ]
+      ],
+      "recent_failure_patterns": []
+    },
+    "scheduler": {
+      "health_score": 1.0,
+      "known_weaknesses": [],
+      "last_successful_improvement": null,
+      "recent_cycles": [],
+      "recent_failure_patterns": []
     }
+  },
+  "snapshot": {
+    "active_architectural_patterns": 10,
+    "active_failure_patterns": 5,
+    "active_predictor_count": 0,
+    "active_rules": 0,
+    "active_weaknesses": 11,
+    "avg_candidates_per_run": 0.45454545454545453,
+    "candidate_rules": 0,
+    "cycle_number": 2,
+    "deployed_improvements": 5,
+    "deprecated_rules": 0,
+    "failed_proposals": 0,
+    "id": 2,
+    "implemented_hypotheses": 2,
+    "implemented_proposals": 0,
+    "mutation_win_rates_json": "{}",
+    "open_hypotheses": 0,
+    "open_proposals": 0,
+    "overall_deploy_rate": 0.5555555555555556,
+    "population_sizes_json": "{}",
+    "predictor_summary_json": "{}",
+    "recurring_mistake_count": 6,
+    "refinement_chains_active": 0,
+    "resolved_architectural_patterns": 0,
+    "resolved_failure_patterns": 0,
+    "resolved_weaknesses": 0,
+    "rolled_back_improvements": 1,
+    "root_cause_breakdown_json": "{\"Network\": 0.25203252032520324, \"Validation\": 0.016260162601626018, \"Logic\": 0.032520325203252036, \"Configuration\": 0.6991869918699187}",
+    "schema_version": 1,
+    "snapshot_at": "2026-06-19 20:00:04",
+    "strategy_win_rates_json": "{}",
+    "top_rule_confidence": 0.0,
+    "total_evolution_runs": 30,
+    "total_improvement_cycles": 9
   },
   "system_wide_patterns": [
     "Syntax error: invalid syntax (<unknown>, line 50)",
@@ -182,97 +221,9 @@
     "Gatekeeper failed: Referee communication failed",
     "manual_trigger on search_tool causing GENERATION_FAILED",
     "manual_trigger on calculator_tool causing NO_HISTORY",
-    "manual_trigger on math_tool causing NO_HISTORY"
-  ],
-  "memory_summary": {
-    "active_patterns": 1,
-    "resolved_patterns": 0,
-    "top_recurring": [],
-    "classification_summary": {
-      "heuristic": 0,
-      "llm": 0,
-      "skipped": 0,
-      "fallback": 0
-    },
-    "root_cause_summary": {
-      "by_occurrence": {
-        "Network": 1.0
-      },
-      "by_pattern_count": {},
-      "trend_30d": {}
-    },
-    "clustering_summary": {
-      "clusters_created": 0,
-      "clusters_updated": 0,
-      "lonely_patterns": 0
-    },
-    "extraction_summary": {
-      "patterns_created": 0,
-      "patterns_updated": 0,
-      "patterns_resolved": 0
-    }
-  },
-  "architectural_patterns": [
-    {
-      "pattern_name": "Missing Circuit Breaker Pattern",
-      "affected_tools": [
-        "t1",
-        "t2"
-      ],
-      "evidence_count": 4,
-      "status": "active"
-    }
-  ],
-  "predictor_summary": {
-    "success": {
-      "version": 1,
-      "test_auc": 0.9523809523809523,
-      "test_accuracy": 0.9090909090909091,
-      "actual_accuracy": 1.0,
-      "actual_auc": null,
-      "calibration_error": 0.0,
-      "alert": null
-    }
-  },
-  "snapshot": {
-    "id": 1,
-    "snapshot_at": "2026-06-19 15:35:07",
-    "cycle_number": 1,
-    "schema_version": 1,
-    "total_improvement_cycles": 9,
-    "deployed_improvements": 5,
-    "rolled_back_improvements": 1,
-    "overall_deploy_rate": 0.5555555555555556,
-    "active_failure_patterns": 1,
-    "resolved_failure_patterns": 0,
-    "root_cause_breakdown_json": "{\"Network\": 1.0}",
-    "active_architectural_patterns": 10,
-    "resolved_architectural_patterns": 0,
-    "open_hypotheses": 20,
-    "implemented_hypotheses": 2,
-    "active_rules": 0,
-    "candidate_rules": 0,
-    "deprecated_rules": 0,
-    "top_rule_confidence": 0.0,
-    "refinement_chains_active": 0,
-    "total_evolution_runs": 30,
-    "strategy_win_rates_json": "{\"bred\": 0.3333333333333333, \"mutation\": 0.3333333333333333, \"retrieval_based\": 0.09523809523809523, \"rule_guided\": 0.047619047619047616, \"structural\": 0.19047619047619047}",
-    "mutation_win_rates_json": "{\"add_retry\": 0.42857142857142855, \"tune_prompt\": 0.42857142857142855, \"tune_retry\": 0.14285714285714285}",
-    "avg_candidates_per_run": 4.521739130434782,
-    "population_sizes_json": "{\"calculator_tool\": 5, \"math_tool\": 3, \"search_tool\": 7}",
-    "predictor_summary_json": "{\"success\": {\"accuracy\": 0.9090909090909091, \"auc\": 0.9523809523809523, \"status\": \"active\", \"version\": 1}}",
-    "active_predictor_count": 1,
-    "active_weaknesses": 0,
-    "resolved_weaknesses": 0,
-    "recurring_mistake_count": 0,
-    "open_proposals": 0,
-    "implemented_proposals": 0,
-    "failed_proposals": 0
-  },
-  "active_weaknesses": 0,
-  "resolved_weaknesses": 0,
-  "recurring_mistake_count": 0,
-  "open_proposals": 0,
-  "implemented_proposals": 0,
-  "failed_proposals": 0
+    "manual_trigger on math_tool causing NO_HISTORY",
+    "Manual trigger on search_tool failed to generate improvements",
+    "Manual trigger on calculator_tool failed to generate improvements",
+    "Manual trigger on math_tool failed to generate improvements"
+  ]
 }
