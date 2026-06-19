@@ -76,7 +76,10 @@
         "Insufficient data for generation",
         "Failed to generate improvements",
         "Inconsistent generation results",
-        "Failed to improve in multiple cycles"
+        "Failed to improve in multiple cycles",
+        "manual_trigger on search_tool may cause generation failures",
+        "calculator_tool and math_tool may not provide sufficient history for improvement",
+        "candidates_rejected may be empty when generation fails"
       ],
       "last_successful_improvement": null,
       "recent_cycles": [
@@ -127,7 +130,10 @@
         "Manual trigger on calculator_tool failed to generate improvements",
         "Manual trigger on math_tool failed to generate improvements",
         "manual_trigger on search_tool failed to generate improvements",
-        "manual_trigger on calculator_tool failed to generate improvements"
+        "manual_trigger on calculator_tool failed to generate improvements",
+        "GENERATION_FAILED",
+        "NO_IMPROVEMENT with ALL_FAILED candidates",
+        "NO_HISTORY with empty candidates_rejected"
       ]
     },
     "introspection_engine": {
@@ -178,17 +184,17 @@
   },
   "snapshot": {
     "active_architectural_patterns": 10,
-    "active_failure_patterns": 5,
+    "active_failure_patterns": 6,
     "active_predictor_count": 0,
     "active_rules": 0,
     "active_weaknesses": 11,
     "avg_candidates_per_run": 0.45454545454545453,
     "candidate_rules": 0,
-    "cycle_number": 3,
+    "cycle_number": 4,
     "deployed_improvements": 5,
     "deprecated_rules": 0,
     "failed_proposals": 0,
-    "id": 3,
+    "id": 4,
     "implemented_hypotheses": 2,
     "implemented_proposals": 0,
     "mutation_win_rates_json": "{}",
@@ -203,9 +209,9 @@
     "resolved_failure_patterns": 0,
     "resolved_weaknesses": 0,
     "rolled_back_improvements": 1,
-    "root_cause_breakdown_json": "{\"Network\": 0.25203252032520324, \"Validation\": 0.016260162601626018, \"Logic\": 0.032520325203252036, \"Configuration\": 0.6991869918699187}",
+    "root_cause_breakdown_json": "{\"Network\": 0.25, \"Validation\": 0.024193548387096774, \"Logic\": 0.03225806451612903, \"Configuration\": 0.6935483870967742}",
     "schema_version": 1,
-    "snapshot_at": "2026-06-19 20:00:24",
+    "snapshot_at": "2026-06-19 20:00:47",
     "strategy_win_rates_json": "{}",
     "top_rule_confidence": 0.0,
     "total_evolution_runs": 30,
