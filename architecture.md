@@ -279,6 +279,29 @@ Models in production are continuously monitored for degradation:
 
 ---
 
-## 10. Summary
+## 10. The Introspection & Self-Improvement Proposal Subsystem (Phase 6)
+
+Phase 6 elevates ARIA from a system that logs metrics to one that actively diagnoses its own structural flaws and proposes concrete solutions. Instead of just reacting to tool failures, ARIA analyzes patterns in its own internal thoughts, execution strategies, and resource utilization to identify systemic bottlenecks.
+
+### 10.1 Meta-Introspection Cycle & Findings
+At regular intervals, the `meta.py` engine sweeps the database to synthesize specific structural findings:
+- **Architectural Weaknesses**: System-wide bottlenecks like "Prediction models are decaying" or "Adversarial tests lack depth."
+- **Recurring Mistakes**: LLM engineering mistakes that persist despite explicit instructions, signaling a flaw in the prompt builder or rule injection logic.
+- **Ineffective Improvements**: Changes that pass tests and deploy successfully but fail to improve real-world success rates.
+- **Token Waste**: Cycles that consume massive LLM contexts with negative ROI.
+- **Bad Prompts**: Prompt structures mathematically correlated with high failure rates (e.g., ignoring strategy directives).
+
+### 10.2 The Self-Model Time Series
+All findings are snapshotted into `self_model_snapshots`. This creates a measurable time series, allowing ARIA to determine if its active weaknesses are "improving", "stable", or "declining". The state is exported to `self_model.json` and committed to Git, making ARIA's internal health visible across restarts.
+
+### 10.3 Proposal Generation & Lifecycle
+Unlike tool-level fixes which are deployed automatically, Phase 6 generates **Self-Improvement Proposals** that are strictly human-in-the-loop:
+- **Generation**: ARIA uses heuristics (for known failure modes) and LLM logic (for complex findings) to formulate concrete proposals. A proposal details exactly *what* to change (e.g., `aria/improvement/prompt_builder.py`), *why*, and defines a falsifiable `success_metric`.
+- **Review & Acceptance**: Humans review proposals (`aria reflect --proposals`) and manually implement the changes.
+- **Evaluation**: Once implemented, ARIA tracks the `success_metric` over a defined cycle window. It then automatically grades the proposal as a `success`, `failure`, or `inconclusive`. This closes the loop, as failed proposals feed back into the system as new findings to analyze.
+
+---
+
+## 11. Summary
 
 ARIA represents a paradigm shift in agent design. By treating the agent framework itself as a fluid, optimizable construct, and surrounding that mutability with extreme, mathematically grounded safety constraints (Gatekeeper, Docker Sandboxing, Git Rollbacks, Long-Term Memory Compression, and the Knowledge Subsystem), ARIA achieves safe, persistent, autonomous self-evolution.

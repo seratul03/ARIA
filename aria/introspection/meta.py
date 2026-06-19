@@ -18,6 +18,17 @@ from aria.core.rate_limiter import groq_limiter
 from aria.metrics.db import query_cycle_traces
 from aria.introspection.self_model import self_model
 from aria.introspection.clone import clone_manager
+from aria.reflection.weaknesses import detect_architectural_weaknesses
+from aria.reflection.mistakes import detect_recurring_mistakes
+from aria.reflection.effectiveness import detect_ineffective_improvements
+from aria.reflection.tokens import analyze_token_waste
+from aria.reflection.prompts import detect_bad_prompts
+from aria.reflection.proposals import (
+    generate_proposals_from_weaknesses,
+    generate_proposals_from_mistakes,
+    generate_proposals_from_complex_findings,
+    evaluate_implemented_proposals
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +100,69 @@ Output ONLY valid JSON.
 
 def run_meta_introspection(n_cycles: int) -> None:
     """Run meta-introspection over the last N cycles and update the self-model."""
+    from aria.reflection.self_model import build_self_model_snapshot, export_self_model_json
+    from aria.metrics.db import get_connection
+    import sqlite3
+    db_path = str(settings.db_path)
+
+    try:
+        with get_connection() as conn:
+            res = conn.execute("SELECT MAX(cycle_number) as m FROM self_model_snapshots").fetchone()
+            cycle_number = (res["m"] or 0) + 1
+    except sqlite3.OperationalError:
+        cycle_number = 1
+
+    try:
+        snapshot_id = build_self_model_snapshot(db_path, cycle_number)
+        logger.info(f"[MetaIntrospection] Built self_model snapshot id={snapshot_id} for cycle {cycle_number}")
+        
+        stats = detect_architectural_weaknesses(db_path, snapshot_id)
+        logger.info(f"[MetaIntrospection] Phase 6 Weakness detection: {stats}")
+        
+        mistakes = detect_recurring_mistakes(db_path, snapshot_id)
+        if mistakes['detected'] == 0 and mistakes['updated'] == 0:
+            logger.info("[MetaIntrospection] no recurring mistakes detected in last 20 cycles — healthy signal")
+        else:
+            logger.info(f"[MetaIntrospection] Phase 6 Mistake detection: {mistakes}")
+            
+        ineffective = detect_ineffective_improvements(db_path, snapshot_id)
+        logger.info(f"[MetaIntrospection] Phase 6 Ineffective Improvements detection: {ineffective}")
+        
+        waste = analyze_token_waste(db_path, snapshot_id)
+        logger.info(f"[MetaIntrospection] Phase 6 Token Waste Analysis: {waste}")
+        
+        # 6. Detect bad prompts
+        logger.info("Detecting bad prompts in templates...")
+        prompts_res = detect_bad_prompts(db_path, snapshot_id, lookback_runs=30)
+        logger.info(f"Bad prompts checked. Inserted/updated: {prompts_res.get('inserted', 0) + prompts_res.get('updated', 0)}")
+        
+        # 7. Evaluate and generate self-improvement proposals
+        logger.info("Evaluating implemented proposals...")
+        eval_stats = evaluate_implemented_proposals(db_path)
+        logger.info(f"Evaluated proposals: {eval_stats['evaluated']} ({eval_stats['success']} success, {eval_stats['failure']} failure)")
+        
+        logger.info("Generating new self-improvement proposals...")
+        wp_count = generate_proposals_from_weaknesses(db_path, snapshot_id)
+        mp_count = generate_proposals_from_mistakes(db_path, snapshot_id)
+        cp_count = generate_proposals_from_complex_findings(db_path, snapshot_id, max_llm_calls=3)
+        total_proposals = wp_count + mp_count + cp_count
+        logger.info(f"Generated {total_proposals} new self-improvement proposals ({wp_count} weakness, {mp_count} mistake, {cp_count} complex).")
+        
+        logger.info(f"Meta-introspection cycle complete. Snapshot ID: {snapshot_id}")
+        
+        with get_connection() as conn:
+            active_weaknesses = conn.execute("SELECT COUNT(*) FROM architectural_weaknesses WHERE status = 'active'").fetchone()[0]
+            active_mistakes = conn.execute("SELECT COUNT(*) FROM recurring_mistakes WHERE status = 'active'").fetchone()[0]
+            conn.execute("""
+                UPDATE self_model_snapshots 
+                SET active_weaknesses = ?, recurring_mistake_count = ?
+                WHERE id = ?
+            """, (active_weaknesses, active_mistakes, snapshot_id))
+            conn.commit()
+            
+    except Exception as e:
+        logger.error(f"[MetaIntrospection] Failed to build self_model snapshot: {e}")
+        snapshot_id = None
     
     # -1. Resolve Predictions & Health
     try:
@@ -249,7 +323,10 @@ def run_meta_introspection(n_cycles: int) -> None:
         
         if memory_summary:
             self_model.introspection_data["memory_summary"] = memory_summary
-            self_model.save()
+            try:
+                export_self_model_json(str(settings.db_path), str(settings.self_model_path))
+            except Exception as e:
+                logger.error(f"[MetaIntrospection] Failed to export self_model_json: {e}")
             
         if not traces:
             logger.info("[MetaIntrospection] No traces available. Skipping LLM analysis.")
@@ -315,7 +392,10 @@ def run_meta_introspection(n_cycles: int) -> None:
             self_model.introspection_data["memory_summary"] = memory_summary
             self_model.introspection_data["root_cause_report"] = root_cause_report
             
-        self_model.save()
+        try:
+            export_self_model_json(str(settings.db_path), str(settings.self_model_path))
+        except Exception as e:
+            logger.error(f"[MetaIntrospection] Failed to export self_model_json: {e}")
         logger.info("[MetaIntrospection] Self-model updated successfully.")
     
     except Exception as exc:

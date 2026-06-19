@@ -1114,6 +1114,143 @@ def cmd_knowledge(args: argparse.Namespace) -> None:
         console.print(table)
 
 
+def cmd_reflect(args: argparse.Namespace) -> None:
+    """ARIA Self-Reflection and Introspection"""
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from aria.main import bootstrap
+    
+    bootstrap()
+    from aria.config import settings
+    db_path = str(settings.db_path)
+    console = Console()
+    
+    import sqlite3
+    
+    if args.report:
+        from aria.reflection.report import generate_reflection_report
+        with console.status("Generating synthesis report..."):
+            report = generate_reflection_report(db_path, llm_narrative=not args.no_narrative)
+            
+        console.print(Panel("[bold magenta]ARIA Self-Reflection Report[/bold magenta]", expand=False))
+        if report.get("narrative"):
+            console.print(f"\n[bold]Synthesis[/bold]\n{report['narrative']}\n")
+            
+        console.print(f"[bold]Active Weaknesses[/bold]: {len(report['active_weaknesses'])}")
+        console.print(f"[bold]Recurring Mistakes[/bold]: {len(report['recurring_mistakes'])}")
+        console.print(f"[bold]Ineffective Improvements[/bold]: {len(report['ineffective_improvements'])}")
+        console.print(f"[bold]Token Waste Findings[/bold]: {len(report['token_waste']['top_findings'])}")
+        console.print(f"[bold]Bad Prompts[/bold]: {len(report['bad_prompts'])}")
+        
+        console.print("\n[bold]Top Priority Proposals[/bold]:")
+        for p in report["priority_proposals"]:
+            console.print(f"  [{p['priority'].upper()}] {p['title']} (ID: {p['id']})")
+            
+        return
+        
+    if args.weaknesses:
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT * FROM architectural_weaknesses WHERE status='active'").fetchall()
+            
+            table = Table(title="Active Architectural Weaknesses")
+            table.add_column("ID")
+            table.add_column("Type")
+            table.add_column("Severity")
+            table.add_column("Description")
+            for r in rows:
+                table.add_row(str(r["id"]), r["weakness_type"], r["severity"], r["description"])
+            console.print(table)
+        return
+        
+    if args.mistakes:
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT * FROM recurring_mistakes WHERE status='active'").fetchall()
+            
+            table = Table(title="Active Recurring Mistakes")
+            table.add_column("ID")
+            table.add_column("Type")
+            table.add_column("Description")
+            for r in rows:
+                table.add_row(str(r["id"]), r["mistake_type"], r["description"])
+            console.print(table)
+        return
+        
+    if args.proposals:
+        from aria.reflection.proposals import get_priority_proposals
+        props = get_priority_proposals(db_path, limit=20)
+        
+        table = Table(title="Priority Self-Improvement Proposals")
+        table.add_column("ID")
+        table.add_column("Priority")
+        table.add_column("Type")
+        table.add_column("Title")
+        
+        for p in props:
+            color = "red" if p["priority"] == "critical" else "yellow" if p["priority"] == "high" else "white"
+            table.add_row(str(p["id"]), f"[{color}]{p['priority']}[/]", p["change_type"], p["title"])
+        console.print(table)
+        return
+        
+    if args.proposal:
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute("SELECT * FROM self_improvement_proposals WHERE id=?", (args.proposal,)).fetchone()
+            if not row:
+                console.print(f"[red]Proposal ID {args.proposal} not found.[/red]")
+                return
+                
+            console.print(Panel(f"[bold]{row['title']}[/bold]\n\n"
+                                f"Priority: {row['priority']}\n"
+                                f"Change Type: {row['change_type']}\n"
+                                f"Target Module: {row['target_module']}\n"
+                                f"Status: {row['status']}\n\n"
+                                f"[bold]Proposal:[/bold]\n{row['proposal_text']}\n\n"
+                                f"[bold]Success Metric:[/bold]\n{row['success_metric']}",
+                                title=f"Proposal #{row['id']}"))
+        return
+        
+    if args.accept:
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("UPDATE self_improvement_proposals SET status='accepted', accepted_at=CURRENT_TIMESTAMP WHERE id=?", (args.accept,))
+            conn.commit()
+            console.print(f"[green]Proposal {args.accept} marked as accepted.[/green]")
+        return
+        
+    if args.implemented:
+        with sqlite3.connect(db_path) as conn:
+            notes = args.notes or ""
+            # Set evaluation_at to roughly 20 cycles from now, but since we evaluate based on time we just say +1 day or so.
+            # Realistically we evaluate during meta-cycle check.
+            conn.execute("UPDATE self_improvement_proposals SET status='implemented', implemented_at=CURRENT_TIMESTAMP, evaluation_at=datetime('now', '+1 day'), implementation_notes=? WHERE id=?", (notes, args.implemented))
+            conn.commit()
+            console.print(f"[green]Proposal {args.implemented} marked as implemented.[/green]")
+        return
+        
+    if args.outcomes:
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT * FROM self_improvement_proposals WHERE outcome IS NOT NULL").fetchall()
+            
+            table = Table(title="Proposal Outcomes")
+            table.add_column("ID")
+            table.add_column("Title")
+            table.add_column("Outcome")
+            table.add_column("Notes")
+            for r in rows:
+                color = "green" if r["outcome"] == "success" else "red" if r["outcome"] == "failure" else "yellow"
+                table.add_row(str(r["id"]), r["title"][:40], f"[{color}]{r['outcome']}[/]", str(r["outcome_notes"])[:40])
+            console.print(table)
+        return
+        
+    # Default
+    console.print("[dim]Use --report, --proposals, --weaknesses, --mistakes, or --proposal <id>[/dim]")
+
+
+
+
 # ── Argument parser ───────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1204,6 +1341,23 @@ def build_parser() -> argparse.ArgumentParser:
     pred_p.add_argument("--history", type=str, help="Show the version history for a given predictor type")
     pred_p.add_argument("--importances", type=str, help="Show feature importances for active predictor of a given type")
 
+    # reflect
+    refl_p = sub.add_parser("reflect", help="ARIA Self-Reflection (Phase 6)")
+    refl_p.add_argument("--report", action="store_true", help="Full synthesis report")
+    refl_p.add_argument("--no-narrative", action="store_true", help="Exclude LLM narrative from report")
+    refl_p.add_argument("--weaknesses", action="store_true", help="List architectural weaknesses")
+    refl_p.add_argument("--mistakes", action="store_true", help="List recurring mistakes")
+    refl_p.add_argument("--ineffective", action="store_true", help="List ineffective improvements")
+    refl_p.add_argument("--waste", action="store_true", help="List token waste findings")
+    refl_p.add_argument("--prompts", action="store_true", help="List bad prompt findings")
+    refl_p.add_argument("--proposals", action="store_true", help="List priority self-improvement proposals")
+    refl_p.add_argument("--proposal", type=int, help="Show detail for a specific proposal ID")
+    refl_p.add_argument("--accept", type=int, help="Accept a proposal ID")
+    refl_p.add_argument("--implemented", type=int, help="Mark a proposal ID as implemented")
+    refl_p.add_argument("--notes", type=str, help="Notes for implementation")
+    refl_p.add_argument("--outcomes", action="store_true", help="List evaluated proposal outcomes")
+    refl_p.add_argument("--trend", nargs=2, metavar=("<metric>", "<n>"), help="Trend for metric over last n cycles")
+
     return parser
 
 
@@ -1231,6 +1385,7 @@ def main() -> None:
         "why": cmd_why,
         "rootcause": cmd_rootcause,
         "predictors": cmd_predictors,
+        "reflect": cmd_reflect,
     }
 
     handler = dispatch.get(args.command)
