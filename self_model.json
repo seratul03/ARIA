@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-15T01:14:00.275787+00:00",
+  "last_updated": "2026-06-19T15:35:18.028574+00:00",
   "components": {
     "introspection_engine": {
       "known_weaknesses": [],
@@ -76,7 +76,10 @@
         "Syntax error: unterminated string literal",
         "Syntax error: '(' was never closed",
         "Syntax error: '{' was never closed",
-        "Referee communication failed: [WinError 10061] No connection could be made because the target machine actively refused it"
+        "Referee communication failed: [WinError 10061] No connection could be made because the target machine actively refused it",
+        "manual_trigger on search_tool causing GENERATION_FAILED",
+        "manual_trigger on calculator_tool causing NO_HISTORY",
+        "manual_trigger on math_tool causing NO_HISTORY"
       ],
       "recent_failure_patterns": [
         "Gatekeeper failed: 3/4 tests failed: search_tool_001 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Python+programming+language&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_003 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Albert+Einstein&format=json&no_html=1&skip_disambig=1')> not mocked!), search_tool_004 (Error: RESPX: <Request('GET', 'https://api.duckduckgo.com/?q=Quantum&format=json&no_html=1&skip_disambig=1')> not mocked!)",
@@ -85,7 +88,11 @@
         "Gatekeeper failed: Static validation failed: Syntax error: invalid syntax (<unknown>, line 50). Code at line 50: '    \\\"\\\"\\\"AST visitor that safely evaluates mathematical expressions.\\\"\\\"\\''",
         "Gatekeeper failed: Docker unavailable: Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')",
         "Gatekeeper failed: Static validation failed",
-        "Gatekeeper failed: Referee communication failed"
+        "Gatekeeper failed: Referee communication failed",
+        "manual_trigger on search_tool causing PENDING_REVIEW",
+        "manual_trigger on search_tool causing GENERATION_FAILED",
+        "manual_trigger on calculator_tool causing NO_HISTORY",
+        "manual_trigger on math_tool causing NO_HISTORY"
       ],
       "last_successful_improvement": null,
       "health_score": 0.0,
@@ -172,10 +179,13 @@
     "Inconsistent test results from Static validation",
     "Gatekeeper failed: Sandbox error",
     "Gatekeeper failed: 5/8 tests failed",
-    "Gatekeeper failed: Referee communication failed"
+    "Gatekeeper failed: Referee communication failed",
+    "manual_trigger on search_tool causing GENERATION_FAILED",
+    "manual_trigger on calculator_tool causing NO_HISTORY",
+    "manual_trigger on math_tool causing NO_HISTORY"
   ],
   "memory_summary": {
-    "active_patterns": 0,
+    "active_patterns": 1,
     "resolved_patterns": 0,
     "top_recurring": [],
     "classification_summary": {
@@ -185,7 +195,9 @@
       "fallback": 0
     },
     "root_cause_summary": {
-      "by_occurrence": {},
+      "by_occurrence": {
+        "Network": 1.0
+      },
       "by_pattern_count": {},
       "trend_30d": {}
     },
@@ -210,5 +222,57 @@
       "evidence_count": 4,
       "status": "active"
     }
-  ]
+  ],
+  "predictor_summary": {
+    "success": {
+      "version": 1,
+      "test_auc": 0.9523809523809523,
+      "test_accuracy": 0.9090909090909091,
+      "actual_accuracy": 1.0,
+      "actual_auc": null,
+      "calibration_error": 0.0,
+      "alert": null
+    }
+  },
+  "snapshot": {
+    "id": 1,
+    "snapshot_at": "2026-06-19 15:35:07",
+    "cycle_number": 1,
+    "schema_version": 1,
+    "total_improvement_cycles": 9,
+    "deployed_improvements": 5,
+    "rolled_back_improvements": 1,
+    "overall_deploy_rate": 0.5555555555555556,
+    "active_failure_patterns": 1,
+    "resolved_failure_patterns": 0,
+    "root_cause_breakdown_json": "{\"Network\": 1.0}",
+    "active_architectural_patterns": 10,
+    "resolved_architectural_patterns": 0,
+    "open_hypotheses": 20,
+    "implemented_hypotheses": 2,
+    "active_rules": 0,
+    "candidate_rules": 0,
+    "deprecated_rules": 0,
+    "top_rule_confidence": 0.0,
+    "refinement_chains_active": 0,
+    "total_evolution_runs": 30,
+    "strategy_win_rates_json": "{\"bred\": 0.3333333333333333, \"mutation\": 0.3333333333333333, \"retrieval_based\": 0.09523809523809523, \"rule_guided\": 0.047619047619047616, \"structural\": 0.19047619047619047}",
+    "mutation_win_rates_json": "{\"add_retry\": 0.42857142857142855, \"tune_prompt\": 0.42857142857142855, \"tune_retry\": 0.14285714285714285}",
+    "avg_candidates_per_run": 4.521739130434782,
+    "population_sizes_json": "{\"calculator_tool\": 5, \"math_tool\": 3, \"search_tool\": 7}",
+    "predictor_summary_json": "{\"success\": {\"accuracy\": 0.9090909090909091, \"auc\": 0.9523809523809523, \"status\": \"active\", \"version\": 1}}",
+    "active_predictor_count": 1,
+    "active_weaknesses": 0,
+    "resolved_weaknesses": 0,
+    "recurring_mistake_count": 0,
+    "open_proposals": 0,
+    "implemented_proposals": 0,
+    "failed_proposals": 0
+  },
+  "active_weaknesses": 0,
+  "resolved_weaknesses": 0,
+  "recurring_mistake_count": 0,
+  "open_proposals": 0,
+  "implemented_proposals": 0,
+  "failed_proposals": 0
 }
