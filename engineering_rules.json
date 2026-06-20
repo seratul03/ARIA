@@ -1,6 +1,6 @@
 {
-  "version": 19,
-  "generated_at": "2026-06-20T11:53:38.998138+00:00",
+  "version": 20,
+  "generated_at": "2026-06-20T12:04:36.298553+00:00",
   "rules": [
     {
       "id": 1,
@@ -85,6 +85,40 @@
       "superseded_by": null,
       "created_at": "2026-06-20 11:53:38",
       "updated_at": "2026-06-20 11:53:38",
+      "initial_confidence": 0.2
+    },
+    {
+      "id": 6,
+      "rule_text": "Always validate assumptions about data shapes, boundary conditions, and algorithmic correctness through comprehensive testing, code reviews, and defensive programming before deployment.",
+      "category": "Logic",
+      "scope": "When any component performs conditional logic or algorithmic processing on input data",
+      "source_type": "architectural_pattern",
+      "source_id": 5,
+      "confidence": 0.2,
+      "status": "candidate",
+      "deprecation_reason": null,
+      "applications_count": 0,
+      "success_count": 0,
+      "superseded_by": null,
+      "created_at": "2026-06-20 12:04:33",
+      "updated_at": "2026-06-20 12:04:33",
+      "initial_confidence": 0.2
+    },
+    {
+      "id": 7,
+      "rule_text": "Implement a circuit breaker around external calls to prevent cascading failures and allow graceful degradation.",
+      "category": "Logic",
+      "scope": "When making calls to external services or components that may become unavailable or slow",
+      "source_type": "architectural_pattern",
+      "source_id": 11,
+      "confidence": 0.2,
+      "status": "candidate",
+      "deprecation_reason": null,
+      "applications_count": 0,
+      "success_count": 0,
+      "superseded_by": null,
+      "created_at": "2026-06-20 12:04:36",
+      "updated_at": "2026-06-20 12:04:36",
       "initial_confidence": 0.2
     }
   ]
