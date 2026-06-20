@@ -53,33 +53,28 @@ class SearchTool(BaseTool):
                 name="search_tool_001",
                 input={"query": "python"},
                 expected_output=[
-                    {
-                        "title": "Python",
-                        "url": "",
-                        "snippet": "Python is a high-level, interpreted programming language.",
-                    }
+                    {"title": "Python", "url": "", "snippet": "Python is a high-level, interpreted programming language."},
                 ],
             ),
             TestCase(
                 name="search_tool_002",
                 input={"query": "test query"},
                 expected_output=[
-                    {
-                        "title": "Test Query",
-                        "url": "",
-                        "snippet": "This is a test query.",
-                    }
+                    {"title": "Test Query", "url": "", "snippet": "This is a test query."},
                 ],
             ),
             TestCase(
                 name="search_tool_003",
                 input={"query": "London"},
                 expected_output=[
-                    {
-                        "title": "London",
-                        "url": "",
-                        "snippet": "London is the capital of England.",
-                    }
+                    {"title": "London", "url": "", "snippet": "London is the capital of England."},
+                ],
+            ),
+            TestCase(
+                name="search_tool_004",
+                input={"query": "Quantum"},
+                expected_output=[
+                    {"title": "Quantum", "url": "", "snippet": "Quantum is a branch of physics."},
                 ],
             ),
         ]
