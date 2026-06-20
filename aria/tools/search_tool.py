@@ -16,7 +16,7 @@ class SearchTool(BaseTool):
         self.logger.setLevel(logging.INFO)
         self.groq = Groq(api_key="YOUR_API_KEY")
 
-    def run(self, input: dict) -> ToolResult:
+    def run(self, input: Dict) -> ToolResult:
         query = input.get("query")
         if query is None:
             return ToolResult(success=True, output=[])
