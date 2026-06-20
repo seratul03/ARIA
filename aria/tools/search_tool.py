@@ -17,16 +17,6 @@ class SearchTool(BaseTool):
         self.groq = Groq(api_key="YOUR_API_KEY")
         self._cache: Dict[str, List[Dict[str, str]]] = {}
 
-    def _generate_result(self, query: str) -> List[Dict[str, str]]:
-        """
-        Return a deterministic result for a known query.
-        Unknown queries return an empty list.
-        """
-        key = query.lower()
-        if key in self._KNOWN_RESULTS:
-            return [self._KNOWN_RESULTS[key]]
-        return []
-
     def run(self, input: dict) -> ToolResult:
         query = input.get("query")
         if query is None:
