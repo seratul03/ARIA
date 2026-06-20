@@ -22,7 +22,7 @@ class SearchTool(BaseTool):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.INFO)
 
-    _KNOWN_RESULTS: Dict[str, Dict] = {
+    _KNOWN_RESULTS: Dict[str, Dict[str, str]] = {
         "python": {
             "title": "Python",
             "url": "",
@@ -40,7 +40,7 @@ class SearchTool(BaseTool):
         },
     }
 
-    def _generate_result(self, query: str) -> List[Dict]:
+    def _generate_result(self, query: str) -> List[Dict[str, str]]:
         key = query.lower()
         if key in self._KNOWN_RESULTS:
             return [self._KNOWN_RESULTS[key]]
@@ -55,7 +55,6 @@ class SearchTool(BaseTool):
     def run(self, input: dict) -> ToolResult:
         query = input.get("query")
         if query is None:
-            # No query provided – return empty result set
             return ToolResult(success=True, output=[])
         if not isinstance(query, str):
             query = str(query)
@@ -69,7 +68,6 @@ class SearchTool(BaseTool):
             if max_results < 1:
                 raise ValueError
         except Exception:
-            # Invalid max_results – default to 3
             max_results = 3
 
         results = self._generate_result(query)[:max_results]
