@@ -84,7 +84,8 @@
         "Inconsistent search results",
         "Insufficient pattern recognition",
         "Configuration errors causing sandbox failures",
-        "Search_tool weakness detection triggers frequent sandbox failures"
+        "Search_tool weakness detection triggers frequent sandbox failures",
+        "LOST_RANKING_BATTLE"
       ],
       "last_successful_improvement": null,
       "recent_cycles": [
@@ -142,7 +143,8 @@
         "multiple consecutive DEPLOYED outcomes without resolution",
         "Repeated deployment failures",
         "Failed to identify optimal candidates",
-        "Repeated sandbox failures during improvement cycles on search_tool"
+        "Repeated sandbox failures during improvement cycles on search_tool",
+        "auto_trigger on search_tool (mode=weakness)"
       ]
     },
     "introspection_engine": {
@@ -251,6 +253,7 @@
     "Repeated deployment failures",
     "Missing Circuit Breaker Pattern leading to cascading timeouts",
     "Configuration misconfigurations causing sandbox failures",
-    "Search_tool repeated timeout failures"
+    "Search_tool repeated timeout failures",
+    "auto_trigger on search_tool (mode=weakness)"
   ]
 }
