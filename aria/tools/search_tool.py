@@ -2,7 +2,7 @@ import logging
 from typing import Dict, List
 
 from aria.tools.base import BaseTool, TestCase, ToolResult
-
+from groq import Groq
 
 class SearchTool(BaseTool):
     """
@@ -21,25 +21,8 @@ class SearchTool(BaseTool):
     def __init__(self):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.INFO)
+        self.groq = Groq(api_key="YOUR_API_KEY")
         self._cache: Dict[str, List[Dict[str, str]]] = {}
-
-    _KNOWN_RESULTS: Dict[str, Dict[str, str]] = {
-        "python": {
-            "title": "Python",
-            "url": "",
-            "snippet": "Python is a high-level, interpreted programming language.",
-        },
-        "test query": {
-            "title": "Test Query",
-            "url": "",
-            "snippet": "This is a test query.",
-        },
-        "london": {
-            "title": "London",
-            "url": "",
-            "snippet": "London is the capital of England.",
-        },
-    }
 
     def _generate_result(self, query: str) -> List[Dict[str, str]]:
         """
@@ -113,3 +96,21 @@ class SearchTool(BaseTool):
                 ],
             ),
         ]
+
+    _KNOWN_RESULTS: Dict[str, Dict[str, str]] = {
+        "python": {
+            "title": "Python",
+            "url": "",
+            "snippet": "Python is a high-level, interpreted programming language.",
+        },
+        "test query": {
+            "title": "Test Query",
+            "url": "",
+            "snippet": "This is a test query.",
+        },
+        "london": {
+            "title": "London",
+            "url": "",
+            "snippet": "London is the capital of England.",
+        },
+    }
