@@ -15,7 +15,6 @@ class SearchTool(BaseTool):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.INFO)
         self.groq = Groq(api_key="YOUR_API_KEY")
-        self._cache: Dict[str, List[Dict[str, str]]] = {}
 
     def run(self, input: dict) -> ToolResult:
         query = input.get("query")
@@ -35,17 +34,12 @@ class SearchTool(BaseTool):
         except Exception:
             max_results = 3
 
-        if query in self._cache:
-            results = self._cache[query][:max_results]
-        else:
-            try:
-                results = self.groq.search(query, max_results=max_results)
-                self._cache[query] = results
-            except Exception as e:
-                self.logger.error(f"Error searching for query '{query}': {e}")
-                return ToolResult(success=False, output=[])
-
-        return ToolResult(success=True, output=results)
+        try:
+            results = self.groq.search(query, max_results=max_results)
+            return ToolResult(success=True, output=results)
+        except Exception as e:
+            self.logger.error(f"Error searching for query '{query}': {e}")
+            return ToolResult(success=False, output=[])
 
     def test_cases(self) -> List[TestCase]:
         return [
