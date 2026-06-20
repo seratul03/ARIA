@@ -125,6 +125,26 @@ class SearchTool(BaseTool):
 
         return results
 
+    def _handle_json_response(self, resp: httpx.Response) -> List[Dict]:
+        """Handle the JSON response from the DuckDuckGo Instant Answer API."""
+        try:
+            results = self._parse_json_response(resp)
+            if results:
+                return results
+            else:
+                # Fallback to HTML scraping if JSON API returns no useful results
+                headers = {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+                    )
+                }
+                resp = self._get_html_response(resp.request.url.split("?")[0], headers)
+                return self._parse_html_response(resp)
+        except Exception as exc:
+            self.logger.error(f"Unexpected error: {exc}")
+            return []
+
     def run(self, input: Dict) -> ToolResult:
         query = input.get("query", "").strip()
         max_results = int(input.get("max_results", 3))
@@ -133,7 +153,6 @@ class SearchTool(BaseTool):
             return ToolResult(success=False, output=None, error="Empty query provided.")
 
         try:
-            # Primary: DuckDuckGo Instant Answer JSON API
             params = {
                 "q": query,
                 "format": "json",
@@ -141,27 +160,8 @@ class SearchTool(BaseTool):
                 "skip_disambig": "1",
             }
             resp = self._get_json_response(query, params)
-            results = self._parse_json_response(resp)
-            if results:
-                return ToolResult(success=True, output=results)
-
-            # Fallback: HTML scraping
-            headers = {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
-                )
-            }
-            resp = self._get_html_response(query, headers)
-            results = self._parse_html_response(resp)
-            if results:
-                return ToolResult(success=True, output=results)
-
-            return ToolResult(
-                success=False,
-                output=None,
-                error=f"No results found for query: '{query}'",
-            )
+            results = self._handle_json_response(resp)
+            return ToolResult(success=True, output=results)
         except httpx.RequestError as exc:
             self.logger.warning(f"Search request failed: {exc}")
             return ToolResult(success=False, output=None, error="Search request failed.")
