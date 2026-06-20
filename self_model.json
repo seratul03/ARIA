@@ -82,7 +82,9 @@
         "candidates_rejected may be empty when generation fails",
         "infinite loop in search_tool mode",
         "Inconsistent search results",
-        "Insufficient pattern recognition"
+        "Insufficient pattern recognition",
+        "Configuration errors causing sandbox failures",
+        "Search_tool weakness detection triggers frequent sandbox failures"
       ],
       "last_successful_improvement": null,
       "recent_cycles": [
@@ -139,7 +141,8 @@
         "NO_HISTORY with empty candidates_rejected",
         "multiple consecutive DEPLOYED outcomes without resolution",
         "Repeated deployment failures",
-        "Failed to identify optimal candidates"
+        "Failed to identify optimal candidates",
+        "Repeated sandbox failures during improvement cycles on search_tool"
       ]
     },
     "introspection_engine": {
@@ -245,6 +248,9 @@
     "manual_trigger on calculator_tool failed to generate improvements",
     "infinite loop in search_tool mode",
     "Inconsistent search results",
-    "Repeated deployment failures"
+    "Repeated deployment failures",
+    "Missing Circuit Breaker Pattern leading to cascading timeouts",
+    "Configuration misconfigurations causing sandbox failures",
+    "Search_tool repeated timeout failures"
   ]
 }
