@@ -7,13 +7,6 @@ from groq import Groq
 class SearchTool(BaseTool):
     """
     Retrieves deterministic web search results for a given query.
-
-    Input:
-        query (str): The search query string. If omitted or empty, an empty list is returned.
-        max_results (int, optional): Maximum results to return. Default: 3.
-
-    Output:
-        A list of dicts with 'title', 'url', and 'snippet' keys.
     """
 
     name = "search_tool"
