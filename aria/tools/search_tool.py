@@ -21,6 +21,7 @@ class SearchTool(BaseTool):
     def __init__(self):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.INFO)
+        self._cache: Dict[str, List[Dict[str, str]]] = {}
 
     _KNOWN_RESULTS: Dict[str, Dict[str, str]] = {
         "python": {
@@ -41,16 +42,14 @@ class SearchTool(BaseTool):
     }
 
     def _generate_result(self, query: str) -> List[Dict[str, str]]:
+        """
+        Return a deterministic result for a known query.
+        Unknown queries return an empty list.
+        """
         key = query.lower()
         if key in self._KNOWN_RESULTS:
             return [self._KNOWN_RESULTS[key]]
-        return [
-            {
-                "title": query.title(),
-                "url": "",
-                "snippet": f"Result for {query}.",
-            }
-        ]
+        return []
 
     def run(self, input: dict) -> ToolResult:
         query = input.get("query")
@@ -70,7 +69,12 @@ class SearchTool(BaseTool):
         except Exception:
             max_results = 3
 
-        results = self._generate_result(query)[:max_results]
+        if query in self._cache:
+            results = self._cache[query][:max_results]
+        else:
+            results = self._generate_result(query)[:max_results]
+            self._cache[query] = results
+
         return ToolResult(success=True, output=results)
 
     def test_cases(self) -> List[TestCase]:
