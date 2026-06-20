@@ -80,7 +80,9 @@
         "manual_trigger on search_tool may cause generation failures",
         "calculator_tool and math_tool may not provide sufficient history for improvement",
         "candidates_rejected may be empty when generation fails",
-        "infinite loop in search_tool mode"
+        "infinite loop in search_tool mode",
+        "Inconsistent search results",
+        "Insufficient pattern recognition"
       ],
       "last_successful_improvement": null,
       "recent_cycles": [
@@ -135,7 +137,9 @@
         "GENERATION_FAILED",
         "NO_IMPROVEMENT with ALL_FAILED candidates",
         "NO_HISTORY with empty candidates_rejected",
-        "multiple consecutive DEPLOYED outcomes without resolution"
+        "multiple consecutive DEPLOYED outcomes without resolution",
+        "Repeated deployment failures",
+        "Failed to identify optimal candidates"
       ]
     },
     "introspection_engine": {
@@ -189,20 +193,20 @@
     "active_failure_patterns": 6,
     "active_predictor_count": 0,
     "active_rules": 0,
-    "active_weaknesses": 11,
-    "avg_candidates_per_run": 0.7,
+    "active_weaknesses": 12,
+    "avg_candidates_per_run": 0.76,
     "candidate_rules": 0,
-    "cycle_number": 5,
-    "deployed_improvements": 10,
+    "cycle_number": 6,
+    "deployed_improvements": 15,
     "deprecated_rules": 0,
     "failed_proposals": 0,
-    "id": 5,
+    "id": 6,
     "implemented_hypotheses": 2,
     "implemented_proposals": 0,
     "mutation_win_rates_json": "{}",
     "open_hypotheses": 0,
     "open_proposals": 0,
-    "overall_deploy_rate": 0.7142857142857143,
+    "overall_deploy_rate": 0.7894736842105263,
     "population_sizes_json": "{}",
     "predictor_summary_json": "{}",
     "recurring_mistake_count": 4,
@@ -211,13 +215,13 @@
     "resolved_failure_patterns": 0,
     "resolved_weaknesses": 0,
     "rolled_back_improvements": 1,
-    "root_cause_breakdown_json": "{\"Network\": 0.25, \"Validation\": 0.024193548387096774, \"Logic\": 0.03225806451612903, \"Configuration\": 0.6935483870967742}",
+    "root_cause_breakdown_json": "{\"Network\": 0.09907120743034056, \"Validation\": 0.009287925696594427, \"Logic\": 0.043343653250773995, \"Configuration\": 0.848297213622291}",
     "schema_version": 1,
-    "snapshot_at": "2026-06-20 10:09:10",
+    "snapshot_at": "2026-06-20 10:26:49",
     "strategy_win_rates_json": "{}",
     "top_rule_confidence": 0.0,
-    "total_evolution_runs": 57,
-    "total_improvement_cycles": 14
+    "total_evolution_runs": 62,
+    "total_improvement_cycles": 19
   },
   "system_wide_patterns": [
     "Syntax error: invalid syntax (<unknown>, line 50)",
@@ -239,6 +243,8 @@
     "Manual trigger on math_tool failed to generate improvements",
     "manual_trigger on search_tool failed to generate improvements",
     "manual_trigger on calculator_tool failed to generate improvements",
-    "infinite loop in search_tool mode"
+    "infinite loop in search_tool mode",
+    "Inconsistent search results",
+    "Repeated deployment failures"
   ]
 }
