@@ -55,8 +55,12 @@ class SearchTool(BaseTool):
         if query in self._cache:
             results = self._cache[query][:max_results]
         else:
-            results = self._generate_result(query)[:max_results]
-            self._cache[query] = results
+            try:
+                results = self.groq.search(query, max_results=max_results)
+                self._cache[query] = results
+            except Exception as e:
+                self.logger.error(f"Error searching for query '{query}': {e}")
+                return ToolResult(success=False, output=[])
 
         return ToolResult(success=True, output=results)
 
