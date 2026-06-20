@@ -71,4 +71,11 @@ class SearchTool(BaseTool):
                     {"title": "Quantum", "url": "", "snippet": "Quantum is a branch of physics."},
                 ],
             ),
+            TestCase(
+                name="search_tool_005",
+                input={"query": "error query"},
+                expected_output=[
+                    {"title": "Error Query", "url": "", "snippet": "This is an error query."},
+                ],
+            ),
         ]
