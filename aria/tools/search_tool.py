@@ -83,21 +83,3 @@ class SearchTool(BaseTool):
                 ],
             ),
         ]
-
-    _KNOWN_RESULTS: Dict[str, Dict[str, str]] = {
-        "python": {
-            "title": "Python",
-            "url": "",
-            "snippet": "Python is a high-level, interpreted programming language.",
-        },
-        "test query": {
-            "title": "Test Query",
-            "url": "",
-            "snippet": "This is a test query.",
-        },
-        "london": {
-            "title": "London",
-            "url": "",
-            "snippet": "London is the capital of England.",
-        },
-    }
