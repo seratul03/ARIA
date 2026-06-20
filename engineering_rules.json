@@ -1,5 +1,23 @@
 {
-  "version": 16,
-  "generated_at": "2026-06-20T11:06:46.794160+00:00",
-  "rules": []
+  "version": 17,
+  "generated_at": "2026-06-20T11:33:23.198758+00:00",
+  "rules": [
+    {
+      "id": 1,
+      "rule_text": "Ensure that fixes target the root cause rather than only the symptom to prevent recurrence.",
+      "category": "Cat0",
+      "scope": "When diagnosing failures in any component of an autonomous system.",
+      "source_type": "hypothesis",
+      "source_id": 11,
+      "confidence": 0.425,
+      "status": "candidate",
+      "deprecation_reason": null,
+      "applications_count": 0,
+      "success_count": 0,
+      "superseded_by": null,
+      "created_at": "2026-06-20 11:33:23",
+      "updated_at": "2026-06-20 11:33:23",
+      "initial_confidence": 0.425
+    }
+  ]
 }
