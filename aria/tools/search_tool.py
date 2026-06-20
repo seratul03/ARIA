@@ -41,52 +41,15 @@ class SearchTool(BaseTool):
         self.logger.setLevel(logging.INFO)
         self.groq = Groq(api_key="YOUR_API_KEY")
 
-    def run(self, input: Dict) -> ToolResult:
-        query = input.get("query", "").strip()
-        max_results = int(input.get("max_results", 3))
-
-        if not query:
-            return ToolResult(success=False, output=None, error="Empty query provided.")
-
-        try:
-            # Primary: DuckDuckGo Instant Answer JSON API
-            results = self._json_search(query, max_results)
-            if results:
-                return ToolResult(success=True, output=results)
-
-            # Fallback: HTML scraping
-            results = self._html_search(query, max_results)
-            if results:
-                return ToolResult(success=True, output=results)
-
-            return ToolResult(
-                success=False,
-                output=None,
-                error=f"No results found for query: '{query}'",
-            )
-        except httpx.TimeoutException as exc:
-            self.logger.warning(f"Search request timed out: {exc}")
-            return ToolResult(success=False, output=None, error="Search request timed out.")
-        except Exception as exc:
-            self.logger.error(f"Unexpected error: {exc}")
-            return ToolResult(success=False, output=None, error=str(exc))
-
-    def _json_search(self, query: str, max_results: int) -> List[Dict]:
+    def _get_json_response(self, query: str, params: Dict) -> httpx.Response:
         """Try the DuckDuckGo Instant Answer API (JSON)."""
-        params = {
-            "q": query,
-            "format": "json",
-            "no_html": "1",
-            "skip_disambig": "1",
-        }
         retries = 3
         for attempt in range(retries):
             try:
                 with httpx.Client(timeout=8.0) as client:
                     resp = client.get(self._DDGR_API, params=params)
                     resp.raise_for_status()
-                    data = resp.json()
-                break
+                    break
             except httpx.TimeoutException:
                 if attempt < retries - 1:
                     self.logger.warning(f"Timeout on attempt {attempt + 1} of {retries}. Retrying...")
@@ -95,46 +58,19 @@ class SearchTool(BaseTool):
                     raise
         else:
             self.logger.error("Failed to retrieve JSON response.")
-            return []
+            raise httpx.RequestError("Failed to retrieve JSON response.")
 
-        results = []
+        return resp
 
-        # Abstract (top answer)
-        if data.get("AbstractText"):
-            results.append({
-                "title": data.get("Heading", query),
-                "url": data.get("AbstractURL", ""),
-                "snippet": data["AbstractText"][:300],
-            })
-
-        # Related topics
-        for topic in data.get("RelatedTopics", [])[:max_results]:
-            if isinstance(topic, dict) and topic.get("Text"):
-                results.append({
-                    "title": topic.get("Text", "")[:80],
-                    "url": topic.get("FirstURL", ""),
-                    "snippet": topic.get("Text", "")[:300],
-                })
-            if len(results) >= max_results:
-                break
-
-        return results[:max_results]
-
-    def _html_search(self, query: str, max_results: int) -> List[Dict]:
+    def _get_html_response(self, query: str, headers: Dict) -> httpx.Response:
         """Fallback: scrape DuckDuckGo HTML results."""
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
-            )
-        }
         retries = 3
         for attempt in range(retries):
             try:
                 with httpx.Client(timeout=10.0, headers=headers, follow_redirects=True) as client:
                     resp = client.post(self._DDGR_HTML, data={"q": query})
                     resp.raise_for_status()
-                break
+                    break
             except httpx.TimeoutException:
                 if attempt < retries - 1:
                     self.logger.warning(f"Timeout on attempt {attempt + 1} of {retries}. Retrying...")
@@ -143,8 +79,36 @@ class SearchTool(BaseTool):
                     raise
         else:
             self.logger.error("Failed to retrieve HTML response.")
-            return []
+            raise httpx.RequestError("Failed to retrieve HTML response.")
 
+        return resp
+
+    def _parse_json_response(self, resp: httpx.Response) -> List[Dict]:
+        """Parse the JSON response from the DuckDuckGo Instant Answer API."""
+        data = resp.json()
+        results = []
+
+        # Abstract (top answer)
+        if data.get("AbstractText"):
+            results.append({
+                "title": data.get("Heading", ""),
+                "url": data.get("AbstractURL", ""),
+                "snippet": data["AbstractText"][:300],
+            })
+
+        # Related topics
+        for topic in data.get("RelatedTopics", []):
+            if isinstance(topic, dict) and topic.get("Text"):
+                results.append({
+                    "title": topic.get("Text", "")[:80],
+                    "url": topic.get("FirstURL", ""),
+                    "snippet": topic.get("Text", "")[:300],
+                })
+
+        return results
+
+    def _parse_html_response(self, resp: httpx.Response) -> List[Dict]:
+        """Parse the HTML response from the DuckDuckGo HTML results."""
         soup = BeautifulSoup(resp.text, "html.parser")
         results = []
 
@@ -158,10 +122,52 @@ class SearchTool(BaseTool):
                 "url": title_tag.get("href", ""),
                 "snippet": snippet_tag.get_text(strip=True)[:300] if snippet_tag else "",
             })
-            if len(results) >= max_results:
-                break
 
         return results
+
+    def run(self, input: Dict) -> ToolResult:
+        query = input.get("query", "").strip()
+        max_results = int(input.get("max_results", 3))
+
+        if not query:
+            return ToolResult(success=False, output=None, error="Empty query provided.")
+
+        try:
+            # Primary: DuckDuckGo Instant Answer JSON API
+            params = {
+                "q": query,
+                "format": "json",
+                "no_html": "1",
+                "skip_disambig": "1",
+            }
+            resp = self._get_json_response(query, params)
+            results = self._parse_json_response(resp)
+            if results:
+                return ToolResult(success=True, output=results)
+
+            # Fallback: HTML scraping
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+                )
+            }
+            resp = self._get_html_response(query, headers)
+            results = self._parse_html_response(resp)
+            if results:
+                return ToolResult(success=True, output=results)
+
+            return ToolResult(
+                success=False,
+                output=None,
+                error=f"No results found for query: '{query}'",
+            )
+        except httpx.RequestError as exc:
+            self.logger.warning(f"Search request failed: {exc}")
+            return ToolResult(success=False, output=None, error="Search request failed.")
+        except Exception as exc:
+            self.logger.error(f"Unexpected error: {exc}")
+            return ToolResult(success=False, output=None, error=str(exc))
 
     def test_cases(self) -> List[TestCase]:
         return [
