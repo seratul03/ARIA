@@ -1,6 +1,6 @@
 {
-  "version": 17,
-  "generated_at": "2026-06-20T11:33:23.198758+00:00",
+  "version": 18,
+  "generated_at": "2026-06-20T11:33:31.787687+00:00",
   "rules": [
     {
       "id": 1,
@@ -18,6 +18,40 @@
       "created_at": "2026-06-20 11:33:23",
       "updated_at": "2026-06-20 11:33:23",
       "initial_confidence": 0.425
+    },
+    {
+      "id": 2,
+      "rule_text": "Before executing any algorithm, validate all assumptions about input data shape and boundary conditions, and ensure comprehensive unit tests cover edge cases, with peer review to catch off\u2011by\u2011one and incorrect conditionals.",
+      "category": "Logic",
+      "scope": "When implementing logic that processes input data or relies on conditional statements",
+      "source_type": "architectural_pattern",
+      "source_id": 1,
+      "confidence": 0.2,
+      "status": "candidate",
+      "deprecation_reason": null,
+      "applications_count": 0,
+      "success_count": 0,
+      "superseded_by": null,
+      "created_at": "2026-06-20 11:33:27",
+      "updated_at": "2026-06-20 11:33:27",
+      "initial_confidence": 0.2
+    },
+    {
+      "id": 3,
+      "rule_text": "Before executing logic, explicitly verify all assumptions about input data, boundary conditions, and algorithm correctness through unit tests, code reviews, and defensive checks to catch off\u2011by\u2011one and incorrect conditionals.",
+      "category": "Logic",
+      "scope": "When implementing or modifying any algorithmic logic that processes data or makes decisions based on conditions.",
+      "source_type": "architectural_pattern",
+      "source_id": 2,
+      "confidence": 0.2,
+      "status": "candidate",
+      "deprecation_reason": null,
+      "applications_count": 0,
+      "success_count": 0,
+      "superseded_by": null,
+      "created_at": "2026-06-20 11:33:31",
+      "updated_at": "2026-06-20 11:33:31",
+      "initial_confidence": 0.2
     }
   ]
 }
