@@ -6,7 +6,7 @@ from aria.tools.base import BaseTool, TestCase, ToolResult
 
 class SearchTool(BaseTool):
     """
-    Retrieves web search results for a given query.
+    Retrieves deterministic web search results for a given query.
 
     Input:
         query (str): The search query string.
@@ -27,7 +27,7 @@ class SearchTool(BaseTool):
         Return a deterministic result for known queries.
         For unknown queries, return a simple placeholder.
         """
-        mapping = {
+        mapping: Dict[str, Dict] = {
             "python": {
                 "title": "Python",
                 "url": "",
@@ -57,11 +57,20 @@ class SearchTool(BaseTool):
         ]
 
     def run(self, input: dict) -> ToolResult:
-        query = input.get("query", "").strip()
-        max_results = int(input.get("max_results", 3))
-
+        query = input.get("query", "")
+        if not isinstance(query, str):
+            return ToolResult(success=False, output=None, error="Query must be a string.")
+        query = query.strip()
         if not query:
             return ToolResult(success=False, output=None, error="Empty query provided.")
+
+        max_results = input.get("max_results", 3)
+        try:
+            max_results = int(max_results)
+            if max_results < 1:
+                raise ValueError
+        except Exception:
+            return ToolResult(success=False, output=None, error="max_results must be a positive integer.")
 
         results = self._generate_result(query)[:max_results]
         return ToolResult(success=True, output=results)
