@@ -1,6 +1,6 @@
 {
-  "version": 18,
-  "generated_at": "2026-06-20T11:33:31.787687+00:00",
+  "version": 19,
+  "generated_at": "2026-06-20T11:53:38.998138+00:00",
   "rules": [
     {
       "id": 1,
@@ -51,6 +51,40 @@
       "superseded_by": null,
       "created_at": "2026-06-20 11:33:31",
       "updated_at": "2026-06-20 11:33:31",
+      "initial_confidence": 0.2
+    },
+    {
+      "id": 4,
+      "rule_text": "Ensure all conditional logic and algorithms are thoroughly reviewed, unit\u2011tested, and validated against edge cases before deployment.",
+      "category": "Logic",
+      "scope": "When implementing or modifying conditional logic or algorithms that process data.",
+      "source_type": "architectural_pattern",
+      "source_id": 3,
+      "confidence": 0.2,
+      "status": "candidate",
+      "deprecation_reason": null,
+      "applications_count": 0,
+      "success_count": 0,
+      "superseded_by": null,
+      "created_at": "2026-06-20 11:53:35",
+      "updated_at": "2026-06-20 11:53:35",
+      "initial_confidence": 0.2
+    },
+    {
+      "id": 5,
+      "rule_text": "Validate all input assumptions and boundary conditions before executing logic, and provide comprehensive unit tests that cover edge cases to catch off\u2011by\u2011one and incorrect algorithmic decisions.",
+      "category": "Logic",
+      "scope": "When any component processes data using conditionals, loops, or algorithms that depend on data shape or boundaries.",
+      "source_type": "architectural_pattern",
+      "source_id": 4,
+      "confidence": 0.2,
+      "status": "candidate",
+      "deprecation_reason": null,
+      "applications_count": 0,
+      "success_count": 0,
+      "superseded_by": null,
+      "created_at": "2026-06-20 11:53:38",
+      "updated_at": "2026-06-20 11:53:38",
       "initial_confidence": 0.2
     }
   ]
