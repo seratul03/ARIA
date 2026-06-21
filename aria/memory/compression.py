@@ -69,9 +69,10 @@ def compress_failure_history(db_path: str = "") -> dict:
             
             if improvements:
                 imp_ts = improvements["timestamp"]
-                # Cast to float to handle SQLite returning ISO strings instead of REAL in some edge cases
                 try:
-                    if float(imp_ts) >= float(last_seen) - 0.001:
+                    ts_val = float(imp_ts) if imp_ts is not None else 0.0
+                    last_seen_val = float(last_seen) if last_seen is not None else 0.0
+                    if ts_val >= last_seen_val - 0.001:
                         status = 'resolved'
                         resolved_by_id = improvements["id"]
                 except (ValueError, TypeError):

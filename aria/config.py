@@ -97,6 +97,7 @@ class Settings:
     sandbox_memory_limit: str           # e.g. "256m"
     sandbox_cpu_limit: float            # e.g. 0.5
     sandbox_timeout_seconds: int        # e.g. 30
+    max_sandbox_workers: int            # e.g. 4
 
     # ── Groq rate limiting ─────────────────────────────────────
     groq_min_request_interval_seconds: float  # e.g. 3.0
@@ -137,7 +138,7 @@ def _load_settings() -> Settings:
         weight_memory=_get_float("WEIGHT_MEMORY", 0.01),
         weight_tokens=_get_float("WEIGHT_TOKENS", 0.001),
 
-        max_improvement_cycles_per_hour=_get_int("MAX_IMPROVEMENT_CYCLES_PER_HOUR", 5),
+        max_improvement_cycles_per_hour=min(_get_int("MAX_IMPROVEMENT_CYCLES_PER_HOUR", 5), 5),
 
         scheduler_interval_minutes=_get_int("SCHEDULER_INTERVAL_MINUTES", 30),
 
@@ -153,6 +154,7 @@ def _load_settings() -> Settings:
         sandbox_memory_limit=_get("SANDBOX_MEMORY_LIMIT", "256m"),
         sandbox_cpu_limit=_get_float("SANDBOX_CPU_LIMIT", 0.5),
         sandbox_timeout_seconds=_get_int("SANDBOX_TIMEOUT_SECONDS", 120),
+        max_sandbox_workers=_get_int("MAX_SANDBOX_WORKERS", 4),
 
         groq_min_request_interval_seconds=_get_float(
             "GROQ_MIN_REQUEST_INTERVAL_SECONDS", 3.0

@@ -109,7 +109,11 @@ def root_cause_trend(window_days: int = 30) -> dict[str, list[tuple[str, float]]
     categories = set()
     
     for row in rows:
-        ts = row["timestamp"]
+        try:
+            ts = float(row["timestamp"])
+        except (ValueError, TypeError):
+            continue
+            
         cat = row["root_cause_category"]
         categories.add(cat)
         

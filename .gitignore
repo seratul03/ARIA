@@ -53,3 +53,5 @@ data/
 # ARIA output results 
 Results/*
 !Results/.gitkeep
+
+experiments/*

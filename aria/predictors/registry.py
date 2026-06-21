@@ -31,7 +31,7 @@ def get_active_predictor(predictor_type: str, db_path: str) -> Optional[Tuple[ob
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         row = conn.execute(
-            "SELECT id, file_path FROM predictor_registry WHERE predictor_type=? AND status='active'",
+            "SELECT id, model_path FROM predictor_registry WHERE predictor_type=? AND status='active'",
             (predictor_type,)
         ).fetchone()
         conn.close()
@@ -40,7 +40,7 @@ def get_active_predictor(predictor_type: str, db_path: str) -> Optional[Tuple[ob
             return None
 
         predictor_id = row["id"]
-        file_path = Path(row["file_path"])
+        file_path = Path(row["model_path"])
 
         if not file_path.exists():
             logger.error(f"Predictor file missing: {file_path}")

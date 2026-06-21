@@ -178,7 +178,7 @@ def analyze_feature_importance(predictor_type: str, version: int, db_path: str, 
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         try:
-            row = cursor.execute("SELECT file_path FROM predictor_registry WHERE predictor_type = ? AND version = ?", (predictor_type, version)).fetchone()
+            row = cursor.execute("SELECT model_path FROM predictor_registry WHERE predictor_type = ? AND version = ?", (predictor_type, version)).fetchone()
             if not row:
                 return {}
             file_path = row[0]

@@ -156,7 +156,7 @@ class AgentCore:
         If a tool's performance drops below baseline, rollback.
         """
         from aria.metrics.db import get_connection, get_tool_stats
-        import time
+
 
         now = time.time()
         cutoff = now - settings.monitoring_window_seconds
@@ -434,7 +434,7 @@ class AgentCore:
             
             from aria.predictors.inference import predict_cycle_viability, predict_candidate_success, predict_deployment_risk
             from aria.metrics.db import get_connection
-            import time
+
             
             run_context = {
                 "tool_name": report.tool_name,
@@ -474,11 +474,18 @@ class AgentCore:
                 trace.save()
                 return False
                 
-            trace.record_candidate_generated()
+            for _ in all_candidates:
+                trace.record_candidate_generated()
             
             # ── Step 4: Gate 2 - Candidate Filter ──────────────────────────────────
             self._emit(EventType.STATIC_VALIDATION, f"Filtering {len(all_candidates)} candidates based on predicted success...")
             filtered_candidates = predict_candidate_success(all_candidates, run_context, str(settings.db_path))
+            
+            # Record static rejections
+            filtered_ids = {c.get("id") for c in filtered_candidates}
+            for c in all_candidates:
+                if c.get("id") not in filtered_ids:
+                    trace.record_candidate_rejected(str(c.get("id", "unknown")), "STATIC_VALIDATION_FAILED")
             
             if not filtered_candidates:
                 self._emit(EventType.ERROR, "All candidates filtered out.")
@@ -501,7 +508,16 @@ class AgentCore:
             )
             
             from aria.evolution.ranking import rank_candidates
-            ranked = rank_candidates(evaluated, evolution_run_id, str(settings.db_path))
+            
+            # Record sandbox failures
+            for c in evaluated:
+                if c.get("sandbox_passed", 0) == 0:
+                    trace.record_candidate_rejected(
+                        str(c.get("id", "unknown")), 
+                        str(c.get("disqualification_reason", "SANDBOX_FAILED"))
+                    )
+                    
+            ranked = rank_candidates(evaluated, str(settings.db_path), evolution_run_id, [], {})
             
             if not ranked:
                 self._emit(EventType.ERROR, "No candidates survived ranking.")
@@ -512,6 +528,12 @@ class AgentCore:
                 return False
                 
             winner = ranked[0]
+            
+            # Record candidates that passed sandbox but lost the ranking battle
+            for c in ranked[1:]:
+                if c.get("sandbox_passed", 0) == 1:
+                    trace.record_candidate_rejected(str(c.get("id", "unknown")), "LOST_RANKING_BATTLE")
+                    
             sandbox_result = winner.get("sandbox_result", {})
             combat_report = winner.get("combat_report", {})
             improvement_code = winner.get("source_code")
@@ -666,7 +688,7 @@ class AgentCore:
     def _deploy(self, tool_name: str, new_source: str, report, sandbox_result) -> int | None:
         """Write new source to the tool file and commit to Git. Returns improvement_id or None."""
         from aria.versioning.git_manager import git_manager
-        import time
+
 
         timestamp = int(time.time())
         pre_tag = f"pre_meta_improvement_{timestamp}"
@@ -711,6 +733,7 @@ class AgentCore:
             # 6. Record in DB
             from aria.memory.store import record_improvement
             c_fitness = sandbox_result.get("combat_report", {}).get("clone", {}).get("overall_score")
+            from aria.core.tracer import get_active_cycle_id
             improvement_id = record_improvement(
                 improvement_type='tool',
                 tool_name=tool_name,
@@ -719,6 +742,7 @@ class AgentCore:
                 git_commit_hash=commit_hash,
                 baseline_fitness=report.success_rate,
                 candidate_fitness=c_fitness,
+                cycle_id=get_active_cycle_id()
             )
             
             hypothesis_id = getattr(report, "hypothesis", {}).get("id") if getattr(report, "hypothesis", None) else None

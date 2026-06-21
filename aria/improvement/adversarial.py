@@ -83,26 +83,36 @@ class AdversarialGenerator:
         prompt = (
             f"You are a QA engineer testing the '{tool_name}'. "
             "Generate 3 highly adversarial, edge-case, or tricky inputs for this tool. "
-            "Return ONLY a JSON array of objects. Each object MUST have exactly one key: 'input' (a dictionary representing the tool's input parameters). "
+            "Return ONLY a JSON object with a 'tests' key containing an array of objects. "
+            "Each object MUST have exactly one key: 'input' (a dictionary representing the tool's input parameters). "
             "Do not include any other text, markdown formatting, or expected outputs."
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.groq_model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=500
-            )
-            raw_content = response.choices[0].message.content or "[]"
+            import time
+            max_retries = 3
+            base_delay = 2.0
             
-            # Clean possible markdown
-            import re
-            match = re.search(r"\[.*\]", raw_content, re.DOTALL)
-            if match:
-                raw_content = match.group(0)
-                
-            inputs = json.loads(raw_content)
+            for attempt in range(max_retries + 1):
+                try:
+                    response = self.client.chat.completions.create(
+                        model=settings.groq_model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.7,
+                        max_tokens=500,
+                        response_format={"type": "json_object"}
+                    )
+                    break
+                except Exception as exc:
+                    err_msg = str(exc)
+                    if ("429" in err_msg or "rate_limit" in err_msg.lower() or "connection" in err_msg.lower()) and attempt < max_retries:
+                        time.sleep(base_delay * (2 ** attempt))
+                        continue
+                    raise
+                    
+            raw_content = response.choices[0].message.content or '{"tests": []}'
+            data = json.loads(raw_content)
+            inputs = data.get("tests", [])
         except Exception as e:
             logger.error(f"Failed to generate adversarial inputs: {e}")
             inputs = []

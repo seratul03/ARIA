@@ -295,15 +295,26 @@ class ToolStats:
 
 def get_tool_stats(tool_name: str, window: int = 100) -> ToolStats | None:
     with get_connection() as conn:
+        deployed = conn.execute(
+            """
+            SELECT timestamp FROM improvement_history 
+            WHERE tool_name = ? AND result = 'deployed' 
+            ORDER BY timestamp DESC LIMIT 1
+            """,
+            (tool_name,)
+        ).fetchone()
+        
+        since_ts = deployed["timestamp"] if deployed and deployed["timestamp"] else 0.0
+
         rows = conn.execute(
             """
             SELECT success, latency_seconds, timestamp, memory_mb, tokens_used
             FROM tool_executions
-            WHERE tool_name = ?
+            WHERE tool_name = ? AND timestamp >= ?
             ORDER BY timestamp DESC
             LIMIT ?
             """,
-            (tool_name, window),
+            (tool_name, since_ts, window),
         ).fetchall()
 
     if not rows:

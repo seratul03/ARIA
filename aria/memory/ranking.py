@@ -17,7 +17,12 @@ def compute_memory_score(
     freq_component = min(math.log1p(occurrence_count) / math.log1p(50), 1.0)  # cap at ~50 occurrences
     
     # Protect against missing/invalid timestamps
-    if not last_seen_ts:
+    try:
+        if last_seen_ts is None or last_seen_ts == "None":
+            last_seen_ts = time.time()
+        else:
+            last_seen_ts = float(last_seen_ts)
+    except (ValueError, TypeError):
         last_seen_ts = time.time()
         
     age_days = max((time.time() - last_seen_ts) / 86400, 0.0)

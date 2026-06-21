@@ -40,6 +40,8 @@ class TestCase:
     expected_success: bool = True      # Whether we expect success=True
     # Optional: check if specific substring appears in output
     output_contains: str | None = None
+    # Optional: capture hallucinated expected_outputs safely without crashing
+    expected_output: Any = None
     # Optional: custom validator function (not used in sandbox — too risky)
     description: str = ""
 

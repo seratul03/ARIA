@@ -304,10 +304,17 @@ class DockerSandbox:
             tar_stream.seek(0)
             
             try:
+                # Retry pip install up to 3 times to handle flaky Docker networks/DNS
+                pip_cmd = "pip install -q httpx beautifulsoup4 groq python-dotenv respx"
+                robust_pip = f"{pip_cmd} || (sleep 2 && {pip_cmd}) || (sleep 5 && {pip_cmd})"
+
                 # Create the container without running it yet
                 container = client.containers.create(
                     image="python:3.11-slim",
-                    command=["sh", "-c", "export PYTHONPATH=/app && pip install -q httpx beautifulsoup4 groq python-dotenv respx && python /sandbox/runner.py"],
+                    command=[
+                        "sh", "-c", 
+                        f"export PYTHONPATH=/app && {robust_pip} && python /sandbox/runner.py"
+                    ],
                     environment={
                         "GROQ_API_KEY": "mock_groq_key_for_sandbox",
                         "TEST_SIGNING_KEY": "mock_test_key"
@@ -332,7 +339,28 @@ class DockerSandbox:
                 
                 # Start container and wait for completion
                 container.start()
-                exit_status = container.wait(timeout=settings.sandbox_timeout_seconds)
+                try:
+                    import requests
+                    exit_status = container.wait(timeout=settings.sandbox_timeout_seconds)
+                except (requests.exceptions.ReadTimeout, requests.exceptions.Timeout, Exception) as e:
+                    if "timeout" in str(type(e)).lower() or "timeout" in str(e).lower():
+                        try:
+                            container.stop(timeout=1)
+                        except:
+                            pass
+                        try:
+                            container.remove(force=True)
+                        except:
+                            pass
+                        return SandboxResult(
+                            tool_name=tool_name,
+                            approved=False,
+                            rejection_reason=f"Docker execution timed out after {settings.sandbox_timeout_seconds} seconds",
+                            elapsed_seconds=time.monotonic() - start,
+                            docker_logs="Timeout exceeded"
+                        )
+                    raise
+                    
                 logs_bytes = container.logs()
                 logs = logs_bytes.decode("utf-8", errors="replace")
                 

@@ -62,7 +62,16 @@ def _clean_code(raw: str) -> str:
             if re.match(r"^\s*(import |from |class |def |@|#|r?\"\"\")", line):
                 start_idx = i
                 break
-        code = '\n'.join(lines[start_idx:]).strip()
+                
+        # Find the end of the code by finding the first line that looks like trailing chat
+        end_idx = len(lines)
+        for i, line in enumerate(lines[start_idx:], start_idx):
+            line_stripped = line.strip().lower()
+            if line_stripped and re.match(r"^(hope this helps|let me know|here is the|this implementation|note:)", line_stripped):
+                end_idx = i
+                break
+                
+        code = '\n'.join(lines[start_idx:end_idx]).strip()
         
     return textwrap.dedent(code).strip()
 
@@ -117,16 +126,29 @@ class ImprovementEngine:
 
         try:
             client = Groq(api_key=settings.groq_api_key)
-            response = client.chat.completions.create(
-                model=settings.groq_model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=2000,
-                temperature=0.2,    # Low temperature for more deterministic code
-                stop=None,
-            )
+            
+            max_retries = 3
+            base_delay = 2.0
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    response = client.chat.completions.create(
+                        model=settings.groq_model,
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        max_tokens=2000,
+                        temperature=0.2,    # Low temperature for more deterministic code
+                        stop=None,
+                    )
+                    break
+                except Exception as exc:
+                    err_msg = str(exc)
+                    if ("429" in err_msg or "rate_limit" in err_msg.lower() or "connection" in err_msg.lower()) and attempt < max_retries:
+                        time.sleep(base_delay * (2 ** attempt))
+                        continue
+                    raise
 
             elapsed = time.monotonic() - start
             raw_code = response.choices[0].message.content or ""
