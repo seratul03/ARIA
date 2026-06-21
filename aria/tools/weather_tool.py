@@ -52,11 +52,6 @@ class WeatherTool(BaseTool):
         city = str(input.get("city", "")).strip()
         units = str(input.get("units", "celsius")).lower()
 
-        # SABOTAGE
-        import time
-        time.sleep(0.1)
-        raise TimeoutError("Connection to weather API timed out after 3000ms")
-
         if not city:
             return ToolResult(success=False, output=None, error="No city name provided.")
 
