@@ -87,7 +87,9 @@
         "Search_tool weakness detection triggers frequent sandbox failures",
         "LOST_RANKING_BATTLE",
         "lost_ranking_battle",
-        "Static validation failed: Syntax error: unexpected indent (<unknown>, line 10). Code at line 10: '    Retrieves deterministic web search results for a given query.'"
+        "Static validation failed: Syntax error: unexpected indent (<unknown>, line 10). Code at line 10: '    Retrieves deterministic web search results for a given query.'",
+        "inability to detect weaknesses",
+        "inconsistent candidate rejection"
       ],
       "last_successful_improvement": null,
       "recent_cycles": [
@@ -148,7 +150,8 @@
         "Repeated sandbox failures during improvement cycles on search_tool",
         "auto_trigger on search_tool (mode=weakness)",
         "lost_ranking_battle",
-        "LOST_RANKING_BATTLE"
+        "LOST_RANKING_BATTLE",
+        "NO_WEAKNESS_FOUND"
       ]
     },
     "introspection_engine": {
@@ -260,6 +263,7 @@
     "Search_tool repeated timeout failures",
     "auto_trigger on search_tool (mode=weakness)",
     "lost_ranking_battle",
-    "LOST_RANKING_BATTLE"
+    "LOST_RANKING_BATTLE",
+    "NO_WEAKNESS_FOUND"
   ]
 }
