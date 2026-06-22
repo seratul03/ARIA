@@ -184,5 +184,11 @@ class CalculatorTool(BaseTool):
                 expected_output=None,
                 expected_success=False,
             ),
+            TestCase(
+                name="invalid_function",
+                input={"expression": "sin(2, 3)"},
+                expected_output=None,
+                expected_success=False,
+            ),
         ]
         return test_cases
