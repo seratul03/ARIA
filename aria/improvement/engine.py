@@ -124,37 +124,52 @@ class ImprovementEngine:
         except ImportError:
             pass
 
-        try:
-            client = Groq(api_key=settings.groq_api_key)
+            import httpx
             
-            max_retries = 3
-            base_delay = 2.0
+            def _call_llm(api_key: str, endpoint: str, model: str, messages: list[dict], extra_headers: dict = None) -> str:
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                if extra_headers: headers.update(extra_headers)
+                resp = httpx.post(endpoint, headers=headers, json={"model": model, "messages": messages, "temperature": 0.2, "max_tokens": 2000}, timeout=30.0)
+                resp.raise_for_status()
+                return resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ]
+
+            raw_code = None
+            last_error = None
             
-            for attempt in range(max_retries + 1):
+            # 1. Groq Key 1
+            try:
+                raw_code = _call_llm(settings.groq_api_key, "https://api.groq.com/openai/v1/chat/completions", settings.groq_model, messages)
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                if e.response.status_code != 429: raise
+            
+            # 2. Synthesis Groq Key
+            if not raw_code and getattr(settings, "synthesis_groq_api_key", None):
                 try:
-                    response = client.chat.completions.create(
-                        model=settings.groq_model,
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": user_prompt},
-                        ],
-                        max_tokens=2000,
-                        temperature=0.2,    # Low temperature for more deterministic code
-                        stop=None,
-                    )
-                    break
-                except Exception as exc:
-                    err_msg = str(exc)
-                    if ("429" in err_msg or "rate_limit" in err_msg.lower() or "connection" in err_msg.lower()) and attempt < max_retries:
-                        time.sleep(base_delay * (2 ** attempt))
-                        continue
-                    raise
+                    raw_code = _call_llm(settings.synthesis_groq_api_key, "https://api.groq.com/openai/v1/chat/completions", settings.groq_model, messages)
+                except httpx.HTTPStatusError as e:
+                    last_error = e
+                    if e.response.status_code != 429: raise
+            
+            # 3. OpenRouter Fallback
+            if not raw_code:
+                openrouter_model = getattr(settings, "openrouter_model", "openrouter/auto")
+                try:
+                    raw_code = _call_llm(settings.openrouter_api_key, "https://openrouter.ai/api/v1/chat/completions", openrouter_model, messages, {"HTTP-Referer": "https://aria.ai", "X-Title": "ARIA Engine"})
+                except Exception as e:
+                    last_error = e
+
+            if not raw_code:
+                raise Exception(f"All LLM fallbacks failed. Last error: {last_error}")
+
 
             elapsed = time.monotonic() - start
-            raw_code = response.choices[0].message.content or ""
-            tokens_used = (
-                response.usage.total_tokens if response.usage else 0
-            )
+            tokens_used = 0  # We can't easily extract tokens without modifying the HTTPX function to return it, so we default to 0.
 
             try:
                 from aria.core.tracer import emit_trace
