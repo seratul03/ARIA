@@ -31,7 +31,7 @@ The improved module MUST:
 4. Keep the same `name` class attribute as the original.
 5. The `__init__` method MUST NOT require any arguments (e.g., `def __init__(self):`). The framework will instantiate your class with zero arguments.
 6. Be importable as a standalone Python 3.11 module.
-7. Be under 300 lines total.
+7. MUST BE UNDER 300 LINES TOTAL. YOU MUST OBEY THIS CONSTRAINT.
 
 ━━━ FORBIDDEN ━━━
 The improved module MUST NOT:
@@ -45,9 +45,10 @@ The improved module MUST NOT:
 - Use threading or asyncio.
 - Contain any syntax errors.
 - Include hardcoded real-world data (URLs, Wikipedia snippets, API responses, etc.) as string literals inside `test_cases()`. Test case inputs must use short, simple placeholder strings only (e.g. `"python"`, `"test query"`, `"London"`). Long strings with special characters will cause syntax errors.
+- Omit code using placeholders for logic (e.g. `# ... existing code ...`, `pass`, `...`). You MUST generate the FULL, complete, runnable Python code.
 
 ━━━ OUTPUT FORMAT ━━━
-Return ONLY the complete Python source code of the improved module.
+Return ONLY the complete, runnable Python source code of the improved module. It must not contain any placeholders or omitted logic.
 Do NOT include markdown code fences (```python), explanations, or any text before or after the code.
 The first line of your response must be a Python comment or import statement.
 """
@@ -102,7 +103,7 @@ def build_improvement_prompt(report: WeaknessReport, strategy: str = "zero-shot"
             fit_delta = fix.get("fitness_delta")
             if fit_delta is None:
                 fit_delta = 0.0
-            summary = fix.get("fix_summary", "").replace("\n", " ").strip()
+            summary = (fix.get("fix_summary") or "").replace("\n", " ").strip()
             history_text += f"{i}. [fitness +{fit_delta:.2f}] \"{summary}\"\n"
         history_text += "\n"
 
@@ -110,8 +111,8 @@ def build_improvement_prompt(report: WeaknessReport, strategy: str = "zero-shot"
         history_text += "APPROACHES ALREADY TRIED AND REJECTED/ROLLED BACK — DO NOT REPEAT:\n"
         for i, fix in enumerate(report.failed_fixes, 1):
             res = fix.get("result", "rejected")
-            summary = fix.get("fix_summary", "").replace("\n", " ").strip()
-            reason = fix.get("reason", "").replace("\n", " ").strip()
+            summary = (fix.get("fix_summary") or "").replace("\n", " ").strip()
+            reason = (fix.get("rejection_reason") or "").replace("\n", " ").strip()
             suffix = f" — {reason}" if reason else ""
             history_text += f"{i}. [{res}] \"{summary}\"{suffix}\n"
         history_text += "\n"
