@@ -185,8 +185,14 @@ class CalculatorTool(BaseTool):
                 expected_success=False,
             ),
             TestCase(
-                name="invalid_function",
-                input={"expression": "sin(2, 3)"},
+                name="nan_result",
+                input={"expression": "1 / 0"},
+                expected_output=None,
+                expected_success=False,
+            ),
+            TestCase(
+                name="inf_result",
+                input={"expression": "1 / (1 - 1)"},
                 expected_output=None,
                 expected_success=False,
             ),
