@@ -30,8 +30,7 @@ class CodeExecutorTool(BaseTool):
             res1 = client.chat.completions.create(
                 model=settings.groq_model,
                 messages=[{"role": "user", "content": f"Write python code for: {topic}. Return ONLY code without markdown formatting blocks."}],
-                temperature=0.2,
-                max_tokens=256  # Limit the number of tokens to reduce latency
+                temperature=0.2
             )
             before_code = res1.choices[0].message.content.strip()
 
@@ -39,8 +38,7 @@ class CodeExecutorTool(BaseTool):
             res2 = client.chat.completions.create(
                 model=settings.groq_model,
                 messages=[{"role": "user", "content": f"Here is some python code for '{topic}':\n\n{before_code}\n\nImprove this code for performance, readability, and safety. Return ONLY the improved python code without markdown formatting blocks."}],
-                temperature=0.2,
-                max_tokens=256  # Limit the number of tokens to reduce latency
+                temperature=0.2
             )
             after_code = res2.choices[0].message.content.strip()
 
