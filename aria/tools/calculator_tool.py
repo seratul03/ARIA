@@ -185,16 +185,16 @@ class CalculatorTool(BaseTool):
                 expected_success=False,
             ),
             TestCase(
-                name="large_number",
-                input={"expression": "1e100"},
-                expected_output=1e+100,
-                expected_success=True,
+                name="nan_result",
+                input={"expression": "1 / 0"},
+                expected_output=None,
+                expected_success=False,
             ),
             TestCase(
-                name="negative_number",
-                input={"expression": "-1e100"},
-                expected_output=-1e+100,
-                expected_success=True,
+                name="inf_result",
+                input={"expression": "1 / (1 - 1)"},
+                expected_output=None,
+                expected_success=False,
             ),
         ]
         return test_cases
