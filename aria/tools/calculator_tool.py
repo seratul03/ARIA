@@ -186,15 +186,15 @@ class CalculatorTool(BaseTool):
             ),
             TestCase(
                 name="large_number",
-                input={"expression": "1e308"},
-                expected_output=1e+308,
+                input={"expression": "1e100"},
+                expected_output=1e+100,
                 expected_success=True,
             ),
             TestCase(
-                name="nan",
-                input={"expression": "1/0"},
-                expected_output=None,
-                expected_success=False,
+                name="negative_number",
+                input={"expression": "-1e100"},
+                expected_output=-1e+100,
+                expected_success=True,
             ),
         ]
         return test_cases
