@@ -280,7 +280,7 @@ class DockerSandbox:
             import io
 
             try:
-                client = docker.from_env()
+                client = docker.from_env(timeout=max(300, settings.sandbox_timeout_seconds + 30))
             except Exception as exc:
                 return SandboxResult(
                     tool_name=tool_name,
