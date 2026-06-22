@@ -123,7 +123,7 @@ class ImprovementEngine:
             emit_trace("improvement", "prompt_constructed", {"tool": report.tool_name, "prompt_length": len(user_prompt)})
         except ImportError:
             pass
-
+        try:
             import httpx
             
             def _call_llm(api_key: str, endpoint: str, model: str, messages: list[dict], extra_headers: dict = None) -> str:
@@ -166,7 +166,6 @@ class ImprovementEngine:
 
             if not raw_code:
                 raise Exception(f"All LLM fallbacks failed. Last error: {last_error}")
-
 
             elapsed = time.monotonic() - start
             tokens_used = 0  # We can't easily extract tokens without modifying the HTTPX function to return it, so we default to 0.
