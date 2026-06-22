@@ -149,3 +149,35 @@ class SummarizerTool(BaseTool):
         # Pick top N, restore original order
         top_indices = sorted(idx for idx, _ in scored[:max_sentences])
         return " ".join(sentences[i] for i in top_indices)
+
+    def test_cases(self) -> list[TestCase]:
+        return [
+            TestCase(
+                name="empty_text",
+                input={"text": ""},
+                expected_success=False
+            ),
+            TestCase(
+                name="short_passthrough",
+                input={"text": "This is a very short text snippet."},
+                expected_success=True
+            ),
+            TestCase(
+                name="medium_standard_llm",
+                input={
+                    "text": "Artificial intelligence is a branch of computer science. It involves creating systems capable of performing tasks that typically require human intelligence. These tasks include learning, reasoning, problem-solving, perception, and language understanding. AI has the potential to revolutionize industries.",
+                    "mode": "llm",
+                    "max_sentences": 2
+                },
+                expected_success=True
+            ),
+            TestCase(
+                name="extractive_fallback",
+                input={
+                    "text": "The rapid advancement of technology has dramatically reshaped the modern world. In just a few decades, we have moved from bulky desktop computers to powerful smartphones that fit in our pockets. The internet connects billions of people globally, facilitating instant communication. However, these advancements also bring new ethical dilemmas and risks. Privacy concerns, digital divides, and the potential displacement of jobs by automation are issues that society must carefully navigate.",
+                    "mode": "extractive",
+                    "max_sentences": 2
+                },
+                expected_success=True
+            )
+        ]

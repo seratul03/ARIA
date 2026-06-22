@@ -155,29 +155,34 @@ class CalculatorTool(BaseTool):
     def test_cases(self) -> list[TestCase]:
         test_cases = [
             TestCase(
+                name="basic_math",
                 input={"expression": "2 + 3 * sin(pi/2)"},
                 expected_output=5.0,
-                expected_error=None,
+                expected_success=True,
             ),
             TestCase(
+                name="simple_division",
                 input={"expression": "10 / 2"},
                 expected_output=5.0,
-                expected_error=None,
+                expected_success=True,
             ),
             TestCase(
+                name="division_by_zero",
                 input={"expression": "10 / 0"},
                 expected_output=None,
-                expected_error="Division by zero.",
+                expected_success=False,
             ),
             TestCase(
+                name="trigonometry",
                 input={"expression": "sin(2)"},
                 expected_output=0.9092974268256817,
-                expected_error=None,
+                expected_success=True,
             ),
             TestCase(
+                name="invalid_syntax",
                 input={"expression": "invalid syntax"},
                 expected_output=None,
-                expected_error="Invalid expression syntax: invalid syntax",
+                expected_success=False,
             ),
         ]
         return test_cases

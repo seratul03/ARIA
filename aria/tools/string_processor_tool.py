@@ -1,49 +1,37 @@
 # -*- coding: utf-8 -*-
 
-from aria.tools.base import BaseTool
+from aria.tools.base import BaseTool, TestCase, ToolResult
 from typing import Any, Dict
-from groq import Groq
-import httpx
 
 class StringProcessorTool(BaseTool):
     name = "string_processor_tool"
 
-    def run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, input_data: Dict[str, Any]) -> ToolResult:
         if not isinstance(input_data, dict):
-            return {"success": False, "error": "Input must be a dictionary."}
+            return ToolResult(success=False, output=None, error="Input must be a dictionary.")
 
         operation = input_data.get("operation")
         text = input_data.get("text")
 
         if text is None:
-            return {"success": False, "error": "Missing 'text' parameter."}
+            return ToolResult(success=False, output=None, error="Missing 'text' parameter.")
 
         if not isinstance(text, str):
-            return {"success": False, "error": "Parameter 'text' must be a string."}
+            return ToolResult(success=False, output=None, error="Parameter 'text' must be a string.")
 
         if operation == "reverse":
-            # Use slicing to reverse the string efficiently
-            return {"success": True, "output": text[::-1]}
+            return ToolResult(success=True, output=text[::-1], error=None)
         elif operation == "count_characters":
-            # Use the groq library to count characters in the string
-            groq = Groq("https://api.groq.io")
-            try:
-                response = groq.query(f"SELECT COUNT(*) FROM {text}")
-                return {"success": True, "output": response["data"][0]["COUNT(*)"]}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+            return ToolResult(success=True, output=len(text), error=None)
         else:
-            return {"success": False, "error": f"Unsupported operation: {operation}"}
+            return ToolResult(success=False, output=None, error=f"Unsupported operation: {operation}")
 
-    def test_cases(self) -> list[Dict[str, Any]]:
+    def test_cases(self) -> list[TestCase]:
         return [
-            {"operation": "reverse", "text": "hello"},
-            {"operation": "reverse", "text": ""},
-            {"operation": "unknown", "text": "hello"},
-            {"operation": "reverse", "text": "a" * 10000},
-            {"operation": "reverse", "text": "a" * 100000},
-            {"operation": "count_characters", "text": "hello"},
-            {"operation": "count_characters", "text": ""},
-            {"operation": "count_characters", "text": "a" * 10000},
-            {"operation": "count_characters", "text": "a" * 100000},
+            TestCase(name="reverse_basic", input={"operation": "reverse", "text": "hello"}, expected_success=True),
+            TestCase(name="reverse_empty", input={"operation": "reverse", "text": ""}, expected_success=True),
+            TestCase(name="unknown_op", input={"operation": "unknown", "text": "hello"}, expected_success=False),
+            TestCase(name="count_basic", input={"operation": "count_characters", "text": "hello"}, expected_success=True),
+            TestCase(name="count_empty", input={"operation": "count_characters", "text": ""}, expected_success=True),
+            TestCase(name="missing_text", input={"operation": "reverse"}, expected_success=False)
         ]

@@ -85,7 +85,30 @@ def record(tool_name: str, input_data: Any) -> Generator[None, None, None]:
 
     try:
         yield ctx
-        success = ctx.error is None
+        
+        # Check if the result explicitly declares success=False
+        result = ctx.result
+        if hasattr(result, "success"):
+            success = result.success
+            if not success and hasattr(result, "error") and result.error:
+                ctx.error = result.error
+        elif isinstance(result, dict) and "success" in result:
+            success = result["success"]
+            if not success and "error" in result and result["error"]:
+                ctx.error = result["error"]
+        else:
+            success = ctx.error is None
+            
+        if not success and ctx.error:
+            record_failure(
+                tool_name=tool_name,
+                source="production",
+                error_type="LogicalFailure",
+                error_message=ctx.error,
+                stack_trace="No stack trace (graceful failure)",
+                input_snapshot=_redact_secrets(input_data)
+            )
+            
     except Exception as exc:
         ctx.error = str(exc)
         success = False
@@ -143,6 +166,27 @@ def execute(tool_name: str, run_fn: Callable[[], Any], input_data: Any = None) -
 
     try:
         result = run_fn()
+        # ARIA tools return ToolResult objects or dicts which have their own success flags
+        if hasattr(result, "success"):
+            success = result.success
+            if not success and hasattr(result, "error"):
+                error_message = result.error
+        elif isinstance(result, dict) and "success" in result:
+            success = result["success"]
+            if not success and "error" in result:
+                error_message = result["error"]
+                
+        # If the tool failed gracefully (returned success=False), record it
+        if not success and error_message:
+            record_failure(
+                tool_name=tool_name,
+                source="production",
+                error_type="LogicalFailure",
+                error_message=error_message,
+                stack_trace="No stack trace (graceful failure)",
+                input_snapshot=_redact_secrets(input_data)
+            )
+
     except Exception as exc:
         error_message = str(exc)
         success = False

@@ -304,7 +304,22 @@ def get_tool_stats(tool_name: str, window: int = 100) -> ToolStats | None:
             (tool_name,)
         ).fetchone()
         
-        since_ts = deployed["timestamp"] if deployed and deployed["timestamp"] else 0.0
+        since_ts_raw = deployed["timestamp"] if deployed and deployed["timestamp"] else 0.0
+        
+        # improvement_history stores timestamps as DATETIME strings (e.g., '2026-06-20 10:16:27')
+        # tool_executions stores timestamps as REAL epoch floats (e.g., 1782065265.15)
+        # We must convert the string to a float timestamp.
+        if isinstance(since_ts_raw, str):
+            from datetime import datetime, timezone
+            try:
+                # Assuming UTC for the DB timestamps
+                dt = datetime.strptime(since_ts_raw, "%Y-%m-%d %H:%M:%S")
+                dt = dt.replace(tzinfo=timezone.utc)
+                since_ts = dt.timestamp()
+            except ValueError:
+                since_ts = 0.0
+        else:
+            since_ts = float(since_ts_raw)
 
         rows = conn.execute(
             """
