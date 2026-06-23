@@ -171,7 +171,7 @@ class IntrospectionEngine:
             if not weak:
                 continue
 
-            failures = get_recent_failures(stats.tool_name, limit=5)
+            failures = get_recent_failures(stats.tool_name, limit=50)
             source = _load_source(stats.tool_name)
             
             history = get_improvement_history(stats.tool_name, limit=5)
@@ -223,7 +223,7 @@ class IntrospectionEngine:
         if not reasons:
             reasons = ["Manual improvement requested by user."]
 
-        failures = get_recent_failures(tool_name, limit=5)
+        failures = get_recent_failures(tool_name, limit=50)
         source = _load_source(tool_name)
         
         history = get_improvement_history(tool_name, limit=5)

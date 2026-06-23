@@ -64,13 +64,35 @@ def build_improvement_prompt(report: WeaknessReport, strategy: str = "zero-shot"
     # Format recent failures as readable JSON
     failures_text = ""
     if report.recent_failures:
-        failures_text = "\n".join(
-            f"  - Error: {f.get('error_message', 'N/A')} | "
-            f"Latency: {f.get('latency_seconds', 0):.2f}s"
-            for f in report.recent_failures[:5]
-        )
+        fingerprints = {}
+        for f in report.recent_failures:
+            raw_msg = f.get('error_message', 'N/A') or 'N/A'
+            raw_msg = str(raw_msg).strip()
+            
+            # Fingerprint: The first line of the error (usually the exception type/message)
+            fingerprint = raw_msg.split('\n')[0][:150].strip()
+            
+            if fingerprint not in fingerprints:
+                fingerprints[fingerprint] = {
+                    "count": 0,
+                    "full_msg": raw_msg,
+                    "latencies": []
+                }
+            fingerprints[fingerprint]["count"] += 1
+            fingerprints[fingerprint]["latencies"].append(f.get('latency_seconds', 0))
+            
+        # Format the top 5 unique fingerprints by occurrence
+        for fp, data in sorted(fingerprints.items(), key=lambda x: x[1]["count"], reverse=True)[:5]:
+            count = data["count"]
+            avg_lat = sum(data["latencies"]) / max(1, len(data["latencies"]))
+            
+            # Keep a sensible truncation on the representative message to protect the payload limit
+            msg_str = data["full_msg"]
+            trunc_msg = msg_str if len(msg_str) <= 400 else msg_str[:400] + "..."
+            
+            failures_text += f"  - [{count} occurrences] Error: {trunc_msg} | Avg Latency: {avg_lat:.2f}s\n"
     else:
-        failures_text = "  (no failure records available)"
+        failures_text = "  (no failure records available)\n"
 
     # Measured Token Overhead (Phase 1 Memory Sections):
     # - similar_failures_text: ~150-200 tokens max (up to 5 items, ~150 chars each)
@@ -120,8 +142,10 @@ def build_improvement_prompt(report: WeaknessReport, strategy: str = "zero-shot"
     # Incorporate Self-Model patterns
     model_data = self_model.get_model()
     improvement_engine_data = model_data.get("components", {}).get("improvement_engine", {})
-    patterns = improvement_engine_data.get("recent_failure_patterns", [])
-    system_patterns = model_data.get("system_wide_patterns", [])
+    
+    # TRUNCATION FIX: Limit unbounded self-model growth to the 5 most recent
+    patterns = improvement_engine_data.get("recent_failure_patterns", [])[-5:]
+    system_patterns = model_data.get("system_wide_patterns", [])[-5:]
     
     self_model_text = ""
     if patterns or system_patterns:

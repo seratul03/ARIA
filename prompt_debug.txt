@@ -1,0 +1,280 @@
+━━━ ARIA SELF-MODEL KNOWLEDGE ━━━
+You must avoid these known failure patterns from your previous improvement cycles:
+  - [Improvement Engine Failure] Repeated sandbox failures during improvement cycles on search_tool
+  - [Improvement Engine Failure] auto_trigger on search_tool (mode=weakness)
+  - [Improvement Engine Failure] lost_ranking_battle
+  - [Improvement Engine Failure] LOST_RANKING_BATTLE
+  - [Improvement Engine Failure] NO_WEAKNESS_FOUND
+  - [System-wide Pattern] Search_tool repeated timeout failures
+  - [System-wide Pattern] auto_trigger on search_tool (mode=weakness)
+  - [System-wide Pattern] lost_ranking_battle
+  - [System-wide Pattern] LOST_RANKING_BATTLE
+  - [System-wide Pattern] NO_WEAKNESS_FOUND
+
+IMPROVEMENT REQUEST
+═══════════════════
+Tool Name:        calculator_tool
+Severity:         CRITICAL
+Fitness Score:    0.32
+Success Rate:     32.0%
+p90 Latency:      0.01s
+Total Executions: 50
+Failures:         34
+
+DETECTED WEAKNESSES:
+  - Fitness score 0.32 is below threshold 0.50
+  - Success rate 32% is below threshold 70%
+
+SIMILAR PAST FAILURES (most recent first):
+1. [2026-06-23, post_deploy_monitor] PerformanceRegression — signature fe9930f6ed837513
+   "Regression detected in 'calculator_tool'! (Success: 32% < 45%). Auto-rolling back."
+2. [2026-06-23, post_deploy_monitor] PerformanceRegression — signature fe9930f6ed837513
+   "Regression detected in 'calculator_tool'! (Success: 32% < 60%). Auto-rolling back."
+3. [2026-06-23, post_deploy_monitor] PerformanceRegression — signature fe9930f6ed837513
+   "Regression detected in 'calculator_tool'! (Success: 32% < 100%). Auto-rolling back."
+4. [2026-06-23, post_deploy_monitor] PerformanceRegression — signature fe9930f6ed837513
+   "Regression detected in 'calculator_tool'! (Success: 32% < 50%). Auto-rolling back."
+5. [2026-06-23, post_deploy_monitor] PerformanceRegression — signature fe9930f6ed837513
+   "Regression detected in 'calculator_tool'! (Success: 32% < 59%). Auto-rolling back."
+
+PREVIOUSLY SUCCESSFUL FIXES FOR THIS PATTERN:
+1. [fitness +0.00] "Improve calculator_tool — success_rate: 45% → expected ↑, sandbox: 11/11 tests"
+2. [fitness +0.00] "Improve calculator_tool — success_rate: 60% → expected ↑, sandbox: 11/11 tests"
+3. [fitness +0.00] "Improve calculator_tool — success_rate: 0% → expected ↑, sandbox: 11/11 tests"
+
+APPROACHES ALREADY TRIED AND REJECTED/ROLLED BACK — DO NOT REPEAT:
+1. [rolled_back] "Rolled back calculator_tool due to performance regression."
+2. [rolled_back] "Rolled back calculator_tool due to performance regression."
+3. [rolled_back] "Rolled back calculator_tool due to performance regression."
+
+RECENT FAILURE SAMPLES:
+  - [36 occurrences] Error: Division by zero. | Avg Latency: 0.01s
+  - [14 occurrences] Error: Invalid expression syntax: invalid syntax (<unknown>, line 1) | Avg Latency: 0.01s
+
+
+STRATEGY: Zero-Shot
+Perform a complete, robust rewrite of the tool from scratch to eliminate the weaknesses.
+
+CURRENT SOURCE CODE (improve this):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+aria/tools/calculator_tool.py
+──────────────────────────────
+Safe mathematical expression evaluator.
+
+Uses Python's ast module to parse and evaluate expressions WITHOUT using
+eval() or exec(). Supports arithmetic, comparison, trig, log, and sqrt.
+
+This tool is intentionally improvable by ARIA's Improvement Engine.
+"""
+
+from __future__ import annotations
+
+import ast
+import math
+import operator
+from typing import Any
+
+from aria.tools.base import BaseTool, TestCase, ToolResult
+from groq import Groq
+
+# Whitelisted operators
+_OPERATORS: dict[type, Any] = {
+    ast.Add:      operator.add,
+    ast.Sub:      operator.sub,
+    ast.Mult:     operator.mul,
+    ast.Div:      operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod:      operator.mod,
+    ast.Pow:      operator.pow,
+    ast.USub:     operator.neg,
+    ast.UAdd:     operator.pos,
+    ast.BitAnd:   operator.and_,
+    ast.BitOr:    operator.or_,
+    ast.BitXor:   operator.xor,
+    ast.Invert:   operator.invert,
+    ast.LShift:   operator.lshift,
+    ast.RShift:   operator.rshift,
+}
+
+# Whitelisted math functions
+_FUNCTIONS: dict[str, Any] = {
+    "abs":   abs,
+    "round": round,
+    "sin":   math.sin,
+    "cos":   math.cos,
+    "tan":   math.tan,
+    "sqrt":  math.sqrt,
+    "log":   math.log,
+    "log2":  math.log2,
+    "log10": math.log10,
+    "exp":   math.exp,
+    "ceil":  math.ceil,
+    "floor": math.floor,
+    "factorial": math.factorial,
+    "pi":    math.pi,
+    "e":     math.e,
+}
+
+class _SafeEvaluator(ast.NodeVisitor):
+    """AST visitor that safely evaluates mathematical expressions."""
+
+    def visit_Expression(self, node: ast.Expression) -> Any:
+        return self.visit(node.body)
+
+    def visit_Constant(self, node: ast.Constant) -> Any:
+        if isinstance(node.value, (int, float, complex)):
+            return node.value
+        raise ValueError(f"Unsupported constant type: {type(node.value)}")
+
+    def visit_BinOp(self, node: ast.BinOp) -> Any:
+        op_fn = _OPERATORS.get(type(node.op))
+        if op_fn is None:
+            raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
+        left = self.visit(node.left)
+        right = self.visit(node.right)
+        return op_fn(left, right)
+
+    def visit_UnaryOp(self, node: ast.UnaryOp) -> Any:
+        op_fn = _OPERATORS.get(type(node.op))
+        if op_fn is None:
+            raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
+        return op_fn(self.visit(node.operand))
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        if not isinstance(node.func, ast.Name):
+            raise ValueError("Only direct function calls are allowed.")
+        fn = _FUNCTIONS.get(node.func.id)
+        if fn is None:
+            raise ValueError(f"Unsupported function: {node.func.id}")
+        args = [self.visit(a) for a in node.args]
+        return fn(*args)
+
+    def visit_Name(self, node: ast.Name) -> Any:
+        if node.id in _FUNCTIONS:
+            return _FUNCTIONS[node.id]
+        raise ValueError(f"Unsupported name: {node.id}")
+
+    def generic_visit(self, node: ast.AST) -> Any:
+        raise ValueError(f"Unsupported AST node: {type(node).__name__}")
+
+
+def _safe_eval(expression: str) -> float:
+    """Parse and evaluate a math expression safely using the AST."""
+    expression = expression.strip().replace("^", "**")
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"Invalid expression syntax: {exc}") from exc
+    evaluator = _SafeEvaluator()
+    result = evaluator.visit(tree)
+    return float(result)
+
+
+class CalculatorTool(BaseTool):
+    """
+    Safely evaluates mathematical expressions.
+
+    Input:
+        expression (str): A math expression string (e.g., "2 + 3 * sin(pi/2)")
+
+    Output:
+        The numeric result as a float.
+    """
+
+    name = "calculator_tool"
+
+    def __init__(self):
+        self.groq_client = Groq(api_key="YOUR_API_KEY")
+
+    def run(self, input: dict) -> ToolResult:
+        expression = str(input.get("expression", "")).strip()
+
+        if not expression:
+            return ToolResult(success=False, output=None, error="No expression provided.")
+
+        try:
+            result = _safe_eval(expression)
+
+            # Handle special float cases
+            if math.isnan(result):
+                return ToolResult(success=False, output=None, error="Result is NaN.")
+            if math.isinf(result):
+                return ToolResult(success=False, output=None, error="Result is infinite (division by zero?).")
+
+            return ToolResult(success=True, output=result)
+
+        except ZeroDivisionError:
+            return ToolResult(success=False, output=None, error="Division by zero.")
+        except ValueError as exc:
+            return ToolResult(success=False, output=None, error=str(exc))
+        except Exception as exc:
+            return ToolResult(success=False, output=None, error=f"Evaluation error: {exc}")
+
+    def test_cases(self) -> list[TestCase]:
+        test_cases = [
+            TestCase(
+                name="basic_math",
+                input={"expression": "2 + 3 * sin(pi/2)"},
+                expected_output=5.0,
+                expected_success=True,
+            ),
+            TestCase(
+                name="simple_division",
+                input={"expression": "10 / 2"},
+                expected_output=5.0,
+                expected_success=True,
+            ),
+            TestCase(
+                name="division_by_zero",
+                input={"expression": "10 / 0"},
+                expected_output=None,
+                expected_success=False,
+            ),
+            TestCase(
+                name="trigonometry",
+                input={"expression": "sin(2)"},
+                expected_output=0.9092974268256817,
+                expected_success=True,
+            ),
+            TestCase(
+                name="invalid_syntax",
+                input={"expression": "invalid syntax"},
+                expected_output=None,
+                expected_success=False,
+            ),
+            TestCase(
+                name="large_number",
+                input={"expression": "1e100"},
+                expected_output=1e+100,
+                expected_success=True,
+            ),
+            TestCase(
+                name="negative_number",
+                input={"expression": "-1e100"},
+                expected_output=-1e+100,
+                expected_success=True,
+            ),
+            TestCase(
+                name="nested_expressions",
+                input={"expression": "(2 + 3) * sin(pi/2)"},
+                expected_output=5.0,
+                expected_success=True,
+            ),
+            TestCase(
+                name="mixed_operations",
+                input={"expression": "2 + 3 * sin(pi/2) - 1"},
+                expected_output=4.0,
+                expected_success=True,
+            ),
+        ]
+        return test_cases
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INSTRUCTIONS:
+- Analyze the weaknesses above.
+- Identify the root cause of failures, high latency, or high resource usage.
+- Write an improved version of this tool that addresses those weaknesses to maximize the Fitness Score.
+- Make the code more robust, efficient, and cost-effective.
+- Do NOT change the tool's name or its input/output contract.
+- Return ONLY the improved Python source code. No markdown, no explanation.

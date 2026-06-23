@@ -556,7 +556,7 @@ def cmd_review(args: argparse.Namespace) -> None:
                 # We need to write the generated_code from the review to the host_file_path
                 try:
                     git_manager.tag_commit(f"pre_meta_deployment_{int(time.time())}")
-                    host_file_path.write_text(review['generated_code'], encoding="utf-8")
+                    host_file_path.write_text(review['generated_code'].replace("\r\n", "\n"), encoding="utf-8")
                     
                     commit_msg = f"Meta-improvement: Human Approved"
                     commit_hash = git_manager.commit_file(host_file_path, commit_msg)

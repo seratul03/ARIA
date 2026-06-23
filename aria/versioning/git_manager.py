@@ -188,7 +188,7 @@ class GitManager:
             # Restore file content from previous commit
             blob = previous_commit.tree[tool_rel_path]
             content = blob.data_stream.read().decode("utf-8")
-            tool_abs_path.write_text(content, encoding="utf-8")
+            tool_abs_path.write_text(content.replace("\r\n", "\n"), encoding="utf-8")
 
             logger.info(
                 f"[GitManager] Rolled back '{tool_name}' to "
@@ -251,7 +251,7 @@ class GitManager:
                 tool_abs_path = self._root / tool_rel_path
                 blob = tag.commit.tree[tool_rel_path]
                 content = blob.data_stream.read().decode("utf-8")
-                tool_abs_path.write_text(content, encoding="utf-8")
+                tool_abs_path.write_text(content.replace("\r\n", "\n"), encoding="utf-8")
                 logger.info(f"[GitManager] Rolled back '{tool_name}' to tag {tag_name}")
             else:
                 self._repo.git.checkout(tag_name, "--", ".")

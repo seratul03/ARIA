@@ -311,7 +311,7 @@ class AgentCore:
                 self._emit(EventType.ERROR, f"Tool '{tool_name}' already exists at {tool_path}. Cannot synthesize over it.")
                 return False
                 
-            tool_path.write_text(result.generated_code, encoding="utf-8")
+            tool_path.write_text(result.generated_code.replace("\r\n", "\n"), encoding="utf-8")
             
             # Git commit
             commit_msg = f"Synthesize new tool: {tool_name}"
@@ -701,7 +701,7 @@ class AgentCore:
 
         try:
             # 2. Write improved code
-            tool_path.write_text(new_source, encoding="utf-8")
+            tool_path.write_text(new_source.replace("\r\n", "\n"), encoding="utf-8")
 
             # 3. Host Smoke Test (import and initialization check)
             try:

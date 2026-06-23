@@ -58,6 +58,10 @@ class Settings:
     synthesis_groq_api_key: str
     groq_model: str
 
+    # ── OpenRouter LLM ────────────────────────────────────────
+    openrouter_api_key: str
+    openrouter_model: str
+
     # ── Security ──────────────────────────────────────────────
     test_signing_key: str
     require_human_review: bool
@@ -122,6 +126,8 @@ def _load_settings() -> Settings:
         groq_api_key=_require("GROQ_API_KEY"),
         synthesis_groq_api_key=_get("SYNTHESIS_GROQ_API_KEY", _get("GROQ_API_KEY", "")),
         groq_model=_get("GROQ_MODEL", "llama3-8b-8192"),
+        openrouter_api_key=_get("OPENROUTER_API_KEY", ""),
+        openrouter_model=_get("OPENROUTER_MODEL", "anthropic/claude-3-haiku"),
         test_signing_key=_get("TEST_SIGNING_KEY", "YOUR_16_CHAR_KEY"),
         require_human_review=_get("REQUIRE_HUMAN_REVIEW", "true").lower() == "true",
         monitoring_window_seconds=_get_int("MONITORING_WINDOW_SECONDS", 7200),

@@ -105,9 +105,9 @@ def run_parallel_sandbox(
             c["disqualification_reason"] = f"Baseline error: {e}"
         return candidates
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as temp_file_base, \
-         tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as temp_session_tests, \
-         tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as temp_baseline_res:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8", newline="") as temp_file_base, \
+         tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8", newline="") as temp_session_tests, \
+         tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8", newline="") as temp_baseline_res:
          
         temp_file_base.write(current_source)
         base_path = temp_file_base.name
@@ -208,7 +208,7 @@ def run_sandbox_for_candidate(
     """
     Thin wrapper calling gatekeeper CLI for a single candidate.
     """
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as temp_file_clone:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8", newline="") as temp_file_clone:
         temp_file_clone.write(candidate["source_code"])
         clone_path = temp_file_clone.name
         

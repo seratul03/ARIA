@@ -78,7 +78,7 @@ META_IMPROVEMENT_PROMPT = """You are ARIA's Meta-Improvement Engine.
 Your goal is to propose an architectural code change to fix weaknesses in your self-model.
 Here is your current self-model:
 {self_model_json}
-
+{past_failure_context}
 You are allowed to modify exactly ONE of these files:
 - aria/improvement/prompts.py
 - aria/improvement/engine.py
@@ -437,7 +437,37 @@ def run_meta_introspection(n_cycles: int) -> None:
         # We must manually inject a way to dump the self model, assuming `self_model.model_dump()` or similar exists.
         # Since self_model is an object, we serialize its attributes.
         sm_dict = getattr(self_model, "components", {})
-        proposal_prompt = META_IMPROVEMENT_PROMPT.format(self_model_json=json.dumps(sm_dict, indent=2))
+        
+        from aria.metrics.db import get_connection
+        past_failure_context = ""
+        try:
+            with get_connection() as conn:
+                # Fetch last rejection
+                last_rejected = conn.execute(
+                    "SELECT timestamp, rejection_reason, fix_summary, component_name FROM improvement_history WHERE improvement_type = 'meta' AND result = 'rejected' ORDER BY timestamp DESC LIMIT 1"
+                ).fetchone()
+                
+                # Fetch last crash
+                last_failure = conn.execute(
+                    "SELECT timestamp, error_message, stack_trace FROM failure_history WHERE source = 'meta_clone' ORDER BY timestamp DESC LIMIT 1"
+                ).fetchone()
+                
+                context_parts = []
+                if last_rejected and last_rejected["rejection_reason"]:
+                    context_parts.append(f"REJECTION REASON (Target: {last_rejected['component_name']}):\n{last_rejected['rejection_reason']}\nSummary of approach: {last_rejected['fix_summary']}")
+                if last_failure:
+                    context_parts.append(f"CRASH ERROR:\n{last_failure['error_message']}\n{last_failure['stack_trace']}")
+                    
+                if context_parts:
+                    past_failure_context = "\nWARNING! Your last meta-improvement attempt failed:\n" + "\n\n".join(context_parts) + "\n\nDo not repeat the exact same approach.\n"
+                    
+        except Exception as e:
+            logger.error(f"[MetaImprovement] Failed to fetch past meta-improvement failures: {e}")
+        
+        proposal_prompt = META_IMPROVEMENT_PROMPT.format(
+            self_model_json=json.dumps(sm_dict, indent=2),
+            past_failure_context=past_failure_context
+        )
         
         proposal_response = client.chat.completions.create(
             model=settings.groq_model,
@@ -471,12 +501,36 @@ def run_meta_introspection(n_cycles: int) -> None:
         if not target_file.startswith(allowed_prefixes) or ".." in target_file:
             logger.error(f"[MetaImprovement] Rejected proposal to modify forbidden file: {target_file}")
             clone_manager.active_clones[clone_id]["status"] = "failed"
+            try:
+                from aria.memory.store import record_improvement
+                record_improvement(
+                    improvement_type='meta',
+                    component_name=target_file,
+                    problem_description=reasoning,
+                    fix_summary=f"Attempted meta-improvement on {target_file}",
+                    result='rejected',
+                    rejection_reason=f"Rejected proposal to modify forbidden file: {target_file}. Only allowed files can be modified.",
+                )
+            except Exception:
+                pass
             return
             
         # ── Phase 7.3: The meta loop itself can NEVER be improved ──
         if target_file == "aria/introspection/meta.py":
             logger.error(f"[MetaImprovement] Rejected proposal: ARIA is forbidden from rewriting its own meta-loop ({target_file}).")
             clone_manager.active_clones[clone_id]["status"] = "failed"
+            try:
+                from aria.memory.store import record_improvement
+                record_improvement(
+                    improvement_type='meta',
+                    component_name=target_file,
+                    problem_description=reasoning,
+                    fix_summary=f"Attempted meta-improvement on {target_file}",
+                    result='rejected',
+                    rejection_reason=f"Rejected proposal: ARIA is forbidden from rewriting its own meta-loop ({target_file}).",
+                )
+            except Exception:
+                pass
             return
             
         # Validate Python syntax (Mitigate token truncation risk)
@@ -486,6 +540,18 @@ def run_meta_introspection(n_cycles: int) -> None:
         except SyntaxError as e:
             logger.error(f"[MetaImprovement] Discarding proposal due to SyntaxError in generated code (likely truncation): {e}")
             clone_manager.active_clones[clone_id]["status"] = "failed"
+            try:
+                from aria.memory.store import record_improvement
+                record_improvement(
+                    improvement_type='meta',
+                    component_name=target_file,
+                    problem_description=reasoning,
+                    fix_summary=f"Attempted meta-improvement on {target_file}",
+                    result='rejected',
+                    rejection_reason=f"Discarding proposal due to SyntaxError in generated code: {e}",
+                )
+            except Exception:
+                pass
             return
             
         logger.info(f"[MetaImprovement] Proposal accepted for {target_file}. Reasoning: {reasoning}")
@@ -493,7 +559,7 @@ def run_meta_introspection(n_cycles: int) -> None:
         # 4. Change applied to clone only
         clone_file_path = Path(clone_dir) / target_file
         clone_file_path.parent.mkdir(parents=True, exist_ok=True)
-        clone_file_path.write_text(new_content, encoding="utf-8")
+        clone_file_path.write_text(new_content.replace("\r\n", "\n"), encoding="utf-8")
         
         # 5. Clone runs evaluation suite 
         logger.info(f"[MetaImprovement] Running Arena Combat for clone {clone_id} on 'code_executor_tool'...")
@@ -630,6 +696,21 @@ sys.exit(1)
         else:
             logger.warning(f"[MetaImprovement] Evaluation FAILED. Delta {delta:.3f} < {min_meta_delta}. Discarding.")
             clone_manager.active_clones[clone_id]["status"] = "failed"
+            
+            try:
+                from aria.memory.store import record_improvement
+                record_improvement(
+                    improvement_type='meta',
+                    component_name=target_file,
+                    problem_description=reasoning,
+                    fix_summary=f"Attempted meta-improvement on {target_file}",
+                    result='rejected',
+                    baseline_fitness=baseline_score,
+                    candidate_fitness=clone_score,
+                    rejection_reason=f"Evaluation FAILED. Delta {delta:.3f} < {min_meta_delta} required to pass.",
+                )
+            except Exception as e:
+                logger.error(f"[MetaImprovement] Failed to record rejection: {e}")
             
     except Exception as exc:
         logger.error(f"[MetaImprovement] Failed during clone lifecycle: {exc}")
