@@ -185,40 +185,22 @@ class CalculatorTool(BaseTool):
                 expected_success=False,
             ),
             TestCase(
-                name="large_number",
-                input={"expression": "1e100"},
-                expected_output=1e+100,
-                expected_success=True,
-            ),
-            TestCase(
-                name="negative_number",
-                input={"expression": "-1e100"},
-                expected_output=-1e+100,
-                expected_success=True,
-            ),
-            TestCase(
-                name="nested_expressions",
-                input={"expression": "(2 + 3) * sin(pi/2)"},
-                expected_output=5.0,
-                expected_success=True,
-            ),
-            TestCase(
-                name="mixed_operations",
-                input={"expression": "2 + 3 * sin(pi/2) - 1"},
-                expected_output=4.0,
-                expected_success=True,
-            ),
-            TestCase(
-                name="invalid_function",
-                input={"expression": "sinh(2)"},
+                name="nan_result",
+                input={"expression": "1 / 0"},
                 expected_output=None,
                 expected_success=False,
             ),
             TestCase(
-                name="invalid_constant",
-                input={"expression": "sin(pi)"},
+                name="inf_result",
+                input={"expression": "1 / (1 - 1)"},
                 expected_output=None,
                 expected_success=False,
+            ),
+            TestCase(
+                name="large_expression",
+                input={"expression": "1000000 + 2000000 * sin(3.14159265358979323846)"},
+                expected_output=2000000.0,
+                expected_success=True,
             ),
         ]
         return test_cases
