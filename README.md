@@ -95,6 +95,15 @@ ARIA may not modify aria/memory/schema.py, its migrations, or store.py. These de
 
 ---
 
+## ⏳ Subjective Time & Priority Scheduling (Phase 8)
+
+Traditional agents use naive wall-clock recency to determine when a tool needs improvement. ARIA employs a purely mathematical **Subjective Timeline** via its **Weighted Temporal Degradation Score (WDTS)**. 
+
+- **Opportunity-Weighted Stagnation (OWS):** ARIA only ages a tool if it mathematically qualifies for an upgrade but gets bypassed by the scheduler in favor of a worse tool.
+- **Monoculture Resistance:** Because ARIA's timeline operates on "missed opportunities" rather than global cycles, a single highly-failing tool cannot artificially age healthy tools. Healthy tools remain frozen in subjective time until their performance degrades enough to warrant attention.
+
+---
+
 ## 🛡️ Safety Model
 
 ARIA executes untrusted, AI-generated code. It relies on a 7-layer defense system:

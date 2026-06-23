@@ -64,7 +64,8 @@ All tool executions are heavily monitored and logged to an internal SQLite datab
 ### 2.3 Introspection Engine (`aria/introspection`)
 The Introspection Engine bridges the gap between historical metrics and actionable improvements.
 
-- **Weakness Detection**: Analyzes SQLite traces to find the "worst-performing" tool based on weighted scores (p90 latency, pass rate).
+- **Weakness Detection (WDTS & OWS)**: Analyzes SQLite traces to compute the **Weighted Temporal Degradation Score (WDTS)**. This is a mathematically rigorous algorithm evaluating a tool's Current Health, Trajectory, Fix Resistance, and System Impact.
+- **Subjective Timeline & Opportunity-Weighted Stagnation (OWS)**: Replaces naive wall-clock recency. ARIA maintains a "Subjective Timeline" inside `tool_stagnation`. If a tool mathematically qualifies for an upgrade (WDTS >= 0.20) but loses the priority bid to a worse tool, its `times_bypassed` integer increments. OWS dynamically accelerates priority for highly neglected tools, while resetting stagnation only upon cycle completion. This successfully neutralizes the "Monoculture Exploit."
 - **The Self-Model (`self_model.json`)**: During a Meta-Introspection cycle, an LLM parses hundreds of cycle traces to build a structural understanding of ARIA's flaws. This is persisted to `self_model.json`, which tracks "known_weaknesses" and "failure_patterns" per core component (e.g., `improvement_engine`, `gatekeeper`).
 - **Clone Lifecycle**: When a meta-improvement is triggered, ARIA cannot safely alter its live state. Instead, the `clone_manager` duplicates the entire ARIA repository into a temporary directory, applies the architectural change to the clone, and executes an Arena Combat evaluation.
 
