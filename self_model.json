@@ -265,5 +265,56 @@
     "lost_ranking_battle",
     "LOST_RANKING_BATTLE",
     "NO_WEAKNESS_FOUND"
-  ]
+  ],
+  "tool_priority_scores": {
+    "calculator_tool": {
+      "wdts": 0.0006,
+      "dominant_factor": "impact",
+      "components": {
+        "health": 3.3326447010040284e-06,
+        "trajectory": 0.0,
+        "resistance": 0.0,
+        "impact": 0.003676470588235294,
+        "ows_stagnation": 5.298188554547778e-12
+      },
+      "rank": 4
+    },
+    "code_executor_tool": {
+      "wdts": 0.3514,
+      "dominant_factor": "trajectory",
+      "components": {
+        "health": 0.22204743644365482,
+        "trajectory": 1.0,
+        "resistance": 0.0,
+        "impact": 0.22058823529411764,
+        "ows_stagnation": 0.01666666667097144
+      },
+      "rank": 1
+    },
+    "search_tool": {
+      "wdts": 0.049,
+      "dominant_factor": "impact",
+      "components": {
+        "health": 0.04185350303460225,
+        "trajectory": 0.0,
+        "resistance": 0.014082695795687813,
+        "impact": 0.22426470588235292,
+        "ows_stagnation": 2.9802293965985887e-12
+      },
+      "rank": 3
+    },
+    "summarizer_tool": {
+      "wdts": 0.1151,
+      "dominant_factor": "health",
+      "components": {
+        "health": 0.2468878006030406,
+        "trajectory": 0.0,
+        "resistance": 0.0,
+        "impact": 0.25735294117647056,
+        "ows_stagnation": 0.024000000003808062
+      },
+      "rank": 2
+    }
+  },
+  "last_updated": "2026-06-23T22:52:14.983792+00:00"
 }

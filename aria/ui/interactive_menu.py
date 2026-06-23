@@ -30,37 +30,9 @@ bw_style = Style([
     ('text', 'fg:white'),
 ])
 
-def get_confidence_score(tool_name: str, user_input: str, result_str: str) -> str:
-    """Uses Groq to generate a confidence score."""
-    if not Groq:
-        return "N/A"
-    try:
-        client = Groq(api_key=settings.groq_api_key)
-        prompt = (
-            f"Tool used: {tool_name}\n"
-            f"User Input: {user_input}\n"
-            f"Output from tool: {result_str}\n\n"
-            "Grade this output brutally on a scale of 1 to 10. Start at 10 and deduct 2 points for any minor formatting issues, "
-            "3 points for lack of detail, and 5 points if it doesn't fully answer the prompt or handle edge cases. "
-            "Return ONLY the final single integer (e.g., '6'). Do NOT show your math or reasoning. Output NOTHING but the final digit."
-        )
-        response = client.chat.completions.create(
-            model=settings.groq_model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=10,
-            temperature=0.0
-        )
-        score_str = response.choices[0].message.content.strip()
-        
-        # Clean the output to guarantee a single number
-        nums = re.findall(r'\d+', score_str)
-        if nums:
-            return nums[-1]
-        return score_str
-    except Exception:
-        return "N/A"
+# get_confidence_score removed - ARIA now relies on WDTS instead
 
-def save_output(tool_name: str, output_text: str, score: str):
+def save_output(tool_name: str, output_text: str, wdts_str: str):
     """Prompt the user to save the output."""
     save = questionary.select(
         "Save output?",
@@ -84,7 +56,7 @@ def save_output(tool_name: str, output_text: str, score: str):
         content = "Date and time of output:\n"
         content += f"{ist_str}\n"
         content += f"{gmt_str}\n"
-        content += f"Confidence score: {score}\n"
+        content += f"WDTS Score: {wdts_str}\n"
         content += "----------------------------------------------------------------------\n"
         content += "Output:\n"
         content += output_text + "\n\n"
@@ -126,9 +98,12 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
             
         print(f"{res_str}\n")
         
-        print("Calculating confidence score...")
-        score_str = get_confidence_score(tool_name, user_input, res_str)
-        print(f"Confidence Score: {score_str}/10\n")
+        print("Calculating Weighted Temporal Degradation Score (WDTS)...")
+        from aria.introspection.wdts import compute_wdts
+        wdts_dict = compute_wdts(tool_name)
+        wdts_score = wdts_dict["wdts"]
+        wdts_str = f"{wdts_score:.4f} (Dominant: {wdts_dict['dominant_factor']})"
+        print(f"WDTS Score: {wdts_str}\n")
         
         from aria.metrics.db import get_tool_stats
         from aria.memory.store import get_improvement_history
@@ -148,16 +123,14 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
         upgrades = sum(1 for h in history if h["result"] == "deployed")
         print(f"Total Upgrades Implemented: {upgrades}\n")
         
-        save_output(tool_name, res_str, score_str)
+        save_output(tool_name, res_str, wdts_str)
         
-        try:
-            score_val = float(score_str)
-            threshold = settings.confidence_score_threshold
-            if score_val < threshold:
-                print(f"\n[!] Confidence score is {score_val} (less than {threshold}). Triggering autonomous improvement loop for {tool_name}...\n")
-                agent.run_improvement_cycle(target_tool=tool_name)
-        except ValueError:
-            pass
+        MINIMUM_WDTS_TO_TRIGGER = 0.25
+        if wdts_score >= MINIMUM_WDTS_TO_TRIGGER:
+            print(f"\n[!] WDTS score {wdts_score:.4f} exceeds threshold ({MINIMUM_WDTS_TO_TRIGGER}). Triggering autonomous improvement loop for {tool_name}...\n")
+            agent.run_improvement_cycle(target_tool=tool_name)
+        else:
+            print(f"\n[✓] WDTS Score is {wdts_score:.4f} (below threshold). Tool remains healthy, no immediate improvement required.\n")
     else:
         print(f"Tool execution failed: {result.error}\n")
 

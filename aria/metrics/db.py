@@ -102,6 +102,13 @@ CREATE INDEX IF NOT EXISTS idx_executions_tool_time
 
 CREATE INDEX IF NOT EXISTS idx_cycle_traces_time
     ON cycle_traces(timestamp);
+
+CREATE TABLE IF NOT EXISTS tool_stagnation (
+    tool_name             TEXT PRIMARY KEY,
+    times_bypassed        INTEGER DEFAULT 0,
+    last_attempt_ts       REAL    DEFAULT 0.0,
+    difficulty_multiplier REAL    DEFAULT 1.0
+);
 """
 
 from aria.config import settings
@@ -292,6 +299,76 @@ class ToolStats:
     avg_tokens_used: float
     last_seen: float | None
 
+
+def get_stagnation_data(tool_name: str) -> dict:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT times_bypassed, last_attempt_ts, difficulty_multiplier "
+            "FROM tool_stagnation WHERE tool_name = ?",
+            (tool_name,)
+        ).fetchone()
+        
+        if row:
+            return dict(row)
+        
+        import time
+        return {
+            "times_bypassed": 0,
+            "last_attempt_ts": time.time(),
+            "difficulty_multiplier": 1.0
+        }
+
+def update_bypassed_metrics(all_wdts_scores: dict, selected_tool: str) -> None:
+    CONSIDERATION_THRESHOLD = 0.20
+    
+    with get_connection() as conn:
+        import time
+        now = time.time()
+        for tool, score_dict in all_wdts_scores.items():
+            if tool == selected_tool:
+                continue
+                
+            score = score_dict.get("wdts", 0.0)
+            if score >= CONSIDERATION_THRESHOLD:
+                conn.execute(
+                    '''
+                    INSERT INTO tool_stagnation (tool_name, times_bypassed, last_attempt_ts, difficulty_multiplier)
+                    VALUES (?, 1, ?, 1.0)
+                    ON CONFLICT(tool_name) DO UPDATE SET
+                    times_bypassed = tool_stagnation.times_bypassed + 1
+                    ''',
+                    (tool, now)
+                )
+
+def reset_bypassed_and_update_attempt(tool_name: str, success: bool) -> None:
+    import time
+    now = time.time()
+    
+    with get_connection() as conn:
+        if success:
+            conn.execute(
+                '''
+                INSERT INTO tool_stagnation (tool_name, times_bypassed, last_attempt_ts, difficulty_multiplier)
+                VALUES (?, 0, ?, 1.0)
+                ON CONFLICT(tool_name) DO UPDATE SET
+                times_bypassed = 0,
+                last_attempt_ts = excluded.last_attempt_ts,
+                difficulty_multiplier = 1.0
+                ''',
+                (tool_name, now)
+            )
+        else:
+            conn.execute(
+                '''
+                INSERT INTO tool_stagnation (tool_name, times_bypassed, last_attempt_ts, difficulty_multiplier)
+                VALUES (?, 0, ?, 1.5)
+                ON CONFLICT(tool_name) DO UPDATE SET
+                times_bypassed = 0,
+                last_attempt_ts = excluded.last_attempt_ts,
+                difficulty_multiplier = tool_stagnation.difficulty_multiplier + 0.5
+                ''',
+                (tool_name, now)
+            )
 
 def get_tool_stats(tool_name: str, window: int = 100) -> ToolStats | None:
     with get_connection() as conn:

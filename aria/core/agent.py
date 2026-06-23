@@ -468,6 +468,8 @@ class AgentCore:
             
             if not all_candidates:
                 self._emit(EventType.ERROR, "Failed to generate any candidates.")
+                from aria.metrics.db import reset_bypassed_and_update_attempt
+                reset_bypassed_and_update_attempt(report.tool_name, False)
                 with get_connection() as conn:
                     conn.execute("UPDATE evolution_runs SET run_status='failed_generation' WHERE id=?", (evolution_run_id,))
                 trace.finalize("GENERATION_FAILED")
@@ -489,6 +491,8 @@ class AgentCore:
             
             if not filtered_candidates:
                 self._emit(EventType.ERROR, "All candidates filtered out.")
+                from aria.metrics.db import reset_bypassed_and_update_attempt
+                reset_bypassed_and_update_attempt(report.tool_name, False)
                 with get_connection() as conn:
                     conn.execute("UPDATE evolution_runs SET run_status='failed_generation' WHERE id=?", (evolution_run_id,))
                 trace.finalize("GENERATION_FAILED")
@@ -521,6 +525,8 @@ class AgentCore:
             
             if not ranked:
                 self._emit(EventType.ERROR, "No candidates survived ranking.")
+                from aria.metrics.db import reset_bypassed_and_update_attempt
+                reset_bypassed_and_update_attempt(report.tool_name, False)
                 with get_connection() as conn:
                     conn.execute("UPDATE evolution_runs SET run_status='failed_sandbox' WHERE id=?", (evolution_run_id,))
                 trace.finalize("SANDBOX_FAILED")
@@ -541,6 +547,8 @@ class AgentCore:
             
             if winner.get("sandbox_passed", 0) == 0:
                 self._emit(EventType.ERROR, f"Winner failed sandbox validation: {winner.get('disqualification_reason')}")
+                from aria.metrics.db import reset_bypassed_and_update_attempt
+                reset_bypassed_and_update_attempt(report.tool_name, False)
                 with get_connection() as conn:
                     conn.execute("UPDATE evolution_runs SET run_status='failed_sandbox' WHERE id=?", (evolution_run_id,))
                 trace.finalize("SANDBOX_FAILED")
@@ -620,12 +628,16 @@ class AgentCore:
                 self_model.record_cycle("improvement_engine", success=True)
                 trace.record_candidate_deployed()
                 trace.finalize("DEPLOYED")
+                from aria.metrics.db import reset_bypassed_and_update_attempt
+                reset_bypassed_and_update_attempt(report.tool_name, True)
                 with get_connection() as conn:
                     conn.execute("UPDATE evolution_runs SET run_status='completed' WHERE id=?", (evolution_run_id,))
             else:
                 self_model.record_cycle("improvement_engine", success=False)
                 trace.record_candidate_rejected("candidate_1", "DEPLOY_FAILED")
                 trace.finalize("DEPLOY_FAILED")
+                from aria.metrics.db import reset_bypassed_and_update_attempt
+                reset_bypassed_and_update_attempt(report.tool_name, False)
                 with get_connection() as conn:
                     conn.execute("UPDATE evolution_runs SET run_status='failed_deployment' WHERE id=?", (evolution_run_id,))
                 
