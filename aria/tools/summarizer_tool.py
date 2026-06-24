@@ -150,6 +150,34 @@ class SummarizerTool(BaseTool):
         top_indices = sorted(idx for idx, _ in scored[:max_sentences])
         return " ".join(sentences[i] for i in top_indices)
 
+    def mock_apis(self, respx_mock: "Any") -> None:
+        """Mock the Groq API endpoint to prevent sandbox timeouts."""
+        import httpx
+        import json
+        import re
+
+        def mock_groq_chat(request):
+            body = json.loads(request.content)
+            # Create a mock summary based on the requested max_sentences (or a default string)
+            mock_response = {
+                "id": "chatcmpl-mock",
+                "object": "chat.completion",
+                "created": 1234567890,
+                "model": body.get("model", "llama3-8b-8192"),
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "This is a mocked summary sentence 1. This is mocked summary sentence 2."
+                    },
+                    "finish_reason": "stop"
+                }],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20}
+            }
+            return httpx.Response(200, json=mock_response)
+
+        respx_mock.post(re.compile(r"https://api\.groq\.com/openai/v1/chat/completions")).mock(side_effect=mock_groq_chat)
+
     def test_cases(self) -> list[TestCase]:
         return [
             TestCase(
