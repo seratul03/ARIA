@@ -107,40 +107,35 @@ $$
 \lambda_{\text{bypass}} = \frac{20.0}{D_{\tau}}
 $$
 
-#### 3.2.2 Time Stagnation ($\mathcal{S}_{\text{time}}$)
-Standard exponential decay driven by wall-clock hours ($H_{\tau}$) since the last improvement attempt.
+#### 3.2.2 Time Stagnation ($`\mathcal{S}_{\text{time}}`$)
+Standard exponential decay driven by wall-clock hours ($`H_{\tau}`$) since the last improvement attempt.
 
 ```math
 \mathcal{S}_{\text{time}}(\tau) = 1 - e^{-\frac{H_{\tau}}{\lambda_{\text{time}}}}
 ```
-Where $\lambda_{\text{time}} = 48.0$.
+
+Where $`\lambda_{\text{time}} = 48.0`$.
 
 ---
 
 ## 4. The State Machine of the Subjective Timeline
-
-The parameters governing OWS ($B_{\tau}, H_{\tau}, D_{\tau}$) act as a state machine inside `aria.db`. 
+The parameters governing OWS ($`B_{\tau}, H_{\tau}, D_{\tau}`$) act as a state machine inside `aria.db`.
 
 **State Transitions on Cycle Outcome:**
-For a given tool $\tau$ targeted for improvement:
-- **On Success (Deployment):**
 
-  $$
-  B_{\tau} \gets 0 \quad ; \quad
-  H_{\tau} \gets 0 \quad ; \quad
-  D_{\tau} \gets 1.0
-  $$
+For a given tool $`\tau`$ targeted for improvement:
+
+- **On Success (Deployment):**
+```math
+B_{\tau} \gets 0 \quad ; \quad H_{\tau} \gets 0 \quad ; \quad D_{\tau} \gets 1.0
+```
 
 - **On Failure (Sandbox/Validator Rejection):**
+```math
+B_{\tau} \gets 0 \quad ; \quad H_{\tau} \gets 0 \quad ; \quad D_{\tau} \gets D_{\tau} + 0.5
+```
 
-  $$
-  B_{\tau} \gets 0 \quad ; \quad
-  H_{\tau} \gets 0 \quad ; \quad
-  D_{\tau} \gets D_{\tau}+0.5
-  $$
-
-- **On Bypass (Priority Bid Lost while WDTS $\ge 0.20$):**
-
-  $$
-  B_{\tau} \gets B_{\tau}+1
-  $$
+- **On Bypass (Priority Bid Lost while WDTS $`\ge 0.20`$):**
+```math
+B_{\tau} \gets B_{\tau} + 1
+```
