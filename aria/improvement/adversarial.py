@@ -99,7 +99,7 @@ class AdversarialGenerator:
                         model=settings.groq_model,
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.7,
-                        max_tokens=500,
+                        max_tokens=settings.llm_max_tokens,
                         response_format={"type": "json_object"}
                     )
                     break

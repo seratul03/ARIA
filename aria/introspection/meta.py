@@ -366,7 +366,7 @@ def run_meta_introspection(n_cycles: int) -> None:
                 {"role": "user", "content": prompt},
             ],
             response_format={"type": "json_object"},
-            max_tokens=2000,
+            max_tokens=settings.llm_max_tokens,
             temperature=0.2,
         )
         
@@ -476,7 +476,7 @@ def run_meta_introspection(n_cycles: int) -> None:
                 {"role": "user", "content": proposal_prompt},
             ],
             response_format={"type": "json_object"},
-            max_tokens=2000,
+            max_tokens=settings.llm_max_tokens,
             temperature=0.2,
         )
         

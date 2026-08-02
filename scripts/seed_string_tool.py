@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-db_path = r"c:\Users\Seratul Mustakim\Desktop\My Works\ARIA\aria.db"
+db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "aria.db")
 
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()

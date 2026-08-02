@@ -18,6 +18,7 @@ That responsibility belongs to the Agent Core + Gatekeeper pipeline.
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -26,6 +27,8 @@ from aria.config import settings
 from aria.core.rate_limiter import groq_limiter
 from aria.introspection.engine import WeaknessReport
 from aria.improvement.prompts import SYSTEM_PROMPT, build_improvement_prompt
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -128,10 +131,48 @@ class ImprovementEngine:
             
             def _call_llm(api_key: str, endpoint: str, model: str, messages: list[dict], extra_headers: dict = None) -> str:
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-                if extra_headers: headers.update(extra_headers)
-                resp = httpx.post(endpoint, headers=headers, json={"model": model, "messages": messages, "temperature": 0.2, "max_tokens": 2000}, timeout=30.0)
-                resp.raise_for_status()
-                return resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                if extra_headers:
+                    headers.update(extra_headers)
+
+                full_content = ""
+                current_messages = list(messages)
+                continuation = 0
+
+                while True:
+                    resp = httpx.post(endpoint, headers=headers, json={
+                        "model": model,
+                        "messages": current_messages,
+                        "temperature": 0.2,
+                        "max_tokens": settings.llm_max_tokens,
+                    }, timeout=30.0)
+                    resp.raise_for_status()
+
+                    data = resp.json()
+                    choice = data.get("choices", [{}])[0]
+                    content = choice.get("message", {}).get("content", "")
+                    finish_reason = choice.get("finish_reason", "stop")
+
+                    full_content += content
+
+                    if finish_reason == "length":
+                        continuation += 1
+                        warning_msg = (
+                            f"⚠️  [ARIA] LLM response was TRUNCATED (continuation #{continuation}). "
+                            f"Requesting LLM to finish generation..."
+                        )
+                        print(warning_msg, flush=True)
+                        logger.warning(warning_msg)
+
+                        # Ask the LLM to pick up exactly where it left off
+                        current_messages = current_messages + [
+                            {"role": "assistant", "content": full_content},
+                            {"role": "user", "content": "Continue exactly where you left off. Do not repeat any code you already wrote."},
+                        ]
+                    else:
+                        # finish_reason == "stop" — generation is complete
+                        break
+
+                return full_content.strip()
 
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},

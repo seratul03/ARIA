@@ -2,7 +2,7 @@ import hashlib
 import json
 import os
 
-gatekeeper_dir = "c:/Users/Seratul Mustakim/Desktop/My Works/ARIA/aria/gatekeeper"
+gatekeeper_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "aria", "gatekeeper")
 manifest_path = os.path.join(gatekeeper_dir, "manifest.json")
 files = ["validator.py", "sandbox.py", "test_verifier.py", "cli.py"]
 

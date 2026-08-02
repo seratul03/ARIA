@@ -4,7 +4,7 @@ import hmac
 import hashlib
 from pathlib import Path
 
-tests_dir = Path("c:/Users/Seratul Mustakim/Desktop/My Works/ARIA/aria/gatekeeper/tests")
+tests_dir = Path(__file__).resolve().parent / "aria" / "gatekeeper" / "tests"
 signing_key = b"testing_key_1234"
 
 def _compute_signature(tc: dict) -> str:

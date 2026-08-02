@@ -1,3 +1,4 @@
+import pytest
 import sqlite3
 import json
 import os
@@ -8,6 +9,80 @@ from aria.reflection.proposals import (
     generate_proposals_from_complex_findings,
     evaluate_implemented_proposals
 )
+
+@pytest.fixture
+def db_path(tmp_path):
+    db_file = tmp_path / "test_aria.db"
+    with sqlite3.connect(db_file) as conn:
+        conn.executescript("""
+        CREATE TABLE architectural_weaknesses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            weakness_type TEXT,
+            severity TEXT,
+            description TEXT,
+            evidence_json TEXT,
+            status TEXT
+        );
+        
+        CREATE TABLE recurring_mistakes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mistake_type TEXT,
+            description TEXT,
+            evidence_json TEXT,
+            status TEXT
+        );
+        
+        CREATE TABLE ineffective_improvements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            strategy TEXT,
+            target_component TEXT,
+            description TEXT,
+            evidence_json TEXT,
+            status TEXT
+        );
+        
+        CREATE TABLE token_waste_findings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            waste_type TEXT,
+            description TEXT,
+            evidence_json TEXT,
+            estimated_tokens_wasted_per_cycle INTEGER,
+            status TEXT
+        );
+        
+        CREATE TABLE bad_prompt_findings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prompt_type TEXT,
+            finding_type TEXT,
+            description TEXT,
+            evidence_json TEXT,
+            correlation_metric REAL,
+            status TEXT
+        );
+        
+        CREATE TABLE self_improvement_proposals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            source_finding_type TEXT,
+            source_finding_id INTEGER,
+            proposal_text TEXT,
+            target_module TEXT,
+            change_type TEXT,
+            success_metric TEXT,
+            measurement_window_cycles INTEGER,
+            priority TEXT,
+            status TEXT DEFAULT 'proposed',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            accepted_at DATETIME,
+            implemented_at DATETIME,
+            implementation_notes TEXT,
+            evaluation_at DATETIME,
+            outcome TEXT,
+            outcome_notes TEXT,
+            snapshot_id INTEGER
+        );
+        """)
+    return str(db_file)
 
 def test_generate_proposals_weaknesses(db_path):
     with sqlite3.connect(db_path) as conn:

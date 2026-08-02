@@ -152,7 +152,21 @@ respx_mock.start()
 
 if hasattr(tool_instance, "mock_apis"):
     try:
-        tool_instance.mock_apis(respx_mock)
+        import inspect
+        sig = inspect.signature(tool_instance.mock_apis)
+        # If the LLM used @respx.mock, respx_mock will be passed automatically by the decorator if not provided,
+        # but if we pass it as a kwarg and the decorator also passes it, we get multiple values.
+        # The safest way is to just call it and let the decorator handle it if it takes no kwargs,
+        # or pass it as kwarg if it requires it.
+        try:
+            tool_instance.mock_apis()
+        except TypeError as e:
+            if "missing" in str(e) and "respx_mock" in str(e):
+                tool_instance.mock_apis(respx_mock=respx_mock)
+            elif "takes 1 positional argument but 2 were given" in str(e) or "multiple values" in str(e):
+                tool_instance.mock_apis(respx_mock)
+            else:
+                raise
     except Exception as e:
         print(json.dumps({"error": f"Failed to run mock_apis: {e}", "results": []}))
         sys.exit(0)
@@ -343,7 +357,9 @@ class DockerSandbox:
                     import requests
                     exit_status = container.wait(timeout=settings.sandbox_timeout_seconds)
                 except (requests.exceptions.ReadTimeout, requests.exceptions.Timeout, Exception) as e:
-                    if "timeout" in str(type(e)).lower() or "timeout" in str(e).lower():
+                    e_str = str(e).lower()
+                    e_type = str(type(e)).lower()
+                    if "timeout" in e_type or "timeout" in e_str or "timed out" in e_str:
                         try:
                             container.stop(timeout=1)
                         except:

@@ -35,6 +35,7 @@ CRITICAL RULES:
 4. Your code will be executed in a Docker sandbox. The sandbox has NO INTERNET ACCESS. 
    - You MUST use the `httpx` library (e.g. `httpx.get()`) to make actual HTTP requests in your `run` method.
    - You MUST use `respx` to mock these requests for testing. To do this, you MUST define a method `def mock_apis(self, respx_mock):` in your class.
+   - **CRITICAL**: DO NOT use the `@respx.mock` decorator! The Sandbox will pass the `respx_mock` object directly to your method. Using the decorator will crash the sandbox with a "multiple values for argument" error.
    - Example mock: `def mock_apis(self, respx_mock): import httpx; respx_mock.get("https://api.com").mock(return_value=httpx.Response(200, json={"data": 1}))`
    - **CRITICAL**: The Sandbox will automatically call `mock_apis` before testing. NEVER call `mock_apis` yourself inside `run`.
    - **CRITICAL**: Because `mock_apis` only provides one static mock response, your `test_cases()` MUST ONLY contain ONE test case that tests the successful response (`expected_success: True`). DO NOT write test cases for HTTP errors or failures, as they will fail the Sandbox validation!
@@ -100,7 +101,7 @@ class ToolSynthesisEngine:
                         {"role": "system", "content": SYNTHESIS_SYSTEM_PROMPT},
                         {"role": "user", "content": user_prompt},
                     ],
-                    max_tokens=2000,
+                    max_tokens=settings.llm_max_tokens,
                     temperature=0.3,
                 )
             except Exception as exc:

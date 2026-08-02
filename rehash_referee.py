@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-referee_dir = r"c:\Users\Seratul Mustakim\Desktop\My Works\ARIA\aria\gatekeeper\referee"
+referee_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "aria", "gatekeeper", "referee")
 manifest_path = os.path.join(referee_dir, "manifest.json")
 files = ["server.py", "evaluators.py", "verifier.py", "scoring_config.json"]
 

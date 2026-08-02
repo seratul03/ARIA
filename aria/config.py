@@ -57,6 +57,7 @@ class Settings:
     groq_api_key: str
     synthesis_groq_api_key: str
     groq_model: str
+    llm_max_tokens: int
 
     # ── OpenRouter LLM ────────────────────────────────────────
     openrouter_api_key: str
@@ -126,6 +127,7 @@ def _load_settings() -> Settings:
         groq_api_key=_require("GROQ_API_KEY"),
         synthesis_groq_api_key=_get("SYNTHESIS_GROQ_API_KEY", _get("GROQ_API_KEY", "")),
         groq_model=_get("GROQ_MODEL", "llama3-8b-8192"),
+        llm_max_tokens=_get_int("LLM_MAX_TOKENS", 2048),
         openrouter_api_key=_get("OPENROUTER_API_KEY", ""),
         openrouter_model=_get("OPENROUTER_MODEL", "anthropic/claude-3-haiku"),
         test_signing_key=_get("TEST_SIGNING_KEY", "YOUR_16_CHAR_KEY"),
