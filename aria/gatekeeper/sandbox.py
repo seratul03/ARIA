@@ -235,7 +235,7 @@ class DockerSandbox:
     Runs candidate tool code inside an isolated Docker container.
     """
 
-    def run(
+    async def run(
         self,
         tool_name: str,
         candidate_source: str,
@@ -289,120 +289,69 @@ class DockerSandbox:
             )
 
         try:
-            import docker  # type: ignore
-            import tarfile
-            import io
-
-            try:
-                client = docker.from_env(timeout=max(300, settings.sandbox_timeout_seconds + 30))
-            except Exception as exc:
-                return SandboxResult(
-                    tool_name=tool_name,
-                    approved=False,
-                    rejection_reason=f"Docker unavailable: {exc}",
-                    elapsed_seconds=time.monotonic() - start,
-                )
-
-            # Create an in-memory tarball containing candidate_tool.py and runner.py
-            tar_stream = io.BytesIO()
-            with tarfile.open(fileobj=tar_stream, mode='w') as tar:
-                tool_info = tarfile.TarInfo(name="sandbox/candidate_tool.py")
-                tool_bytes = candidate_source.encode("utf-8")
-                tool_info.size = len(tool_bytes)
-                tar.addfile(tool_info, io.BytesIO(tool_bytes))
-                
-                runner_info = tarfile.TarInfo(name="sandbox/runner.py")
-                runner_bytes = runner_script.encode("utf-8")
-                runner_info.size = len(runner_bytes)
-                tar.addfile(runner_info, io.BytesIO(runner_bytes))
-            tar_stream.seek(0)
+            import asyncio
             
-            try:
-                # Retry pip install up to 3 times to handle flaky Docker networks/DNS
+            with tempfile.TemporaryDirectory() as temp_dir:
+                sandbox_dir = Path(temp_dir) / "sandbox"
+                sandbox_dir.mkdir(parents=True, exist_ok=True)
+                
+                (sandbox_dir / "candidate_tool.py").write_text(candidate_source, encoding="utf-8")
+                (sandbox_dir / "runner.py").write_text(runner_script, encoding="utf-8")
+                
+                # Convert path to posix format to ensure Docker compatibility on Windows
+                aria_src_path = Path(__file__).parent.parent.absolute().as_posix()
+                sandbox_dir_str = sandbox_dir.absolute().as_posix()
+                
                 pip_cmd = "pip install -q httpx beautifulsoup4 groq python-dotenv respx"
                 robust_pip = f"{pip_cmd} || (sleep 2 && {pip_cmd}) || (sleep 5 && {pip_cmd})"
+                
+                cmd = [
+                    "docker", "run", "--rm",
+                    "-v", f"{aria_src_path}:/app/aria:ro",
+                    "-v", f"{sandbox_dir_str}:/sandbox:ro",
+                    "-m", settings.sandbox_memory_limit,
+                    "--cpus", str(settings.sandbox_cpu_limit),
+                    "-e", "GROQ_API_KEY=mock_groq_key_for_sandbox",
+                    "-e", "TEST_SIGNING_KEY=mock_test_key",
+                    "python:3.11-slim",
+                    "sh", "-c", 
+                    f"export PYTHONPATH=/app && {robust_pip} && python /sandbox/runner.py"
+                ]
 
-                # Create the container without running it yet
-                container = client.containers.create(
-                    image="python:3.11-slim",
-                    command=[
-                        "sh", "-c", 
-                        f"export PYTHONPATH=/app && {robust_pip} && python /sandbox/runner.py"
-                    ],
-                    environment={
-                        "GROQ_API_KEY": "mock_groq_key_for_sandbox",
-                        "TEST_SIGNING_KEY": "mock_test_key"
-                    },
-                    mem_limit=settings.sandbox_memory_limit,
-                    nano_cpus=int(settings.sandbox_cpu_limit * 1e9),
-                    stdin_open=True,
-                    tty=False
+                process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
                 )
                 
-                # Create a tar of the aria directory
-                aria_src_path = str(Path(__file__).parent.parent.absolute())
-                aria_tar_stream = io.BytesIO()
-                with tarfile.open(fileobj=aria_tar_stream, mode='w') as tar:
-                    tar.add(aria_src_path, arcname="app/aria")
-                aria_tar_stream.seek(0)
-                
-                # Upload aria source and sandbox files into the root '/'
-                # Docker will automatically create /app and /sandbox if they are in the tar
-                container.put_archive("/", aria_tar_stream)
-                container.put_archive("/", tar_stream)
-                
-                # Start container and wait for completion
-                container.start()
                 try:
-                    import requests
-                    exit_status = container.wait(timeout=settings.sandbox_timeout_seconds)
-                except (requests.exceptions.ReadTimeout, requests.exceptions.Timeout, Exception) as e:
-                    e_str = str(e).lower()
-                    e_type = str(type(e)).lower()
-                    if "timeout" in e_type or "timeout" in e_str or "timed out" in e_str:
-                        try:
-                            container.stop(timeout=1)
-                        except:
-                            pass
-                        try:
-                            container.remove(force=True)
-                        except:
-                            pass
-                        return SandboxResult(
-                            tool_name=tool_name,
-                            approved=False,
-                            rejection_reason=f"Docker execution timed out after {settings.sandbox_timeout_seconds} seconds",
-                            elapsed_seconds=time.monotonic() - start,
-                            docker_logs="Timeout exceeded"
-                        )
-                    raise
-                    
-                logs_bytes = container.logs()
-                logs = logs_bytes.decode("utf-8", errors="replace")
-                
-                # Remove container manually since we used create()
-                try:
-                    container.remove(force=True)
-                except:
-                    pass
-                    
-                if exit_status.get("StatusCode", 0) != 0:
+                    stdout_bytes, _ = await asyncio.wait_for(
+                        process.communicate(), 
+                        timeout=settings.sandbox_timeout_seconds
+                    )
+                    logs = stdout_bytes.decode("utf-8", errors="replace")
+                    exit_status = process.returncode
+                except asyncio.TimeoutError:
+                    try:
+                        process.kill()
+                    except Exception:
+                        pass
                     return SandboxResult(
                         tool_name=tool_name,
                         approved=False,
-                        rejection_reason=f"Docker run failed with status {exit_status.get('StatusCode')}",
+                        rejection_reason=f"Docker execution timed out after {settings.sandbox_timeout_seconds} seconds",
+                        elapsed_seconds=time.monotonic() - start,
+                        docker_logs="Timeout exceeded"
+                    )
+                    
+                if exit_status != 0:
+                    return SandboxResult(
+                        tool_name=tool_name,
+                        approved=False,
+                        rejection_reason=f"Docker run failed with status {exit_status}",
                         elapsed_seconds=time.monotonic() - start,
                         docker_logs=logs[:500]
                     )
-                    
-            except Exception as exc:
-                return SandboxResult(
-                    tool_name=tool_name,
-                    approved=False,
-                    rejection_reason=f"Docker execution error: {exc}",
-                    elapsed_seconds=time.monotonic() - start,
-                    docker_logs=str(exc)[:500],
-                )
 
             return self._parse_results(
                 tool_name=tool_name,
@@ -415,12 +364,13 @@ class DockerSandbox:
                 baseline_results=baseline_results
             )
 
-        except ImportError:
+        except Exception as exc:
             return SandboxResult(
                 tool_name=tool_name,
                 approved=False,
-                rejection_reason="Docker SDK not installed. Run: pip install docker",
+                rejection_reason=f"Docker execution error: {exc}",
                 elapsed_seconds=time.monotonic() - start,
+                docker_logs=str(exc)[:500],
             )
 
     def _prepare_runner(self, candidate_source: str, test_cases: list[dict]) -> str | None:

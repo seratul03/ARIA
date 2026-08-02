@@ -48,8 +48,8 @@ class WeaknessReport:
     failed_fixes: list[dict] = field(default_factory=list)     # Previously rejected/rolled_back fixes
     recent_improvement_failures: list[dict] = field(default_factory=list) # Past rejection reasons
     hypothesis: dict | None = None                              # Associated hypothesis if triggered by one
-    wdts_score: float | None = None                             # The WDTS score if selected via WDTS
-    dominant_factor: str | None = None                          # The dominant factor driving the WDTS score
+    wtds_score: float | None = None                             # The WTDS score if selected via WTDS
+    dominant_factor: str | None = None                          # The dominant factor driving the WTDS score
     timestamp: float = field(default_factory=time.time)
 
     @property
@@ -71,8 +71,8 @@ class WeaknessReport:
             f"p90_latency={self.p90_latency:.2f}s, "
             f"failures={self.failure_count}/{self.total_executions}"
         )
-        if self.wdts_score is not None:
-            base += f", WDTS={self.wdts_score:.4f} (driven by {self.dominant_factor})"
+        if self.wtds_score is not None:
+            base += f", WTDS={self.wtds_score:.4f} (driven by {self.dominant_factor})"
         return base
 
 
@@ -290,23 +290,23 @@ class IntrospectionEngine:
                         report.hypothesis = hypothesis
                         return {"mode": "hypothesis", "report": report, "hypothesis_id": hypothesis["id"]}
         
-        # Fallback to WDTS priority algorithm
+        # Fallback to WTDS priority algorithm
         try:
-            from aria.introspection.wdts import get_all_wdts_scores
+            from aria.introspection.wtds import get_all_wtds_scores
             from aria.metrics.db import update_bypassed_metrics
-            scores = get_all_wdts_scores()
+            scores = get_all_wtds_scores()
             
             # Save to self_model
             from aria.introspection.self_model import self_model
             self_model.add_introspection_data("tool_priority_scores", scores)
             self_model.save()
             
-            MINIMUM_WDTS_TO_TRIGGER = 0.25
+            MINIMUM_WTDS_TO_TRIGGER = 0.25
             target_tool = None
             
             # Find the rank 1 tool
             for tool, score_dict in scores.items():
-                if score_dict["rank"] == 1 and score_dict["wdts"] >= MINIMUM_WDTS_TO_TRIGGER:
+                if score_dict["rank"] == 1 and score_dict["wtds"] >= MINIMUM_WTDS_TO_TRIGGER:
                     target_tool = tool
                     break
                     
@@ -315,17 +315,17 @@ class IntrospectionEngine:
                 
                 report = self.analyze_tool(target_tool)
                 if report:
-                    wdts_score = scores[target_tool]["wdts"]
+                    wtds_score = scores[target_tool]["wtds"]
                     factor = scores[target_tool]["dominant_factor"]
-                    report.wdts_score = wdts_score
+                    report.wtds_score = wtds_score
                     report.dominant_factor = factor
-                    report.reasons.insert(0, f"Selected by WDTS algorithm (Score: {wdts_score:.2f}, Dominant Factor: {factor})")
+                    report.reasons.insert(0, f"Selected by WTDS algorithm (Score: {wtds_score:.2f}, Dominant Factor: {factor})")
                     return {"mode": "weakness", "report": report, "hypothesis_id": None}
             else:
                 update_bypassed_metrics(scores, "")
 
         except ImportError:
-            # Fallback if wdts.py is not available
+            # Fallback if wtds.py is not available
             reports = self.analyze_all()
             if reports:
                 return {"mode": "weakness", "report": reports[0], "hypothesis_id": None}

@@ -1,7 +1,7 @@
 """
-aria/introspection/wdts.py
+aria/introspection/wtds.py
 ──────────────────────────
-Implements the Weighted Temporal Degradation Score (WDTS) algorithm.
+Implements the Weighted Temporal Degradation Score (WTDS) algorithm.
 Prioritizes tools for improvement based on Health, Trajectory, Resistance, Impact, and Recency.
 """
 
@@ -38,13 +38,13 @@ def _count_improvements(tool_name: str) -> tuple[int, int]:
 
 # _get_hours_since_last_failure removed in favor of OWS Stagnation.
 
-def compute_wdts(tool_name: str) -> dict:
+def compute_wtds(tool_name: str) -> dict:
     """
-    Computes WDTS. Returns dict with 'wdts' score and 'dominant_factor'.
+    Computes WTDS. Returns dict with 'wtds' score and 'dominant_factor'.
     """
     stats = get_tool_stats(tool_name, window=100)
     if not stats or stats.total_executions == 0:
-        return {"wdts": 0.0, "dominant_factor": "none", "components": {}}
+        return {"wtds": 0.0, "dominant_factor": "none", "components": {}}
         
     # --- COMPONENT 1: Current Health (30%) ---
     pass_rate = stats.success_rate
@@ -125,30 +125,30 @@ def compute_wdts(tool_name: str) -> dict:
         "ows_stagnation": ows_score
     }
     
-    wdts = sum(weights[k] * components[k] for k in weights)
+    wtds = sum(weights[k] * components[k] for k in weights)
     
     # Calculate dominant factor (weighted contribution)
     contributions = {k: weights[k] * components[k] for k in weights}
-    dominant_factor = max(contributions.items(), key=lambda x: x[1])[0] if wdts > 0 else "none"
+    dominant_factor = max(contributions.items(), key=lambda x: x[1])[0] if wtds > 0 else "none"
     
     return {
-        "wdts": round(wdts, 4),
+        "wtds": round(wtds, 4),
         "dominant_factor": dominant_factor,
         "components": components,
         "rank": 0 # Filled in later
     }
 
-def get_all_wdts_scores() -> dict[str, dict]:
-    """Returns a dict mapping tool_name to its WDTS score breakdown."""
+def get_all_wtds_scores() -> dict[str, dict]:
+    """Returns a dict mapping tool_name to its WTDS score breakdown."""
     from aria.metrics.db import get_all_tool_stats
     stats_list = get_all_tool_stats(window=100)
     
     scores = {}
     for stats in stats_list:
-        scores[stats.tool_name] = compute_wdts(stats.tool_name)
+        scores[stats.tool_name] = compute_wtds(stats.tool_name)
         
     # Sort and assign ranks
-    ranked = sorted(scores.items(), key=lambda x: x[1]["wdts"], reverse=True)
+    ranked = sorted(scores.items(), key=lambda x: x[1]["wtds"], reverse=True)
     for i, (tool, score_dict) in enumerate(ranked):
         score_dict["rank"] = i + 1
         

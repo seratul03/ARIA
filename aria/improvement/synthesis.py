@@ -8,6 +8,7 @@ Sandbox, and uses error feedback to iteratively fix issues until it passes.
 
 from __future__ import annotations
 
+import asyncio
 import re
 import time
 import textwrap
@@ -117,24 +118,24 @@ class ToolSynthesisEngine:
                 continue
 
             # Run in Sandbox
-            sandbox_result = self.sandbox.run(
+            sandbox_result = asyncio.run(self.sandbox.run(
                 tool_name=tool_name,
                 candidate_source=cleaned_code,
                 current_stats=None,  # No current stats for a brand new tool
                 raw_results_only=False
-            )
+            ))
 
             # Check if referee approved it (meaning it passed tests and static checks)
             # For synthesis, since we don't have a baseline, the referee logic might fail if it strictly compares to a baseline.
             # However, our Sandbox handles new tools if we bypass the relative referee comparison.
             # We'll use raw_results_only to test it directly without the Baseline comparison.
             
-            raw_results = self.sandbox.run(
+            raw_results = asyncio.run(self.sandbox.run(
                 tool_name=tool_name,
                 candidate_source=cleaned_code,
                 raw_results_only=True,
                 session_tests=[]  # Relying only on the tool's embedded test_cases()
-            )
+            ))
             
             if isinstance(raw_results, dict) and raw_results.get("approved") is False:
                 # This usually means static validation failed (e.g. malicious import)

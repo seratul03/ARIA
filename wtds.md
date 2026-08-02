@@ -1,15 +1,15 @@
-# The Mathematics of the Weighted Temporal Degradation Score (WDTS)
+# The Mathematics of the Weighted Temporal Degradation Score (WTDS)
 
-The **Weighted Temporal Degradation Score (WDTS)** is the core priority scheduling algorithm used by ARIA to select the next optimal target for an improvement cycle. It evaluates the system dynamically, considering not only instantaneous fitness but also evolutionary neglect (Opportunity-Weighted Stagnation).
+The **Weighted Temporal Degradation Score (WTDS)** is the core priority scheduling algorithm used by ARIA to select the next optimal target for an improvement cycle. It evaluates the system dynamically, considering not only instantaneous fitness but also evolutionary neglect (Opportunity-Weighted Stagnation).
 
-The composite score $\text{WDTS}(\tau)$ for any given tool $\tau$ is bounded strictly between $0.0$ and $1.0$, where higher scores represent higher urgency for introspection.
+The composite score $\text{WTDS}(\tau)$ for any given tool $\tau$ is bounded strictly between $0.0$ and $1.0$, where higher scores represent higher urgency for introspection.
 
 ## 1. The Core Equation
 
-The WDTS is an affine combination of five orthogonal components, each weighted by a fixed constant $\omega_i$:
+The WTDS is an affine combination of five orthogonal components, each weighted by a fixed constant $\omega_i$:
 
 $$
-\text{WDTS}(\tau) = \sum_{i=1}^{5} \omega_i \cdot \mathcal{C}_i(\tau)
+\text{WTDS}(\tau) = \sum_{i=1}^{5} \omega_i \cdot \mathcal{C}_i(\tau)
 $$
 
 Where the weights $\omega$ are defined as:
@@ -95,7 +95,7 @@ $$
 $$
 
 #### 3.2.1 Bypass Stagnation ($\mathcal{S}_{\text{bypass}}$)
-This metric solves the "Monoculture Exploit." A tool only accumulates a bypass count ($B_{\tau}$) if its $\text{WDTS} \ge 0.20$ but it loses the priority bid to a different tool.
+This metric solves the "Monoculture Exploit." A tool only accumulates a bypass count ($B_{\tau}$) if its $\text{WTDS} \ge 0.20$ but it loses the priority bid to a different tool.
 
 $$
 \mathcal{S}_{\text{bypass}}(\tau) = 1 - e^{-\frac{B_{\tau}}{\lambda_{\text{bypass}}}}
@@ -135,7 +135,7 @@ B_{\tau} \gets 0 \quad ; \quad H_{\tau} \gets 0 \quad ; \quad D_{\tau} \gets 1.0
 B_{\tau} \gets 0 \quad ; \quad H_{\tau} \gets 0 \quad ; \quad D_{\tau} \gets D_{\tau} + 0.5
 ```
 
-- **On Bypass (Priority Bid Lost while WDTS $`\ge 0.20`$):**
+- **On Bypass (Priority Bid Lost while WTDS $`\ge 0.20`$):**
 ```math
 B_{\tau} \gets B_{\tau} + 1
 ```

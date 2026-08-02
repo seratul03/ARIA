@@ -268,7 +268,7 @@
   ],
   "tool_priority_scores": {
     "calculator_tool": {
-      "wdts": 0.0006,
+      "wtds": 0.0006,
       "dominant_factor": "impact",
       "components": {
         "health": 3.3326447010040284e-06,
@@ -280,7 +280,7 @@
       "rank": 4
     },
     "code_executor_tool": {
-      "wdts": 0.3514,
+      "wtds": 0.3514,
       "dominant_factor": "trajectory",
       "components": {
         "health": 0.22204743644365482,
@@ -292,7 +292,7 @@
       "rank": 1
     },
     "search_tool": {
-      "wdts": 0.049,
+      "wtds": 0.049,
       "dominant_factor": "impact",
       "components": {
         "health": 0.04185350303460225,
@@ -304,7 +304,7 @@
       "rank": 3
     },
     "summarizer_tool": {
-      "wdts": 0.1151,
+      "wtds": 0.1151,
       "dominant_factor": "health",
       "components": {
         "health": 0.2468878006030406,

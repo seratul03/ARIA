@@ -64,8 +64,8 @@ All tool executions are heavily monitored and logged to an internal SQLite datab
 ### 2.3 Introspection Engine (`aria/introspection`)
 The Introspection Engine bridges the gap between historical metrics and actionable improvements.
 
-- **Weakness Detection (WDTS & OWS)**: Analyzes SQLite traces to compute the **Weighted Temporal Degradation Score (WDTS)**. This is a mathematically rigorous algorithm evaluating a tool's Current Health, Trajectory, Fix Resistance, and System Impact.
-- **Subjective Timeline & Opportunity-Weighted Stagnation (OWS)**: Replaces naive wall-clock recency. ARIA maintains a "Subjective Timeline" inside `tool_stagnation`. If a tool mathematically qualifies for an upgrade (WDTS >= 0.20) but loses the priority bid to a worse tool, its `times_bypassed` integer increments. OWS dynamically accelerates priority for highly neglected tools, while resetting stagnation only upon cycle completion. This successfully neutralizes the "Monoculture Exploit."
+- **Weakness Detection (WTDS & OWS)**: Analyzes SQLite traces to compute the **Weighted Temporal Degradation Score (WTDS)**. This is a mathematically rigorous algorithm evaluating a tool's Current Health, Trajectory, Fix Resistance, and System Impact.
+- **Subjective Timeline & Opportunity-Weighted Stagnation (OWS)**: Replaces naive wall-clock recency. ARIA maintains a "Subjective Timeline" inside `tool_stagnation`. If a tool mathematically qualifies for an upgrade (WTDS >= 0.20) but loses the priority bid to a worse tool, its `times_bypassed` integer increments. OWS dynamically accelerates priority for highly neglected tools, while resetting stagnation only upon cycle completion. This successfully neutralizes the "Monoculture Exploit."
 - **The Self-Model (`self_model.json`)**: During a Meta-Introspection cycle, an LLM parses hundreds of cycle traces to build a structural understanding of ARIA's flaws. This is persisted to `self_model.json`, which tracks "known_weaknesses" and "failure_patterns" per core component (e.g., `improvement_engine`, `gatekeeper`).
 - **Clone Lifecycle**: When a meta-improvement is triggered, ARIA cannot safely alter its live state. Instead, the `clone_manager` duplicates the entire ARIA repository into a temporary directory, applies the architectural change to the clone, and executes an Arena Combat evaluation.
 
@@ -95,7 +95,7 @@ Before executing any generated code, the static validator (`validator.py`) parse
 - Blocked modules: `os`, `sys`, `subprocess`, `shutil` — preventing OS-level backdoors.
 
 ### Layer 3: Docker Sandbox Isolation
-The candidate code is packaged with its adversarial test suite and executed inside a fully isolated Docker container (`python:3.11-slim`).
+The candidate code is packaged with its adversarial test suite and executed inside a fully isolated Docker container (`python:3.11-slim`) using `asyncio.create_subprocess_exec` to prevent thread exhaustion during high-concurrency arena combat.
 - **Network Isolation**: The container has zero network access. External APIs are strictly mocked.
 - **The `mock_apis` Framework**: To prevent LLMs from hardcoding fake responses inside their production `run()` logic to cheat the sandbox, new tools must implement a `mock_apis(self, respx_mock)` hook. The Sandbox runner injects a `respx` router into this hook to mock API endpoints statically before executing the tests.
 - **Resource Limits**: Strict memory limits (e.g., 256MB) and CPU quotas prevent malicious or accidental infinite loops.

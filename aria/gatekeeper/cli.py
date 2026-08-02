@@ -10,6 +10,7 @@ Prints JSON output for the caller (Agent Core) to parse.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
 import time
@@ -78,7 +79,7 @@ def main():
             sys.exit(0)
 
     sandbox = DockerSandbox()
-    sandbox_result = sandbox.run(
+    sandbox_result = asyncio.run(sandbox.run(
         tool_name=args.tool,
         candidate_source=candidate_source,
         current_stats=current_stats,
@@ -86,7 +87,7 @@ def main():
         session_tests=session_tests,
         session_token=args.session_token,
         baseline_results=baseline_results
-    )
+    ))
     
     if args.raw_results_only:
         import dataclasses

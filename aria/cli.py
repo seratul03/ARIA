@@ -201,7 +201,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     table.add_column("Executions", justify="right")
     table.add_column("Failures", justify="right")
     table.add_column("Fitness", justify="right")
-    table.add_column("WDTS", justify="right")
+    table.add_column("WTDS", justify="right")
     table.add_column("Upgrades", justify="right")
     table.add_column("Last Seen", justify="center")
     table.add_column("Status", justify="center")
@@ -219,25 +219,25 @@ def cmd_status(args: argparse.Namespace) -> None:
         warn_char = "!"
 
     try:
-        from aria.introspection.wdts import get_all_wdts_scores
-        wdts_scores = get_all_wdts_scores()
+        from aria.introspection.wtds import get_all_wtds_scores
+        wtds_scores = get_all_wtds_scores()
     except ImportError:
-        wdts_scores = {}
+        wtds_scores = {}
 
     for name in registry.names():
         stats = get_tool_stats(name)
         history = get_improvement_history(name, limit=10000)
         upgrades = sum(1 for h in history if h["result"] == "deployed")
 
-        score_dict = wdts_scores.get(name)
+        score_dict = wtds_scores.get(name)
         if score_dict:
-            wdts_str = f"{score_dict['wdts']:.3f} ([dim]{score_dict['dominant_factor'][:3]}[/dim])"
+            wtds_str = f"{score_dict['wtds']:.3f} ([dim]{score_dict['dominant_factor'][:3]}[/dim])"
         else:
-            wdts_str = "—"
+            wtds_str = "—"
 
         if stats is None:
             table.add_row(
-                name, "—", "—", "0", "0", "—", wdts_str, str(upgrades), "—",
+                name, "—", "—", "0", "0", "—", wtds_str, str(upgrades), "—",
                 "[dim]No data[/dim]"
             )
             continue
@@ -264,7 +264,7 @@ def cmd_status(args: argparse.Namespace) -> None:
             - settings.weight_tokens * stats.avg_tokens_used
         )
         
-        # history, upgrades, and wdts_str are already computed above
+        # history, upgrades, and wtds_str are already computed above
 
         table.add_row(
             name,
@@ -273,7 +273,7 @@ def cmd_status(args: argparse.Namespace) -> None:
             str(stats.total_executions),
             str(stats.failure_count),
             f"{fitness:.2f}",
-            wdts_str,
+            wtds_str,
             str(upgrades),
             last_seen,
             status_str,

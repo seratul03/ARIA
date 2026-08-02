@@ -318,17 +318,17 @@ def get_stagnation_data(tool_name: str) -> dict:
             "difficulty_multiplier": 1.0
         }
 
-def update_bypassed_metrics(all_wdts_scores: dict, selected_tool: str) -> None:
+def update_bypassed_metrics(all_wtds_scores: dict, selected_tool: str) -> None:
     CONSIDERATION_THRESHOLD = 0.20
     
     with get_connection() as conn:
         import time
         now = time.time()
-        for tool, score_dict in all_wdts_scores.items():
+        for tool, score_dict in all_wtds_scores.items():
             if tool == selected_tool:
                 continue
                 
-            score = score_dict.get("wdts", 0.0)
+            score = score_dict.get("wtds", 0.0)
             if score >= CONSIDERATION_THRESHOLD:
                 conn.execute(
                     '''

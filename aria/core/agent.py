@@ -19,6 +19,7 @@ The Agent Core does NOT:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import queue
 import time
@@ -503,13 +504,13 @@ class AgentCore:
             self._emit(EventType.SANDBOX_VALIDATION, f"Running parallel sandbox for {len(filtered_candidates)} candidates...")
             from aria.evolution.arena import run_parallel_sandbox
             
-            evaluated = run_parallel_sandbox(
+            evaluated = asyncio.run(run_parallel_sandbox(
                 filtered_candidates, 
                 evolution_run_id, 
                 report.tool_name, 
                 str(settings.db_path), 
                 emit_func=lambda t, m: self._emit(EventType.SANDBOX_VALIDATION, m)
-            )
+            ))
             
             from aria.evolution.ranking import rank_candidates
             

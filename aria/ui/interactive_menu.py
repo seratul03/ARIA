@@ -30,9 +30,9 @@ bw_style = Style([
     ('text', 'fg:white'),
 ])
 
-# get_confidence_score removed - ARIA now relies on WDTS instead
+# get_confidence_score removed - ARIA now relies on WTDS instead
 
-def save_output(tool_name: str, output_text: str, wdts_str: str):
+def save_output(tool_name: str, output_text: str, wtds_str: str):
     """Prompt the user to save the output."""
     save = questionary.select(
         "Save output?",
@@ -56,7 +56,7 @@ def save_output(tool_name: str, output_text: str, wdts_str: str):
         content = "Date and time of output:\n"
         content += f"{ist_str}\n"
         content += f"{gmt_str}\n"
-        content += f"WDTS Score: {wdts_str}\n"
+        content += f"WTDS Score: {wtds_str}\n"
         content += "----------------------------------------------------------------------\n"
         content += "Output:\n"
         content += output_text + "\n\n"
@@ -98,12 +98,12 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
             
         print(f"{res_str}\n")
         
-        print("Calculating Weighted Temporal Degradation Score (WDTS)...")
-        from aria.introspection.wdts import compute_wdts
-        wdts_dict = compute_wdts(tool_name)
-        wdts_score = wdts_dict["wdts"]
-        wdts_str = f"{wdts_score:.4f} (Dominant: {wdts_dict['dominant_factor']})"
-        print(f"WDTS Score: {wdts_str}\n")
+        print("Calculating Weighted Temporal Degradation Score (WTDS)...")
+        from aria.introspection.wtds import compute_wtds
+        wtds_dict = compute_wtds(tool_name)
+        wtds_score = wtds_dict["wtds"]
+        wtds_str = f"{wtds_score:.4f} (Dominant: {wtds_dict['dominant_factor']})"
+        print(f"WTDS Score: {wtds_str}\n")
         
         from aria.metrics.db import get_tool_stats
         from aria.memory.store import get_improvement_history
@@ -123,14 +123,14 @@ def handle_tool(tool_name: str, prompt_msg: str, input_key: str):
         upgrades = sum(1 for h in history if h["result"] == "deployed")
         print(f"Total Upgrades Implemented: {upgrades}\n")
         
-        save_output(tool_name, res_str, wdts_str)
+        save_output(tool_name, res_str, wtds_str)
         
-        MINIMUM_WDTS_TO_TRIGGER = 0.25
-        if wdts_score >= MINIMUM_WDTS_TO_TRIGGER:
-            print(f"\n[!] WDTS score {wdts_score:.4f} exceeds threshold ({MINIMUM_WDTS_TO_TRIGGER}). Triggering autonomous improvement loop for {tool_name}...\n")
+        MINIMUM_WTDS_TO_TRIGGER = 0.25
+        if wtds_score >= MINIMUM_WTDS_TO_TRIGGER:
+            print(f"\n[!] WTDS score {wtds_score:.4f} exceeds threshold ({MINIMUM_WTDS_TO_TRIGGER}). Triggering autonomous improvement loop for {tool_name}...\n")
             agent.run_improvement_cycle(target_tool=tool_name)
         else:
-            print(f"\n[✓] WDTS Score is {wdts_score:.4f} (below threshold). Tool remains healthy, no immediate improvement required.\n")
+            print(f"\n[✓] WTDS Score is {wtds_score:.4f} (below threshold). Tool remains healthy, no immediate improvement required.\n")
     else:
         print(f"Tool execution failed: {result.error}\n")
 

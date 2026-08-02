@@ -97,7 +97,7 @@ ARIA may not modify aria/memory/schema.py, its migrations, or store.py. These de
 
 ## ⏳ Subjective Time & Priority Scheduling (Phase 8)
 
-Traditional agents use naive wall-clock recency to determine when a tool needs improvement. ARIA employs a purely mathematical **Subjective Timeline** via its **Weighted Temporal Degradation Score (WDTS)**. 
+Traditional agents use naive wall-clock recency to determine when a tool needs improvement. ARIA employs a purely mathematical **Subjective Timeline** via its **Weighted Temporal Degradation Score (WTDS)**. 
 
 - **Opportunity-Weighted Stagnation (OWS):** ARIA only ages a tool if it mathematically qualifies for an upgrade but gets bypassed by the scheduler in favor of a worse tool.
 - **Monoculture Resistance:** Because ARIA's timeline operates on "missed opportunities" rather than global cycles, a single highly-failing tool cannot artificially age healthy tools. Healthy tools remain frozen in subjective time until their performance degrades enough to warrant attention.
@@ -111,7 +111,7 @@ ARIA executes untrusted, AI-generated code. It relies on a 7-layer defense syste
 1. **Rate Limiting** — Strict rate limits on both tool improvements (max 5/hour) and meta-improvements (max 1/day).
 2. **Groq Rate Limiter** — Sliding window prevents HTTP 429 errors.
 3. **Static AST Analysis** — Blocks forbidden imports (`os`, `sys`, `subprocess`) to prevent OS-level backdoors before code ever runs. Also used for deep memory compression to guide evolution.
-4. **Evolutionary Docker Sandbox** — Multiple concurrent candidates are evaluated inside isolated containers without network access. Strict timeouts enforce a 100% test-pass rate across adversarial tests.
+4. **Evolutionary Docker Sandbox** — Multiple concurrent candidates are evaluated inside isolated containers without network access, using a fully asynchronous event loop for high-throughput parallel arena combat. Strict timeouts enforce a 100% test-pass rate across adversarial tests.
 5. **Hallucination Protection** — The sandbox actively catches and rejects hallucinated arguments or non-deterministic test cases.
 6. **Fitness Gate** — New code is scored via a weighted fitness function (Pass Rate, Latency, Tokens, Memory). It must objectively outperform the old code.
 7. **Git Rollback** — Every single deployment is automatically committed to Git. If system health degrades, ARIA rolls back the code.

@@ -6,6 +6,7 @@ Parallel execution of candidate fixes through the Gatekeeper sandbox (Day 26).
 
 from __future__ import annotations
 
+import asyncio
 import concurrent.futures
 import json
 import logging
@@ -20,7 +21,7 @@ from aria.metrics.db import get_connection
 
 logger = logging.getLogger(__name__)
 
-def run_parallel_sandbox(
+async def run_parallel_sandbox(
     candidates: list[dict],
     evolution_run_id: int,
     tool_name: str,
@@ -119,25 +120,27 @@ def run_parallel_sandbox(
 
     try:
         # Run baseline
-        res_base = subprocess.run(
-            [
-                sys.executable, "-m", "aria.gatekeeper.cli", 
-                "--tool", tool_name, 
-                "--source", base_path, 
-                "--raw-results-only",
-                "--session-tests-file", session_tests_path
-            ],
-            capture_output=True, text=True, check=False
+        res_base_proc = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "aria.gatekeeper.cli", 
+            "--tool", tool_name, 
+            "--source", base_path, 
+            "--raw-results-only",
+            "--session-tests-file", session_tests_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT
         )
         
+        stdout_bytes, _ = await res_base_proc.communicate()
+        res_base_stdout = stdout_bytes.decode('utf-8', errors='replace')
+        
         baseline_output = None
-        for line in reversed(res_base.stdout.strip().splitlines()):
+        for line in reversed(res_base_stdout.strip().splitlines()):
             if line.startswith("[") or line.startswith("{"):
                 baseline_output = line
                 break
                 
         if not baseline_output:
-            raise ValueError(f"Baseline run failed to return JSON: {res_base.stderr or res_base.stdout}")
+            raise ValueError(f"Baseline run failed to return JSON: {res_base_stdout}")
             
         baseline_results = json.loads(baseline_output)
         if isinstance(baseline_results, dict) and not baseline_results.get("approved", True):
@@ -150,46 +153,49 @@ def run_parallel_sandbox(
         if emit_func:
             emit_func("SANDBOX_VALIDATION", f"Running {len(valid_candidates)} candidates in parallel sandbox...")
             
-        with concurrent.futures.ThreadPoolExecutor(max_workers=settings.max_sandbox_workers) as executor:
-            future_to_candidate = {
-                executor.submit(
-                    run_sandbox_for_candidate, 
+        # Create semaphores if we need to limit concurrency, otherwise asyncio handles it.
+        # It's good to limit to settings.max_sandbox_workers to prevent out of memory
+        semaphore = asyncio.Semaphore(settings.max_sandbox_workers)
+        
+        async def bound_run_sandbox(c):
+            async with semaphore:
+                return await run_sandbox_for_candidate(
                     c, tool_name, session_tests_path, session_token, baseline_res_path
-                ): c for c in valid_candidates
-            }
-            
-            for future in concurrent.futures.as_completed(future_to_candidate):
-                c = future_to_candidate[future]
-                try:
-                    result = future.result()
-                    # Apply results to candidate
-                    c.update(result)
-                    
-                    with get_connection() as conn:
-                        conn.execute(
-                            """
-                            UPDATE evolution_candidates 
-                            SET sandbox_passed = ?, baseline_fitness = ?, candidate_fitness = ?, 
-                                fitness_delta = ?, test_pass_rate = ?, p90_latency_ms = ?, 
-                                disqualified = ?, disqualification_reason = ?
-                            WHERE id = ?
-                            """,
-                            (
-                                c.get("sandbox_passed"), c.get("baseline_fitness"), c.get("candidate_fitness"),
-                                c.get("fitness_delta"), c.get("test_pass_rate"), c.get("p90_latency_ms"),
-                                c.get("disqualified"), c.get("disqualification_reason"), c["id"]
-                            )
+                )
+                
+        tasks = [bound_run_sandbox(c) for c in valid_candidates]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for c, result in zip(valid_candidates, results):
+            if isinstance(result, Exception):
+                c["disqualified"] = 1
+                c["disqualification_reason"] = f"sandbox_error: {result}"
+                c["sandbox_passed"] = 0
+                
+                with get_connection() as conn:
+                    conn.execute(
+                        "UPDATE evolution_candidates SET disqualified = 1, disqualification_reason = ?, sandbox_passed = 0 WHERE id = ?",
+                        (c["disqualification_reason"], c["id"])
+                    )
+            else:
+                # Apply results to candidate
+                c.update(result)
+                
+                with get_connection() as conn:
+                    conn.execute(
+                        """
+                        UPDATE evolution_candidates 
+                        SET sandbox_passed = ?, baseline_fitness = ?, candidate_fitness = ?, 
+                            fitness_delta = ?, test_pass_rate = ?, p90_latency_ms = ?, 
+                            disqualified = ?, disqualification_reason = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            c.get("sandbox_passed"), c.get("baseline_fitness"), c.get("candidate_fitness"),
+                            c.get("fitness_delta"), c.get("test_pass_rate"), c.get("p90_latency_ms"),
+                            c.get("disqualified"), c.get("disqualification_reason"), c["id"]
                         )
-                except Exception as exc:
-                    c["disqualified"] = 1
-                    c["disqualification_reason"] = f"sandbox_error: {exc}"
-                    c["sandbox_passed"] = 0
-                    
-                    with get_connection() as conn:
-                        conn.execute(
-                            "UPDATE evolution_candidates SET disqualified = 1, disqualification_reason = ?, sandbox_passed = 0 WHERE id = ?",
-                            (c["disqualification_reason"], c["id"])
-                        )
+                    )
     finally:
         Path(base_path).unlink(missing_ok=True)
         Path(session_tests_path).unlink(missing_ok=True)
@@ -198,7 +204,7 @@ def run_parallel_sandbox(
     return candidates
 
 
-def run_sandbox_for_candidate(
+async def run_sandbox_for_candidate(
     candidate: dict, 
     tool_name: str, 
     session_tests_path: str, 
@@ -213,27 +219,28 @@ def run_sandbox_for_candidate(
         clone_path = temp_file_clone.name
         
     try:
-        res_clone = subprocess.run(
-            [
-                sys.executable, "-m", "aria.gatekeeper.cli", 
-                "--tool", tool_name, 
-                "--source", clone_path,
-                "--session-tests-file", session_tests_path,
-                "--session-token", session_token,
-                "--baseline-results-file", baseline_res_path
-            ],
-            capture_output=True, text=True, check=False
+        res_clone_proc = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "aria.gatekeeper.cli", 
+            "--tool", tool_name, 
+            "--source", clone_path,
+            "--session-tests-file", session_tests_path,
+            "--session-token", session_token,
+            "--baseline-results-file", baseline_res_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT
         )
         
+        stdout_bytes, _ = await res_clone_proc.communicate()
+        res_clone_stdout = stdout_bytes.decode('utf-8', errors='replace')
+        
         gatekeeper_output = None
-        for line in reversed(res_clone.stdout.strip().splitlines()):
+        for line in reversed(res_clone_stdout.strip().splitlines()):
             if line.startswith("{"):
                 gatekeeper_output = line
                 break
                 
         if not gatekeeper_output:
-            err_msg = res_clone.stderr.strip() if res_clone.stderr else res_clone.stdout.strip()
-            raise RuntimeError(f"Gatekeeper output was empty: {err_msg}")
+            raise RuntimeError(f"Gatekeeper output was empty: {res_clone_stdout}")
             
         sandbox_result = json.loads(gatekeeper_output)
         
