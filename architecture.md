@@ -165,6 +165,10 @@ class BaseTool:
 
 Tools carry their own self-validating `test_cases()`. This forces the LLM to write tests whenever it modifies a tool, ensuring high test coverage and protecting against regressions during future iterations.
 
+### 5.1 Natural Language Processing Integration
+To expand capability beyond raw API wrappers, ARIA incorporates specialized LLM extraction (via Groq API) directly into individual tools before their core logic executes.
+- **Example: Calculator Tool:** Evaluates raw math safely via `_safe_eval()`. For complex inputs (e.g., word problems like *"If I had 40 elephants and you had 30... How can we get 100?"*), it first uses a strict, zero-temperature LLM prompt requesting a JSON payload. The LLM extracts the exact mathematical formula needed (bypassing algebraic equations) and flags if the user is asking a delta/target question. The system then evaluates the math safely and dynamically formats the result (e.g., `+30.0` or `-10.0`) based on the delta flag. This marries the safety of AST evaluation with the flexibility of NLP.
+
 ---
 
 ---

@@ -124,7 +124,7 @@ ARIA executes untrusted, AI-generated code. It relies on a 7-layer defense syste
 |---|---|---|
 | `search_tool` | DuckDuckGo web search with HTML fallback | ✅ |
 | `summarizer_tool` | LLM + extractive text summarization | ✅ |
-| `calculator_tool` | Safe AST-based math evaluator | ✅ |
+| `calculator_tool` | Safe AST-based math evaluator with Groq NLP extraction for word problems and delta math | ✅ |
 | `file_reader_tool` | Allowlisted file reading with path traversal protection | ✅ |
 | `code_executor_tool` | Python snippet execution via Docker | ✅ |
 | `weather_tool` | Open-Meteo weather (free, no auth) | ✅ |
