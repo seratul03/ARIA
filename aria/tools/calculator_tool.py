@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import math
 import operator
 from typing import Any
@@ -105,16 +106,15 @@ class CalculatorTool(BaseTool):
         # so it doesn't fail when attempting real requests.
         self.groq_client = Groq(api_key=settings.groq_api_key)
 
-    def _extract_math(self, text: str) -> str:
+    def _extract_math(self, text: str) -> tuple[str, bool]:
         """
-        Extracts a pure mathematical expression from natural language using the LLM.
-        If the query is nonsensical or impossible to evaluate mathematically, returns 'ERROR'.
+        Extracts a mathematical expression and a flag indicating if it's a delta question
+        using the LLM. Returns (expression, is_delta_question).
+        If the query is nonsensical, returns ('ERROR', False).
         """
-        # If it's already a simple math expression, just return it.
-        # This prevents unnecessary LLM calls for standard input.
         allowed_chars = set("0123456789+-*/(). ^e")
         if all(c in allowed_chars or c.isspace() for c in text):
-            return text
+            return text, False
 
         try:
             response = self.groq_client.chat.completions.create(
@@ -124,22 +124,32 @@ class CalculatorTool(BaseTool):
                         "role": "system",
                         "content": (
                             "You are a strict mathematics extraction engine. "
-                            "Extract the exact mathematical expression from the user's query. "
-                            "Respond ONLY with the mathematical expression (e.g., '3 - 2' or '5 * 2'). "
-                            "If the user asks an illogical, non-mathematical question (like 'how many bananas?'), "
-                            "you MUST respond with exactly the word 'ERROR'. Do not explain."
+                            "Extract the exact mathematical expression to solve the user's query. "
+                            "If the user is asking how to reach a target amount from a current amount, "
+                            "write the expression that calculates the difference (e.g., target - current) "
+                            "and set 'is_delta_question' to true. "
+                            "CRITICAL: The expression MUST be evaluable by Python's eval(). "
+                            "DO NOT include variables (like 'x') or an equals sign ('='). "
+                            "For example, output '100 - (40 + 30)', NOT '40 + 30 + x = 100'. "
+                            "If the user asks an illogical, non-mathematical question, "
+                            "set expression to 'ERROR'. "
+                            "Respond ONLY in valid JSON format with keys 'expression' (string) and 'is_delta_question' (boolean)."
                         )
                     },
                     {"role": "user", "content": text}
                 ],
                 temperature=0.0,
-                max_tokens=30,
+                max_tokens=60,
+                response_format={"type": "json_object"}
             )
-            result = response.choices[0].message.content.strip()
-            return result
-        except Exception:
-            # Fallback on LLM failure: just pass original text and let safe_eval handle/fail
-            return text
+            
+            raw = response.choices[0].message.content.strip()
+            data = json.loads(raw)
+            return str(data.get("expression", "ERROR")), bool(data.get("is_delta_question", False))
+            
+        except Exception as exc:
+            # Fallback on LLM failure: just pass original text and assume not delta
+            return text, False
 
     def run(self, input: dict) -> ToolResult:
         expression = str(input.get("expression", "")).strip()
@@ -148,7 +158,7 @@ class CalculatorTool(BaseTool):
             return ToolResult(success=False, output=None, error="No expression provided.")
 
         # Extract mathematical expression from natural language
-        math_expr = self._extract_math(expression)
+        math_expr, is_delta = self._extract_math(expression)
         
         if math_expr == "ERROR":
             return ToolResult(success=False, output=None, error="Illogical or non-mathematical query.")
@@ -160,6 +170,11 @@ class CalculatorTool(BaseTool):
                 return ToolResult(success=False, output=None, error="Result is NaN.")
             if math.isinf(result):
                 return ToolResult(success=False, output=None, error="Result is infinite (division by zero?).")
+
+            # Format the output if it's a delta question
+            if is_delta:
+                formatted_result = f"+{result}" if result > 0 else str(result)
+                return ToolResult(success=True, output=formatted_result)
 
             return ToolResult(success=True, output=result)
 
