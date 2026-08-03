@@ -1,82 +1,180 @@
 [
   {
-    "id": "calculator_tool_001",
-    "tool": "calculator_tool",
+    "name": "basic_math",
     "input": {
-      "expression": "2 + 3 * 4"
+      "expression": "2 + 3 * sin(pi/2)"
     },
     "expected_success": true,
-    "signature": "d3b291d09f8812700bf1178601a2470c5ea33ff7aa9936d5467c297ee94cce3f",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": 5.0,
+    "description": "",
+    "id": "dcd236a4-e378-48ef-85ba-45a11c084053",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "612e784c6b67d2ebbb20d6b283cc8d607c1f86133c66b0a0098de9e6ac7e38d0"
   },
   {
-    "id": "calculator_tool_002",
-    "tool": "calculator_tool",
+    "name": "simple_division",
     "input": {
-      "expression": "sin(pi / 2)"
+      "expression": "10 / 2"
     },
     "expected_success": true,
-    "signature": "091d78d69291b9f8e63daba329f154788004d4930cf93a8ca9cefce67e51c193",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": 5.0,
+    "description": "",
+    "id": "25259136-b651-4db4-9003-425f4910ead6",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "8e0ce80107ea840bf3f35aa02e579b1efe9552d01486af5d9ed1543a8b29e774"
   },
   {
-    "id": "calculator_tool_003",
-    "tool": "calculator_tool",
+    "name": "division_by_zero",
     "input": {
-      "expression": "5 ^ 3"
-    },
-    "expected_success": true,
-    "signature": "8ff440fc20e85f28c7deb40af4f34f87dbbc5b34628a27df5a2cfb86ac0094be",
-    "tier": "tier_2"
-  },
-  {
-    "id": "calculator_tool_004",
-    "tool": "calculator_tool",
-    "input": {
-      "expression": "sqrt(144)"
-    },
-    "expected_success": true,
-    "signature": "44fde8b779cbceadd0a48d761901055811f3596b5041661bb8726c9b7eb2eaf8",
-    "tier": "tier_2"
-  },
-  {
-    "id": "calculator_tool_005",
-    "tool": "calculator_tool",
-    "input": {
-      "expression": ""
+      "expression": "10 / 0"
     },
     "expected_success": false,
-    "signature": "25b4a63d1e9a16d16344af6237367a5985413dfdef4ee5fcfe982efeac50f8cd",
-    "tier": "tier_3_adversarial"
+    "output_contains": null,
+    "expected_output": null,
+    "description": "",
+    "id": "8df04d52-618a-45ed-a353-db5dbe8078f6",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "ee1e5f9de3d204690bc16c211ffa3047f3e98a2f83a128c1b2f5b864290081cf"
   },
   {
-    "id": "calculator_tool_006",
-    "tool": "calculator_tool",
+    "name": "trigonometry",
     "input": {
-      "expression": "1 / 0"
-    },
-    "expected_success": false,
-    "signature": "90f46d6d64fb8616659112cc7a2a985679a407dcb4332124e66bda258e671bf2",
-    "tier": "tier_3_adversarial"
-  },
-  {
-    "id": "calculator_tool_007",
-    "tool": "calculator_tool",
-    "input": {
-      "expression": "log(exp(1))"
+      "expression": "sin(2)"
     },
     "expected_success": true,
-    "signature": "b3086c06229feda0ccfabbc939df0bac7335d4f154a02495f4c58faa0a055f95",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": 0.9092974268256817,
+    "description": "",
+    "id": "5a688cff-4d50-4832-bf34-7d8c55a78c54",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "ca3447cacf2e756884d7ccde081bd6cdb0fa79d2ea24c7295b95688150b3748f"
   },
   {
-    "id": "calculator_tool_008",
-    "tool": "calculator_tool",
+    "name": "invalid_syntax",
     "input": {
-      "expression": "__import__('os').system('whoami')"
+      "expression": "invalid syntax"
     },
     "expected_success": false,
-    "signature": "1eca9c7dd707dfb60bba698de9ccce17eee4d1f6fc018b9a858fc5049a62fab8",
-    "tier": "tier_3_adversarial"
+    "output_contains": null,
+    "expected_output": null,
+    "description": "",
+    "id": "41cfde81-45e6-4bfd-a880-0faff1fd64f3",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "517466f92943a3bb6f0e792b1934f3949f9bcec97b041f66bbbff5ff4433d49d"
+  },
+  {
+    "name": "large_number",
+    "input": {
+      "expression": "1e100"
+    },
+    "expected_success": true,
+    "output_contains": null,
+    "expected_output": 1e+100,
+    "description": "",
+    "id": "ec58844d-8e37-4408-af4c-e76fd6542e9e",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "99b2c9b9b2c4aecf59f25caba5afa1b28a4bd8cbf77313def18c5b11d9954829"
+  },
+  {
+    "name": "negative_number",
+    "input": {
+      "expression": "-1e100"
+    },
+    "expected_success": true,
+    "output_contains": null,
+    "expected_output": -1e+100,
+    "description": "",
+    "id": "534ed365-2872-43b9-979d-11933b929424",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "0d0338aa32847886a5f0c3f850b4b4f11e1719606222663a15d334c3ff16f7b2"
+  },
+  {
+    "name": "nested_expressions",
+    "input": {
+      "expression": "(2 + 3) * sin(pi/2)"
+    },
+    "expected_success": true,
+    "output_contains": null,
+    "expected_output": 5.0,
+    "description": "",
+    "id": "3ef0aa8d-21c6-473e-a3e8-d092e9c5cc10",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "1c6dd2200b06f76c2fb736d1f673be941aabb203c00ebf589acf73d62b660d40"
+  },
+  {
+    "name": "mixed_operations",
+    "input": {
+      "expression": "2 + 3 * sin(pi/2) - 1"
+    },
+    "expected_success": true,
+    "output_contains": null,
+    "expected_output": 4.0,
+    "description": "",
+    "id": "03abcf3c-a08b-43b6-9fc1-3e2630dd1e4e",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "cdf6515b8ab737aa2abdd914f80ed93a91ea75e9f84078fcc13f1932fb319225"
+  },
+  {
+    "name": "invalid_function",
+    "input": {
+      "expression": "sinh(2)"
+    },
+    "expected_success": false,
+    "output_contains": null,
+    "expected_output": null,
+    "description": "",
+    "id": "a0ac141a-8cdc-44b1-b94c-9a30a11fe71b",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "b5a2072c27a6a1d6bfbde8a48841922d549e783e2888ef5d084e0b82fb8e5211"
+  },
+  {
+    "name": "invalid_constant",
+    "input": {
+      "expression": "sin(pi)"
+    },
+    "expected_success": false,
+    "output_contains": null,
+    "expected_output": null,
+    "description": "",
+    "id": "fbce69e1-4d2e-4daa-a9bf-9b66ccfe9520",
+    "tool": "calculator_tool",
+    "tier": "tier_1",
+    "signature": "a3fffb2c1becf05dec6688f62097e09a2d9feea6c4019eae5d3d44fce8d1ca8b"
+  },
+  {
+    "name": "word_problem_valid",
+    "input": {
+      "expression": "3 candy minus 2 candy"
+    },
+    "expected_success": true,
+    "tier": "tier_2",
+    "id": "9c54f8db-3c17-489c-b19c-f34a31f031c7",
+    "tool": "calculator_tool",
+    "output_contains": null,
+    "signature": "dd09332af624efb660384ce34d78f143d8f197f4d571d943456f104ecdcf0c15"
+  },
+  {
+    "name": "word_problem_mad",
+    "input": {
+      "expression": "5 chocolates and 10 candies, how many bananas?"
+    },
+    "expected_success": false,
+    "tier": "tier_2",
+    "id": "d13d446a-6f78-4b3c-8035-788e73cdfe31",
+    "tool": "calculator_tool",
+    "output_contains": null,
+    "signature": "abb2a18b383c77a66d8b52b1e380a7a97c114acc6a764ef01b30ff289ccef5fc"
   }
 ]

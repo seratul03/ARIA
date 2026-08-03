@@ -1,46 +1,62 @@
 [
   {
-    "id": "summarizer_tool_001",
-    "tool": "summarizer_tool",
+    "name": "empty_text",
     "input": {
       "text": ""
     },
     "expected_success": false,
-    "signature": "ba3499e7b353337fc9d29f296aaa817dbaff9eb7bfca363a6bd0026ce9832095",
-    "tier": "tier_3_adversarial"
+    "output_contains": null,
+    "expected_output": null,
+    "description": "",
+    "id": "f6501db9-87b9-42cb-87a8-9c5e6c8d2666",
+    "tool": "summarizer_tool",
+    "tier": "tier_1",
+    "signature": "ee3fef2cdb48cf836803d5087fa6677f67e8e402027da7aef56efbb3cc8a0d2e"
   },
   {
-    "id": "summarizer_tool_002",
-    "tool": "summarizer_tool",
+    "name": "short_passthrough",
     "input": {
-      "text": "Hello world."
+      "text": "This is a very short text snippet."
     },
     "expected_success": true,
-    "signature": "55aeb87ae3d9ef94e97382de25c2cb5f3c0f576c9f5354f9b116467e31ada79d",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": null,
+    "description": "",
+    "id": "432eb7fc-9177-4bf4-8615-1d2c595933c6",
+    "tool": "summarizer_tool",
+    "tier": "tier_1",
+    "signature": "e88e448a18500d3c636f0fdecb23d5e3e788359107a7c0e2d84eae99f49ac795"
   },
   {
-    "id": "summarizer_tool_003",
-    "tool": "summarizer_tool",
+    "name": "medium_standard_llm",
     "input": {
-      "text": "Artificial intelligence has transformed many industries. Machine learning allows computers to learn from data. Deep learning uses neural networks with many layers. Natural language processing enables computers to understand text. Computer vision allows machines to interpret images. These technologies are increasingly used in healthcare, finance, and education.",
-      "max_sentences": 2,
-      "mode": "extractive"
+      "text": "Artificial intelligence is a branch of computer science. It involves creating systems capable of performing tasks that typically require human intelligence. These tasks include learning, reasoning, problem-solving, perception, and language understanding. AI has the potential to revolutionize industries.",
+      "mode": "llm",
+      "max_sentences": 2
     },
     "expected_success": true,
-    "signature": "f8045496bac30752aca3d450ca75d628ae42c2f638258668b6461721e9d96eb6",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": null,
+    "description": "",
+    "id": "1acf6368-474e-447a-88b5-eacb4d34f9e2",
+    "tool": "summarizer_tool",
+    "tier": "tier_1",
+    "signature": "bca6483e61a2d6e4e114b17978525dc40ab96c95f6433551f2d922916bd27ab7"
   },
   {
-    "id": "summarizer_tool_004",
-    "tool": "summarizer_tool",
+    "name": "extractive_fallback",
     "input": {
-      "text": "Artificial intelligence has transformed many industries. Machine learning allows computers to learn from data. Deep learning uses neural networks with many layers. Natural language processing enables computers to understand text. Computer vision allows machines to interpret images. These technologies are increasingly used in healthcare, finance, and education.",
-      "max_sentences": 3,
-      "mode": "extractive"
+      "text": "The rapid advancement of technology has dramatically reshaped the modern world. In just a few decades, we have moved from bulky desktop computers to powerful smartphones that fit in our pockets. The internet connects billions of people globally, facilitating instant communication. However, these advancements also bring new ethical dilemmas and risks. Privacy concerns, digital divides, and the potential displacement of jobs by automation are issues that society must carefully navigate.",
+      "mode": "extractive",
+      "max_sentences": 2
     },
     "expected_success": true,
-    "signature": "b1ce3b0c4b37adb82e9113268abd83f9c9553e76fd232b6371eae6d72ef6cb4f",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": null,
+    "description": "",
+    "id": "4893848f-c72a-43f2-9945-b03dcbb24353",
+    "tool": "summarizer_tool",
+    "tier": "tier_1",
+    "signature": "3f75f1ff175c70fde92f463eda98c540b6d187adfc8335f855d979bac8254c9d"
   }
 ]

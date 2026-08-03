@@ -33,6 +33,16 @@ The improved module MUST:
 6. Be importable as a standalone Python 3.11 module.
 7. MUST BE UNDER 300 LINES TOTAL. YOU MUST OBEY THIS CONSTRAINT.
 
+━━━ TOKEN BUDGET (CRITICAL) ━━━
+You are running on a FREE TIER LLM with a hard 1024-token output limit.
+You MUST fit your entire response within 1024 tokens or it will be REJECTED.
+To fit within the budget:
+- OMIT the `test_cases()` method entirely. Do not write it. The framework will use the original.
+- OMIT all docstrings longer than one line.
+- OMIT all comments except the module-level header.
+- Write the most concise, minimal implementation possible.
+- Aim for under 80 lines total.
+
 ━━━ FORBIDDEN ━━━
 The improved module MUST NOT:
 - Use `eval()`, `exec()`, or `__import__()`.
@@ -219,5 +229,6 @@ INSTRUCTIONS:
 - Make the code more robust, efficient, and cost-effective.
 - Do NOT change the tool's name or its input/output contract.
 - Return ONLY the improved Python source code. No markdown, no explanation.
+- CRITICAL: Your entire response MUST be under 1024 tokens. Omit test_cases(), docstrings, and all comments.
 """
     return prompt, rule_ids

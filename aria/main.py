@@ -42,7 +42,59 @@ def bootstrap() -> None:
     _init_tools()
     _init_git()
     _ensure_workspace()
+    _start_referee_server()
     logger.info("[Bootstrap] ARIA subsystems ready.")
+
+
+def _start_referee_server() -> None:
+    """
+    Start the Referee TCP server in a background daemon thread on Windows.
+    On Linux/Mac the Referee runs as a Docker sidecar, so this is skipped.
+    """
+    import socket
+    import threading
+
+    # Check if Referee is already listening on port 5006
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.settimeout(0.5)
+    already_running = probe.connect_ex(("127.0.0.1", 5006)) == 0
+    probe.close()
+
+    if already_running:
+        logger.info("[Bootstrap] Referee already running on port 5006.")
+        return
+
+    if sys.platform != "win32":
+        # On Linux/Mac the Referee is a Docker sidecar — do not start here
+        logger.info("[Bootstrap] Non-Windows platform: skipping local Referee startup.")
+        return
+
+    def _run():
+        try:
+            import importlib.util, os
+            referee_dir = Path(__file__).parent / "gatekeeper" / "referee"
+            # Temporarily add referee dir to path so its relative imports work
+            sys.path.insert(0, str(referee_dir))
+            # Point the Referee at our local pre-signed tests directory
+            from aria.config import settings as _s
+            local_tests = str(Path(__file__).parent.parent / _s.__class__.__dataclass_fields__) if False else None
+            tests_dir_env = os.environ.get("TESTS_DIR", str(Path(__file__).parent / "gatekeeper" / "tests"))
+            os.environ["TESTS_DIR"] = tests_dir_env
+            spec = importlib.util.spec_from_file_location(
+                "referee_server", referee_dir / "server.py"
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            mod.run_server()
+        except Exception as exc:
+            logger.error(f"[Referee] Server thread crashed: {exc}")
+
+    thread = threading.Thread(target=_run, name="referee-server", daemon=True)
+    thread.start()
+    # Give it a moment to bind the port
+    import time
+    time.sleep(1.0)
+    logger.info("[Bootstrap] Referee server started on TCP port 5006.")
 
 
 def _ensure_env() -> None:

@@ -1,43 +1,72 @@
 [
   {
-    "id": "search_tool_001",
-    "tool": "search_tool",
+    "name": "search_tool_001",
     "input": {
-      "query": "Python programming language"
+      "query": "python"
     },
     "expected_success": true,
-    "signature": "57465ff2879b2e09cf8bee0290ae886fb55ac18d40bdbf6782bd3a899be54a41",
-    "tier": "tier_1"
+    "output_contains": "Python",
+    "expected_output": null,
+    "description": "",
+    "id": "1ad0ac0a-e1cf-4952-9e92-d02ef38e1c73",
+    "tool": "search_tool",
+    "tier": "tier_1",
+    "signature": "1c8c2d5f37554d48b565193d93afb8ab15709634f81da56b55e362370b0e4203"
   },
   {
-    "id": "search_tool_002",
-    "tool": "search_tool",
+    "name": "search_tool_002",
     "input": {
-      "query": ""
-    },
-    "expected_success": false,
-    "signature": "eb5ad3d3389737fa16d979bbd501ea5133a4c4968abf6e614650c1cd824a851a",
-    "tier": "tier_3_adversarial"
-  },
-  {
-    "id": "search_tool_003",
-    "tool": "search_tool",
-    "input": {
-      "query": "Albert Einstein",
-      "max_results": 2
+      "query": "test query"
     },
     "expected_success": true,
-    "signature": "cff9f8713166d5d84d3255f74dba6785ea348cac0f4552f78256aecfe532c913",
-    "tier": "tier_1"
+    "output_contains": "Test Query",
+    "expected_output": null,
+    "description": "",
+    "id": "1389921f-518d-434b-96b8-b6526165000c",
+    "tool": "search_tool",
+    "tier": "tier_1",
+    "signature": "94e8fb879cc8d13cd31f83b35439508af5ad7ba188c20337c4de7d52ba0e0a8f"
   },
   {
-    "id": "search_tool_004",
+    "name": "search_tool_003",
+    "input": {
+      "query": "London"
+    },
+    "expected_success": true,
+    "output_contains": "London",
+    "expected_output": null,
+    "description": "",
+    "id": "90b04b71-9f39-4b99-9a13-5f082c82b980",
     "tool": "search_tool",
+    "tier": "tier_1",
+    "signature": "be4d79ed7c496de15f8d9ec80efb12f065d1f652076130f56b4b9bd22644230e"
+  },
+  {
+    "name": "search_tool_004",
     "input": {
       "query": "Quantum"
     },
     "expected_success": true,
-    "signature": "f2ad6c5b1073ba4aa7e9292afcf88868a969c55bce83adbb28274967ee30798f",
-    "tier": "tier_1"
+    "output_contains": "Quantum",
+    "expected_output": null,
+    "description": "",
+    "id": "9ff2c75d-7181-409f-b2a1-410e8cb911f2",
+    "tool": "search_tool",
+    "tier": "tier_1",
+    "signature": "c1ca97152bfdfc4ad66e8641f45644171c3a8e40d0646f60d9e187860ad2b144"
+  },
+  {
+    "name": "search_tool_005",
+    "input": {
+      "query": "error query"
+    },
+    "expected_success": true,
+    "output_contains": "Error Query",
+    "expected_output": null,
+    "description": "",
+    "id": "90bfab49-51e2-45ee-bde3-a9d6207104c5",
+    "tool": "search_tool",
+    "tier": "tier_1",
+    "signature": "9940020670cde9a6ae8d9a73624b2826f7b484e0c45f41ef61c48fadfcc44354"
   }
 ]

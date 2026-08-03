@@ -126,12 +126,23 @@ import respx
 from httpx import Response
 
 respx_mock = respx.mock(assert_all_called=False)
-respx_mock.post("https://api.groq.com/openai/v1/chat/completions").mock(
-    return_value=Response(
-        200, 
-        json={"id": "mock", "choices": [{"message": {"role": "assistant", "content": "print('hello world')"}}]}
-    )
-)
+
+def mock_groq(request):
+    try:
+        body = json.loads(request.content)
+        messages = body.get("messages", [])
+        prompt = " ".join([m.get("content", "") for m in messages]).lower()
+        if "banana" in prompt:
+            content = "ERROR"
+        elif "candy" in prompt:
+            content = "3 - 2"
+        else:
+            content = "print('hello world')"
+        return Response(200, json={"id": "mock", "choices": [{"message": {"role": "assistant", "content": content}}]})
+    except Exception:
+        return Response(200, json={"id": "mock", "choices": [{"message": {"role": "assistant", "content": "print('hello world')"}}]})
+
+respx_mock.post("https://api.groq.com/openai/v1/chat/completions").mock(side_effect=mock_groq)
 
 import re
 def mock_geocode(request):

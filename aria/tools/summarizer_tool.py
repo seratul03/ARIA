@@ -12,10 +12,9 @@ This tool is intentionally improvable by ARIA's Improvement Engine.
 from __future__ import annotations
 
 import re
+
 from aria.tools.base import BaseTool, TestCase, ToolResult
-from aria.core.rate_limiter import groq_limiter
-from aria.config import settings
-from groq import Groq
+
 
 class SummarizerTool(BaseTool):
     """
@@ -93,6 +92,11 @@ class SummarizerTool(BaseTool):
 
     def _llm_summarize(self, text: str, max_sentences: int) -> str:
         """Use Groq LLM to generate a concise summary."""
+        # Import here to avoid circular imports at module load time
+        from aria.core.rate_limiter import groq_limiter
+        from aria.config import settings
+        from groq import Groq
+
         groq_limiter.acquire()
 
         client = Groq(api_key=settings.groq_api_key)

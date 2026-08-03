@@ -1,12 +1,44 @@
 [
   {
-    "id": "code_executor_tool_001",
-    "tool": "code_executor_tool",
+    "name": "code_executor_tool_001",
     "input": {
-      "topic": "print hello world"
+      "topic": "Write a function to calculate the sum of all numbers in a list"
     },
     "expected_success": true,
-    "signature": "2bb01958226a37225fa42b66aec4452ff465fff1602e6182f6b3d240a0cb03fa",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": "Generated and improved code for: Write a function to calculate the sum of all numbers in a list\n\n--- Before Code ---\ndef sum_list(numbers):\n    sum = 0\n    for num in numbers:\n        sum += num\n    return sum\n\n--- After Code ---\ndef sum_list(numbers):\n    return sum(numbers)\n",
+    "description": "",
+    "id": "4301f690-b28c-4bb8-a36a-02ac5b5503e4",
+    "tool": "code_executor_tool",
+    "tier": "tier_1",
+    "signature": "1b94df817013ada7c6eef7ad000d30c45172bc2bf6596a505290f116de38af62"
+  },
+  {
+    "name": "code_executor_tool_002",
+    "input": {
+      "topic": "Create a class to represent a bank account"
+    },
+    "expected_success": true,
+    "output_contains": null,
+    "expected_output": "Generated and improved code for: Create a class to represent a bank account\n\n--- Before Code ---\nclass BankAccount:\n    def __init__(self, account_number, balance):\n        self.account_number = account_number\n        self.balance = balance\n\n--- After Code ---\nclass BankAccount:\n    def __init__(self, account_number, balance=0):\n        self.account_number = account_number\n        self.balance = balance\n",
+    "description": "",
+    "id": "dc91029f-0775-4325-9ab2-9f549f172b72",
+    "tool": "code_executor_tool",
+    "tier": "tier_1",
+    "signature": "0cb8bd6e6558abc418019fbe497f08bcadcf2653cfb8a38aecbbe1f3183f0cd9"
+  },
+  {
+    "name": "code_executor_tool_003",
+    "input": {
+      "topic": "Write a function to check if a string is a palindrome"
+    },
+    "expected_success": true,
+    "output_contains": null,
+    "expected_output": "Generated and improved code for: Write a function to check if a string is a palindrome\n\n--- Before Code ---\ndef is_palindrome(s):\n    reversed_s = s[::-1]\n    return s == reversed_s\n\n--- After Code ---\ndef is_palindrome(s):\n    return s == s[::-1]\n",
+    "description": "",
+    "id": "c8a6ddf1-f9fd-49f4-8618-3852e6080140",
+    "tool": "code_executor_tool",
+    "tier": "tier_1",
+    "signature": "2f9bb3389a22f55bfd6cd0f1a77194449421fce9f3a765f185968ab3d1ba19fc"
   }
 ]

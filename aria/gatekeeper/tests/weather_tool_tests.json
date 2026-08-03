@@ -1,43 +1,77 @@
 [
   {
-    "id": "weather_tool_001",
-    "tool": "weather_tool",
+    "name": "weather_tool_001",
     "input": {
-      "city": ""
-    },
-    "expected_success": false,
-    "signature": "3fa3f26c60f0f4385da79091365878ba797aa32d8402cce8392237191beea8b5",
-    "tier": "tier_3_adversarial"
-  },
-  {
-    "id": "weather_tool_002",
-    "tool": "weather_tool",
-    "input": {
-      "city": "xyzabc123notacity"
-    },
-    "expected_success": false,
-    "signature": "6ba8513514e67c99bbc5bf9fe63355c0076b1a350b15114d42130f71b126ae56",
-    "tier": "tier_3_adversarial"
-  },
-  {
-    "id": "weather_tool_003",
-    "tool": "weather_tool",
-    "input": {
-      "city": "London"
+      "city": "London",
+      "units": "celsius"
     },
     "expected_success": true,
-    "signature": "0033674b1044f0b5a53e9beb9e4266babf9e5d7785b3a64517297985307fcd58",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": {
+      "city": "London",
+      "country": "United Kingdom",
+      "latitude": 51.5074,
+      "longitude": -0.1278,
+      "temperature": "12.0\u00b0C",
+      "condition": "Partly cloudy",
+      "wind_speed_kmh": "16.1",
+      "humidity_percent": "81",
+      "units": "celsius"
+    },
+    "description": "",
+    "id": "4ff329cd-9b35-4163-9e5a-5611f9ca4b88",
+    "tool": "weather_tool",
+    "tier": "tier_1",
+    "signature": "962e02089de99229f6b99caa5a8f0a0e017af73ba65a1b5cc7dea840900491cf"
   },
   {
-    "id": "weather_tool_004",
-    "tool": "weather_tool",
+    "name": "weather_tool_002",
     "input": {
       "city": "New York",
       "units": "fahrenheit"
     },
     "expected_success": true,
-    "signature": "4b8cca08e5abdab23f05e17421b4919407fa339985fd4dd5ff518a2eb91d5082",
-    "tier": "tier_1"
+    "output_contains": null,
+    "expected_output": {
+      "city": "New York",
+      "country": "United States",
+      "latitude": 40.7128,
+      "longitude": -74.006,
+      "temperature": "53.6\u00b0F",
+      "condition": "Partly cloudy",
+      "wind_speed_kmh": "10.0",
+      "humidity_percent": "67",
+      "units": "fahrenheit"
+    },
+    "description": "",
+    "id": "13250780-8289-4469-9ff4-b02b276b7021",
+    "tool": "weather_tool",
+    "tier": "tier_1",
+    "signature": "5af40f0f92a0537edde6dec05a0459e1aa381fff6c0775f98cd4a8da9ec6d2ae"
+  },
+  {
+    "name": "weather_tool_003",
+    "input": {
+      "city": "Paris",
+      "units": "celsius"
+    },
+    "expected_success": true,
+    "output_contains": null,
+    "expected_output": {
+      "city": "Paris",
+      "country": "France",
+      "latitude": 48.8566,
+      "longitude": 2.3522,
+      "temperature": "15.0\u00b0C",
+      "condition": "Partly cloudy",
+      "wind_speed_kmh": "14.5",
+      "humidity_percent": "78",
+      "units": "celsius"
+    },
+    "description": "",
+    "id": "3d8dee61-16b4-48b4-b12d-3612297615f8",
+    "tool": "weather_tool",
+    "tier": "tier_1",
+    "signature": "a57543ca7600f1f49d872a511328e2fc4d671b0f32350c5b745f9d0ab77f7581"
   }
 ]
