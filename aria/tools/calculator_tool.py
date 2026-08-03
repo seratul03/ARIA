@@ -6,6 +6,7 @@ import operator
 from typing import Any
 
 from aria.tools.base import BaseTool, TestCase, ToolResult
+from aria.config import settings
 from groq import Groq
 
 _OPERATORS: dict[type, Any] = {
@@ -100,7 +101,45 @@ class CalculatorTool(BaseTool):
     name = "calculator_tool"
 
     def __init__(self):
-        self.groq_client = Groq(api_key="YOUR_API_KEY")
+        # We instantiate Groq with the actual API key from settings
+        # so it doesn't fail when attempting real requests.
+        self.groq_client = Groq(api_key=settings.groq_api_key)
+
+    def _extract_math(self, text: str) -> str:
+        """
+        Extracts a pure mathematical expression from natural language using the LLM.
+        If the query is nonsensical or impossible to evaluate mathematically, returns 'ERROR'.
+        """
+        # If it's already a simple math expression, just return it.
+        # This prevents unnecessary LLM calls for standard input.
+        allowed_chars = set("0123456789+-*/(). ^e")
+        if all(c in allowed_chars or c.isspace() for c in text):
+            return text
+
+        try:
+            response = self.groq_client.chat.completions.create(
+                model=settings.groq_model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a strict mathematics extraction engine. "
+                            "Extract the exact mathematical expression from the user's query. "
+                            "Respond ONLY with the mathematical expression (e.g., '3 - 2' or '5 * 2'). "
+                            "If the user asks an illogical, non-mathematical question (like 'how many bananas?'), "
+                            "you MUST respond with exactly the word 'ERROR'. Do not explain."
+                        )
+                    },
+                    {"role": "user", "content": text}
+                ],
+                temperature=0.0,
+                max_tokens=30,
+            )
+            result = response.choices[0].message.content.strip()
+            return result
+        except Exception:
+            # Fallback on LLM failure: just pass original text and let safe_eval handle/fail
+            return text
 
     def run(self, input: dict) -> ToolResult:
         expression = str(input.get("expression", "")).strip()
@@ -108,8 +147,14 @@ class CalculatorTool(BaseTool):
         if not expression:
             return ToolResult(success=False, output=None, error="No expression provided.")
 
+        # Extract mathematical expression from natural language
+        math_expr = self._extract_math(expression)
+        
+        if math_expr == "ERROR":
+            return ToolResult(success=False, output=None, error="Illogical or non-mathematical query.")
+
         try:
-            result = _safe_eval(expression)
+            result = _safe_eval(math_expr)
 
             if math.isnan(result):
                 return ToolResult(success=False, output=None, error="Result is NaN.")
